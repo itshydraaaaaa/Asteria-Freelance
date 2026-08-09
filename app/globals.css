@@ -5,6 +5,7 @@
 @layer base {
   html { scroll-behavior: auto; }
   *, *::before, *::after { box-sizing: border-box; }
+  input, textarea, select { cursor: auto !important; }
   ::selection { background: #60c8d4; color: #0a3a40; }
 
   @keyframes float {

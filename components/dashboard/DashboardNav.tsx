@@ -16,11 +16,12 @@ interface Props {
 }
 
 const COMMON_NAV = [
-  { label: 'Overview',  href: '/dashboard',          Icon: LayoutDashboard },
-  { label: 'Orders',    href: '/dashboard/orders',   Icon: Package },
-  { label: 'Messages',  href: '/dashboard/messages', Icon: MessageSquare },
-  { label: 'Profile',   href: '/dashboard/profile',  Icon: User },
-  { label: 'Settings',  href: '/dashboard/settings', Icon: Settings },
+  { label: 'Overview',      href: '/dashboard',              Icon: LayoutDashboard },
+  { label: 'Verification',  href: '/dashboard/verification',  Icon: ShieldCheck },
+  { label: 'Orders',        href: '/dashboard/orders',       Icon: Package },
+  { label: 'Messages',      href: '/dashboard/messages',     Icon: MessageSquare },
+  { label: 'Profile',       href: '/dashboard/profile',      Icon: User },
+  { label: 'Settings',      href: '/dashboard/settings',     Icon: Settings },
 ]
 
 const FREELANCER_NAV = [

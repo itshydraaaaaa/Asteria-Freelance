@@ -35,29 +35,30 @@ export function CustomCursor() {
     }
     rafId = requestAnimationFrame(tick)
 
-    const onEnter = () => {
-      if (!ringRef.current) return
-      ringRef.current.style.width  = '56px'
-      ringRef.current.style.height = '56px'
-      ringRef.current.style.opacity = '0.5'
-      ringRef.current.style.mixBlendMode = 'difference'
+    const onMouseOver = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null
+      if (!target || !ringRef.current) return
+      const interactive = target.closest('a, button, [data-cursor="hover"]')
+      if (interactive) {
+        ringRef.current.style.width  = '56px'
+        ringRef.current.style.height = '56px'
+        ringRef.current.style.opacity = '0.5'
+        ringRef.current.style.mixBlendMode = 'difference'
+      } else {
+        ringRef.current.style.width  = '36px'
+        ringRef.current.style.height = '36px'
+        ringRef.current.style.opacity = '1'
+        ringRef.current.style.mixBlendMode = 'normal'
+      }
     }
-    const onLeave = () => {
-      if (!ringRef.current) return
-      ringRef.current.style.width  = '36px'
-      ringRef.current.style.height = '36px'
-      ringRef.current.style.opacity = '1'
-      ringRef.current.style.mixBlendMode = 'normal'
-    }
-    const targets = document.querySelectorAll('a, button, [data-cursor="hover"]')
-    targets.forEach(el => { el.addEventListener('mouseenter', onEnter); el.addEventListener('mouseleave', onLeave) })
 
     document.addEventListener('mousemove', onMouseMove)
+    document.addEventListener('mouseover', onMouseOver)
 
     return () => {
       document.removeEventListener('mousemove', onMouseMove)
+      document.removeEventListener('mouseover', onMouseOver)
       cancelAnimationFrame(rafId)
-      targets.forEach(el => { el.removeEventListener('mouseenter', onEnter); el.removeEventListener('mouseleave', onLeave) })
       document.documentElement.classList.remove('cursor-none')
     }
   }, [])

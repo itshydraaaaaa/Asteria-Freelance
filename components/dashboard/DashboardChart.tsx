@@ -6,14 +6,29 @@ import {
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
+interface ChartDataItem {
+  month: string
+  value: number
+}
+
 interface Props {
-  data: number[]
+  data: (number | ChartDataItem)[]
   color?: string
   label?: string
 }
 
 export function DashboardChart({ data, color = '#11606e', label = 'Earnings' }: Props) {
-  const chartData = MONTHS.map((m, i) => ({ month: m, value: data[i] ?? 0 }))
+  const chartData = MONTHS.map((m, i) => {
+    const item = data[i]
+    if (typeof item === 'number') {
+      return { month: m, value: item }
+    }
+    if (item && typeof item === 'object' && 'value' in item) {
+      return { month: item.month ?? m, value: item.value }
+    }
+    return { month: m, value: 0 }
+  })
+
   const gradId = `grad-${color.replace('#', '')}`
 
   return (
@@ -32,7 +47,7 @@ export function DashboardChart({ data, color = '#11606e', label = 'Earnings' }: 
           <YAxis     tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={false} tickLine={false} />
           <Tooltip
             contentStyle={{ background: '#0a3a40', border: 'none', borderRadius: 12, color: '#fff', fontSize: 12 }}
-            formatter={(v: number) => [`$${v.toLocaleString()}`, label]}
+            formatter={(value: any) => [`$${Number(value ?? 0).toLocaleString()}`, label]}
           />
           <Area
             type="monotone" dataKey="value" stroke={color} strokeWidth={2}
@@ -44,3 +59,4 @@ export function DashboardChart({ data, color = '#11606e', label = 'Earnings' }: 
     </div>
   )
 }
+
