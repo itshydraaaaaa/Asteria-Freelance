@@ -1,12 +1,33 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+/**
+ * components/3d/HeroCanvas.tsx — 3D Particle & Wave Grid Engine
+ *
+ * NOTE on RTL / Localization:
+ * Mouse-parallax and particle 3D projection math are cursor-relative and
+ * depth-relative, not text-direction-relative. They must NOT be flipped in RTL.
+ *
+ * Accessibility & Performance (Phase 9):
+ * - aria-hidden="true" applied (decorative canvas, semantic text lives in HeroSection)
+ * - Detects prefers-reduced-motion: reduce and renders static fallback
+ * - Detects mobile hardware/viewport (<768px) and reduces particle count (45 vs 180) + caps frame rate to 30fps
+ */
+
+import { useEffect, useRef, useState } from 'react'
 
 export default function HeroCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const animRef   = useRef<number>(0)
+  const [reducedMotion, setReducedMotion] = useState(false)
 
   useEffect(() => {
+    // Check prefers-reduced-motion
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
+    if (mediaQuery.matches) {
+      setReducedMotion(true)
+      return
+    }
+
     const canvas = canvasRef.current
     if (!canvas) return
     const ctx = canvas.getContext('2d')
@@ -14,6 +35,13 @@ export default function HeroCanvas() {
 
     let width  = (canvas.width = canvas.offsetWidth)
     let height = (canvas.height = canvas.offsetHeight)
+
+    // Mobile performance detection
+    const isMobile = width < 768 || (typeof navigator !== 'undefined' && (navigator.hardwareConcurrency || 4) <= 4)
+    const PARTICLE_COUNT = isMobile ? 45 : 180
+    const TARGET_FPS = isMobile ? 30 : 60
+    const FRAME_INTERVAL = 1000 / TARGET_FPS
+    let lastFrameTime = performance.now()
 
     // Mouse interactive coordinates
     let mouseX = width / 2
@@ -26,10 +54,9 @@ export default function HeroCanvas() {
       targetMouseX = e.clientX - rect.left
       targetMouseY = e.clientY - rect.top
     }
-    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mousemove', handleMouseMove, { passive: true })
 
     // 3D Particles
-    const PARTICLE_COUNT = 180
     const particles = Array.from({ length: PARTICLE_COUNT }, () => ({
       x: (Math.random() - 0.5) * width * 1.5,
       y: (Math.random() - 0.5) * height * 1.5,
@@ -40,12 +67,18 @@ export default function HeroCanvas() {
       hue: 180 + Math.random() * 40,
     }))
 
-    // Grid lines for 3D perspective floor
-    const GRID_SIZE = 40
-    let time = 0
+    const focalLength = 400
 
-    function render() {
+    function render(now: number) {
       if (!ctx) return
+
+      const elapsed = now - lastFrameTime
+      if (elapsed < FRAME_INTERVAL) {
+        animRef.current = requestAnimationFrame(render)
+        return
+      }
+      lastFrameTime = now - (elapsed % FRAME_INTERVAL)
+
       ctx.clearRect(0, 0, width, height)
 
       // Smooth mouse interpolation
@@ -54,7 +87,6 @@ export default function HeroCanvas() {
 
       const centerX = width / 2
       const centerY = height / 2
-      const focalLength = 400
 
       // Render 3D Perspective Wave Grid Floor
       ctx.save()
@@ -62,7 +94,7 @@ export default function HeroCanvas() {
       ctx.lineWidth = 1
 
       const gridY = height * 0.65
-      for (let z = 100; z < 900; z += 50) {
+      for (let z = 100; z < 900; z += isMobile ? 80 : 50) {
         const perspectiveScale = focalLength / z
         const y = gridY + (z - 100) * 0.35 * perspectiveScale
         ctx.beginPath()
@@ -71,7 +103,8 @@ export default function HeroCanvas() {
         ctx.stroke()
       }
 
-      for (let x = -width; x < width * 2; x += 60) {
+      const gridStep = isMobile ? 100 : 60
+      for (let x = -width; x < width * 2; x += gridStep) {
         ctx.beginPath()
         ctx.moveTo(x, gridY)
         ctx.lineTo(centerX + (x - centerX) * 3, height)
@@ -99,21 +132,26 @@ export default function HeroCanvas() {
           ctx.beginPath()
           ctx.arc(projX, projY, projRadius, 0, Math.PI * 2)
           ctx.fillStyle = `hsla(${p.hue}, 80%, 75%, ${p.baseAlpha * Math.min(1, scale)})`
-          ctx.shadowBlur = 12
-          ctx.shadowColor = `hsla(${p.hue}, 80%, 65%, 0.8)`
+          if (!isMobile) {
+            ctx.shadowBlur = 10
+            ctx.shadowColor = `hsla(${p.hue}, 80%, 65%, 0.8)`
+          }
           ctx.fill()
-          ctx.shadowBlur = 0
+          if (!isMobile) {
+            ctx.shadowBlur = 0
+          }
 
-          // Draw constellation connection lines
-          for (let j = i + 1; j < particles.length; j += 6) {
+          // Constellation connection lines (only check a subset for performance)
+          const connectionStep = isMobile ? 10 : 6
+          for (let j = i + 1; j < particles.length; j += connectionStep) {
             const p2 = particles[j]
             const scale2 = focalLength / p2.z
             const projX2 = (p2.x + (mouseX - centerX) * 0.1) * scale2 + centerX
             const projY2 = (p2.y + (mouseY - centerY) * 0.1) * scale2 + centerY
 
             const distSq = (projX - projX2) ** 2 + (projY - projY2) ** 2
-            if (distSq < 110 * 110) {
-              const alpha = (1 - Math.sqrt(distSq) / 110) * 0.15 * scale
+            if (distSq < 100 * 100) {
+              const alpha = (1 - Math.sqrt(distSq) / 100) * 0.15 * scale
               ctx.beginPath()
               ctx.moveTo(projX, projY)
               ctx.lineTo(projX2, projY2)
@@ -125,7 +163,6 @@ export default function HeroCanvas() {
         }
       }
 
-      time += 0.015
       animRef.current = requestAnimationFrame(render)
     }
 
@@ -134,7 +171,7 @@ export default function HeroCanvas() {
       height = canvas.height = canvas.offsetHeight
     }
 
-    window.addEventListener('resize', handleResize)
+    window.addEventListener('resize', handleResize, { passive: true })
     animRef.current = requestAnimationFrame(render)
 
     return () => {
@@ -144,10 +181,21 @@ export default function HeroCanvas() {
     }
   }, [])
 
+  if (reducedMotion) {
+    // Static designed fallback for prefers-reduced-motion
+    return (
+      <div
+        aria-hidden="true"
+        className="w-full h-full bg-gradient-to-b from-[#0a3a40]/30 via-transparent to-[#0a3a40]/80 pointer-events-none"
+      />
+    )
+  }
+
   return (
     <canvas
       ref={canvasRef}
-      className="w-full h-full block bg-transparent"
+      aria-hidden="true"
+      className="w-full h-full block bg-transparent pointer-events-none"
     />
   )
 }

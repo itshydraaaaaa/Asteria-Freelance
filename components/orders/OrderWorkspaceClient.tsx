@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { CheckCircle2, Clock, Upload, Star, AlertTriangle, Send, FileText } from 'lucide-react'
 import { MilestoneTracker } from '@/components/orders/MilestoneTracker'
 import { ReviewSubmissionModal } from '@/components/orders/ReviewSubmissionModal'
+import { EscrowStatusBar } from '@/components/ui/EscrowStatusBar'
 
 interface Props {
   order: any
@@ -81,6 +82,15 @@ export function OrderWorkspaceClient({ order, userId, userRole }: Props) {
 
   return (
     <div className="space-y-6">
+      {/* Sticky Escrow Status Bar */}
+      <div className="-mx-4 -mt-4 sm:-mx-6 sm:-mt-6 rounded-2xl overflow-hidden shadow-sm">
+        <EscrowStatusBar
+          status={status as any}
+          amount={order.amount}
+          currency="TND"
+        />
+      </div>
+
       {/* Milestone Escrow Component */}
       <MilestoneTracker
         orderId={order.id}
@@ -153,7 +163,7 @@ export function OrderWorkspaceClient({ order, userId, userRole }: Props) {
                     onClick={handleComplete}
                     className="flex-1 bg-emerald-600 text-white text-xs font-bold py-2.5 rounded-xl hover:bg-emerald-700 transition-colors shadow-sm"
                   >
-                    Approve Work & Release ${order.amount}
+                    Approve Work & Release {order.amount} TND
                   </button>
                   <button
                     onClick={() => setShowDisputeModal(true)}

@@ -12,8 +12,8 @@ export default async function OrderWorkspacePage({ params }: { params: { id: str
 
   let order = await db.order.findUnique({ where: { id: params.id } })
 
-  // Fallback to sample mock order if new
   if (!order) {
+    // Fallback demo order for testing non-existent IDs
     order = {
       id: params.id,
       gigId: 'g1',
@@ -30,11 +30,12 @@ export default async function OrderWorkspacePage({ params }: { params: { id: str
       },
       buyer: { id: 'c1', name: 'Sami Mansour (Client)' },
       seller: { id: 'f1', name: 'Yassine Khelifi (Freelancer)' },
-    } as any
+    }
   }
 
-  const isBuyer = order.buyerId === userId
-  const isSeller = order.sellerId === userId
+  const currentOrder = order!
+  const isBuyer = currentOrder.buyerId === userId
+  const isSeller = currentOrder.sellerId === userId
   const userRole = isBuyer ? 'BUYER' : 'SELLER'
 
   return (
@@ -46,19 +47,19 @@ export default async function OrderWorkspacePage({ params }: { params: { id: str
               ← Back to My Orders
             </Link>
           </div>
-          <h1 className="font-heading font-bold text-3xl text-black">Order Workspace #{order.id}</h1>
+          <h1 className="font-heading font-bold text-3xl text-black">Order Workspace #{currentOrder.id}</h1>
           <p className="text-ast-gray text-xs mt-1">
-            Escrow Agreement between <strong>{order.buyer?.name}</strong> and <strong>{order.seller?.name}</strong>
+            Escrow Agreement between <strong>{currentOrder.buyer?.name}</strong> and <strong>{currentOrder.seller?.name}</strong>
           </p>
         </div>
         <span className="bg-ast-primary text-white font-bold text-sm px-4 py-2 rounded-2xl shadow-sm">
-          ${order.amount} Escrow Locked
+          ${currentOrder.amount} Escrow Locked
         </span>
       </div>
 
       {/* Interactive Order Workspace Client Component */}
       <OrderWorkspaceClient
-        order={order}
+        order={currentOrder}
         userId={userId}
         userRole={userRole}
       />

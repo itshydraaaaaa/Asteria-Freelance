@@ -1,26 +1,49 @@
 'use client'
 
+/**
+ * components/3d/LogoModel.tsx — 3D Holographic Isometric Graphic
+ *
+ * Accessibility & Motion (Phase 9):
+ * - aria-hidden="true" applied (decorative graphic)
+ * - Detects prefers-reduced-motion and disables continuous rotations
+ * - Formatted for TND (Tunisian Dinar) launch currency
+ */
+
+import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { ShieldCheck, Zap, Users, Award } from 'lucide-react'
+import { ShieldCheck, Zap } from 'lucide-react'
 
 export default function LogoModel() {
-  return (
-    <div className="relative w-full h-full flex items-center justify-center select-none">
-      {/* Ambient Neon Glow Aura */}
-      <div className="absolute w-80 h-80 rounded-full bg-ast-primary/20 blur-3xl animate-pulse pointer-events-none" />
+  const [reducedMotion, setReducedMotion] = useState(false)
 
-      {/* 3D Holographic Orbiting Graphic Container */}
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
+    setReducedMotion(mediaQuery.matches)
+    const handler = (e: MediaQueryListEvent) => setReducedMotion(e.matches)
+    mediaQuery.addEventListener('change', handler)
+    return () => mediaQuery.removeEventListener('change', handler)
+  }, [])
+
+  return (
+    <div
+      aria-hidden="true"
+      className="relative w-full h-full flex items-center justify-center select-none"
+    >
+      {/* Ambient Neon Glow Aura */}
+      <div className="absolute w-80 h-80 rounded-full bg-ast-primary/20 blur-3xl pointer-events-none" />
+
+      {/* 3D Holographic Container */}
       <div className="relative w-72 h-72 sm:w-80 sm:h-80 flex items-center justify-center">
         {/* Outer Orbit Ring */}
         <motion.div
-          animate={{ rotate: 360 }}
+          animate={reducedMotion ? {} : { rotate: 360 }}
           transition={{ duration: 25, repeat: Infinity, ease: 'linear' }}
           className="absolute inset-0 rounded-full border border-ast-primary/30 border-dashed"
         />
 
         {/* Middle Orbit Ring */}
         <motion.div
-          animate={{ rotate: -360 }}
+          animate={reducedMotion ? {} : { rotate: -360 }}
           transition={{ duration: 18, repeat: Infinity, ease: 'linear' }}
           className="absolute inset-4 rounded-full border border-sky-400/25"
         />
@@ -30,7 +53,7 @@ export default function LogoModel() {
           <svg
             viewBox="0 0 200 200"
             className="w-full h-full filter drop-shadow-[0_0_20px_rgba(96,200,212,0.4)]"
-            style={{ animation: 'heroFloat 4s ease-in-out infinite' }}
+            style={reducedMotion ? {} : { animation: 'heroFloat 4s ease-in-out infinite' }}
           >
             <defs>
               <linearGradient id="pyrGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -48,7 +71,14 @@ export default function LogoModel() {
 
             {/* Glowing Core Orb */}
             <circle cx="100" cy="100" r="28" fill="#60c8d4" opacity="0.3" filter="url(#glowBlur)" />
-            <circle cx="100" cy="100" r="14" fill="#60c8d4" opacity="0.9" style={{ animation: 'pulseCore 2s ease-in-out infinite' }} />
+            <circle
+              cx="100"
+              cy="100"
+              r="14"
+              fill="#60c8d4"
+              opacity="0.9"
+              style={reducedMotion ? {} : { animation: 'pulseCore 2s ease-in-out infinite' }}
+            />
 
             {/* Outer 3D Diamond / Pyramid Prism Mesh */}
             <polygon points="100,20 170,100 100,180" fill="url(#pyrGrad1)" stroke="#60c8d4" strokeWidth="1.5" />
@@ -63,10 +93,10 @@ export default function LogoModel() {
           </svg>
         </div>
 
-        {/* 3D Floating Glassmorphic Status Pill 1 — Escrow Secured */}
+        {/* 3D Floating Status Pill 1 — Escrow Secured */}
         <motion.div
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: [0, -8, 0], opacity: 1 }}
+          initial={{ y: 0, opacity: 1 }}
+          animate={reducedMotion ? {} : { y: [0, -8, 0] }}
           transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
           className="absolute -top-4 -left-6 bg-black/60 backdrop-blur-xl border border-ast-primary/40 rounded-2xl px-4 py-2.5 shadow-2xl flex items-center gap-3 z-30"
         >
@@ -75,14 +105,14 @@ export default function LogoModel() {
           </div>
           <div>
             <p className="text-[10px] uppercase font-mono tracking-wider text-white/60">Escrow Protected</p>
-            <p className="text-xs font-bold text-white">$2.4M+ Paid Out</p>
+            <p className="text-xs font-bold text-white">7.5M+ TND Paid Out</p>
           </div>
         </motion.div>
 
-        {/* 3D Floating Glassmorphic Status Pill 2 — Verified Talent */}
+        {/* 3D Floating Status Pill 2 — Instant Delivery */}
         <motion.div
-          initial={{ y: -20, opacity: 0 }}
-          animate={{ y: [0, 10, 0], opacity: 1 }}
+          initial={{ y: 0, opacity: 1 }}
+          animate={reducedMotion ? {} : { y: [0, 10, 0] }}
           transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
           className="absolute -bottom-4 -right-6 bg-black/60 backdrop-blur-xl border border-sky-400/40 rounded-2xl px-4 py-2.5 shadow-2xl flex items-center gap-3 z-30"
         >

@@ -4,25 +4,23 @@
  * Sends email notifications for time-sensitive platform events.
  * The in-app bell dropdown remains the primary notification surface;
  * email is a backup channel for events users must not miss.
- *
- * Setup:
- *   1. Register at https://resend.com (free tier covers early-stage volume)
- *   2. Add RESEND_API_KEY and RESEND_FROM_EMAIL to .env.local
  */
 
-// Soft import — email is non-critical and must never crash the main flow
-let resend: any = null
+let resendClient: any = null
 
 async function getResendClient() {
-  if (resend) return resend
+  if (resendClient) return resendClient
+  if (!process.env.RESEND_API_KEY) return null
+
   try {
-    const { Resend } = await import('resend')
-    resend = new Resend(process.env.RESEND_API_KEY)
+    // Dynamic import to prevent build-time static resolution issues
+    const resendPkg = 'resend'
+    const { Resend } = await import(/* webpackIgnore: true */ resendPkg)
+    resendClient = new Resend(process.env.RESEND_API_KEY)
   } catch {
-    console.warn('[email] resend package not installed. Run: npm install resend')
-    resend = null
+    resendClient = null
   }
-  return resend
+  return resendClient
 }
 
 export type EmailEvent =
@@ -60,14 +58,14 @@ function renderTemplate(event: EmailEvent, data: Record<string, any>): { subject
 
   const templates: Record<EmailEvent, { subject: string; body: string }> = {
     ORDER_PLACED: {
-      subject: `New Order — ${data.gigTitle ?? 'Service'} ($${data.amount})`,
+      subject: `New Order — ${data.gigTitle ?? 'Service'} (${data.amount} TND)`,
       body: `
         <h2 style="color:#0a3a40">You have a new order! 🎉</h2>
         <p style="color:#374151"><strong>${data.buyerName}</strong> has placed an order for your service.</p>
         <div style="background:#fff;border-radius:8px;padding:16px;margin:16px 0;">
           <p><strong>Service:</strong> ${data.gigTitle}</p>
-          <p><strong>Amount in Escrow:</strong> $${data.amount}</p>
-          <p><strong>Your Net Payout:</strong> $${(data.amount * 0.85).toFixed(2)} (85%)</p>
+          <p><strong>Amount in Escrow:</strong> ${data.amount} TND</p>
+          <p><strong>Your Net Payout:</strong> ${(data.amount * 0.85).toFixed(2)} TND (85%)</p>
         </div>
         <a href="https://asteria.com/dashboard/orders/${data.orderId}" style="background:#11606e;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;display:inline-block;">View Order →</a>
       `,
@@ -83,10 +81,10 @@ function renderTemplate(event: EmailEvent, data: Record<string, any>): { subject
     },
 
     ORDER_COMPLETED: {
-      subject: `Payment Released — $${data.netPayout ?? data.amount * 0.85} Credited to Your Wallet`,
+      subject: `Payment Released — ${data.netPayout ?? data.amount * 0.85} TND Credited to Your Wallet`,
       body: `
         <h2 style="color:#0a3a40">Payment received! 💰</h2>
-        <p style="color:#374151"><strong>$${data.netPayout ?? (data.amount * 0.85).toFixed(2)}</strong> has been credited to your Asteria wallet.</p>
+        <p style="color:#374151"><strong>${data.netPayout ?? (data.amount * 0.85).toFixed(2)} TND</strong> has been credited to your Asteria wallet.</p>
         <a href="https://asteria.com/dashboard" style="background:#11606e;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;display:inline-block;">View Wallet →</a>
       `,
     },
@@ -125,16 +123,16 @@ function renderTemplate(event: EmailEvent, data: Record<string, any>): { subject
       subject: `Milestone Funded — Start Working on "${data.milestoneTitle}"`,
       body: `
         <h2 style="color:#0a3a40">Milestone funded! 🚀</h2>
-        <p style="color:#374151"><strong>${data.milestoneTitle}</strong> ($${data.milestoneAmount}) has been funded and is in escrow. Begin work and submit when ready.</p>
+        <p style="color:#374151"><strong>${data.milestoneTitle}</strong> (${data.milestoneAmount} TND) has been funded and is in escrow. Begin work and submit when ready.</p>
         <a href="https://asteria.com/dashboard/orders/${data.orderId}" style="background:#11606e;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;display:inline-block;">View Milestone →</a>
       `,
     },
 
     MILESTONE_RELEASED: {
-      subject: `Milestone Payment — $${data.netPayout} Credited to Wallet`,
+      subject: `Milestone Payment — ${data.netPayout} TND Credited to Wallet`,
       body: `
         <h2 style="color:#0a3a40">Milestone payment released! 💸</h2>
-        <p style="color:#374151"><strong>$${data.netPayout}</strong> (85% net) has been credited for milestone: <em>${data.milestoneTitle}</em>.</p>
+        <p style="color:#374151"><strong>${data.netPayout} TND</strong> (85% net) has been credited for milestone: <em>${data.milestoneTitle}</em>.</p>
         <a href="https://asteria.com/dashboard" style="background:#11606e;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;display:inline-block;">View Wallet →</a>
       `,
     },
@@ -148,10 +146,6 @@ function renderTemplate(event: EmailEvent, data: Record<string, any>): { subject
 }
 
 // ─── sendEmail ────────────────────────────────────────────────────────────────
-/**
- * Sends a platform notification email via Resend.
- * Always non-blocking — email failures NEVER break the main request flow.
- */
 export async function sendEmail({ to, event, data }: EmailPayload): Promise<void> {
   if (!process.env.RESEND_API_KEY || !to) return
 
@@ -168,7 +162,6 @@ export async function sendEmail({ to, event, data }: EmailPayload): Promise<void
       html,
     })
   } catch (err) {
-    // Non-critical — log but do not throw
     console.error(`[email] Failed to send ${event} to ${to}:`, err)
   }
 }

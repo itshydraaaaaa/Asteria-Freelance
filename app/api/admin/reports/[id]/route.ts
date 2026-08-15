@@ -47,16 +47,18 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     // ── Real Chat Transcript ─────────────────────────────────────────────
     // Fetch actual messages between reporter and the other party
     let chatTranscript: any[] = []
-    if (report.targetType === 'ORDER' && dealLogs?.buyer && dealLogs?.seller) {
+    const buyer = dealLogs?.buyer
+    const seller = dealLogs?.seller
+    if (report.targetType === 'ORDER' && buyer && seller) {
       chatTranscript = await db.message.findMany({
-        where: { userId: dealLogs.buyer.id }
+        where: { userId: buyer.id }
       }).then(msgs => msgs
         .filter((m: any) =>
-          (m.senderId === dealLogs.buyer.id && m.receiverId === dealLogs.seller.id) ||
-          (m.senderId === dealLogs.seller.id && m.receiverId === dealLogs.buyer.id)
+          (m.senderId === buyer.id && m.receiverId === seller.id) ||
+          (m.senderId === seller.id && m.receiverId === buyer.id)
         )
         .map((m: any) => ({
-          sender:  m.senderId === dealLogs.buyer.id ? dealLogs.buyer.name : dealLogs.seller.name,
+          sender:  m.senderId === buyer.id ? buyer.name : seller.name,
           text:    m.content,
           time:    m.createdAt,
           msgType: m.msgType,

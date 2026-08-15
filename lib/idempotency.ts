@@ -81,8 +81,7 @@ export async function save(
       endpoint,
       user_id: userId ?? null,
       result,
-    })
-    .onConflict('idempotency_key')
+    }, { onConflict: 'idempotency_key' })
 }
 
 // ─── withIdempotency ─────────────────────────────────────────────────────────
@@ -90,12 +89,6 @@ export async function save(
  * Higher-order helper that wraps an async function with idempotency checking.
  * If the key was already processed, returns cached result immediately.
  * Otherwise executes fn() and caches the result.
- *
- * @example
- * const result = await withIdempotency(idempotencyKey, endpoint, userId, async () => {
- *   // fund-moving logic
- *   return { success: true, ... }
- * })
  */
 export async function withIdempotency<T>(
   key: string | null | undefined,

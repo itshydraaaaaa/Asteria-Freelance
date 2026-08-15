@@ -1,4 +1,15 @@
 'use client'
+
+/**
+ * components/cursor/CustomCursor.tsx — Custom Animated Cursor
+ *
+ * Accessibility (Phase 9):
+ * - Checks for touchscreens and pointer: coarse
+ * - Degrades gracefully for users with prefers-reduced-motion: reduce
+ * - Never traps keyboard focus (pointer-events-none)
+ * - Automatically removed on keyboard tab navigation to maintain native focus indicators
+ */
+
 import { useEffect, useRef } from 'react'
 
 export function CustomCursor() {
@@ -7,7 +18,12 @@ export function CustomCursor() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return
-    if (navigator.maxTouchPoints > 0) return
+
+    // Don't activate on touchscreens or when reduced motion is preferred
+    const hasTouch = navigator.maxTouchPoints > 0 || window.matchMedia('(pointer: coarse)').matches
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+    if (hasTouch || prefersReducedMotion) return
 
     document.documentElement.classList.add('cursor-none')
 
@@ -26,8 +42,8 @@ export function CustomCursor() {
 
     let rafId: number
     const tick = () => {
-      rx = lerp(rx, mx, 0.1)
-      ry = lerp(ry, my, 0.1)
+      rx = lerp(rx, mx, 0.15)
+      ry = lerp(ry, my, 0.15)
       if (ringRef.current) {
         ringRef.current.style.transform = `translate(${rx - 18}px, ${ry - 18}px)`
       }
@@ -40,8 +56,8 @@ export function CustomCursor() {
       if (!target || !ringRef.current) return
       const interactive = target.closest('a, button, [data-cursor="hover"]')
       if (interactive) {
-        ringRef.current.style.width  = '56px'
-        ringRef.current.style.height = '56px'
+        ringRef.current.style.width  = '52px'
+        ringRef.current.style.height = '52px'
         ringRef.current.style.opacity = '0.5'
         ringRef.current.style.mixBlendMode = 'difference'
       } else {
@@ -52,12 +68,23 @@ export function CustomCursor() {
       }
     }
 
-    document.addEventListener('mousemove', onMouseMove)
-    document.addEventListener('mouseover', onMouseOver)
+    // If user starts tabbing (keyboard user), restore native cursor
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Tab') {
+        document.documentElement.classList.remove('cursor-none')
+        if (dotRef.current) dotRef.current.style.display = 'none'
+        if (ringRef.current) ringRef.current.style.display = 'none'
+      }
+    }
+
+    document.addEventListener('mousemove', onMouseMove, { passive: true })
+    document.addEventListener('mouseover', onMouseOver, { passive: true })
+    document.addEventListener('keydown', onKeyDown)
 
     return () => {
       document.removeEventListener('mousemove', onMouseMove)
       document.removeEventListener('mouseover', onMouseOver)
+      document.removeEventListener('keydown', onKeyDown)
       cancelAnimationFrame(rafId)
       document.documentElement.classList.remove('cursor-none')
     }
@@ -67,11 +94,13 @@ export function CustomCursor() {
     <>
       <div
         ref={dotRef}
+        aria-hidden="true"
         className="pointer-events-none fixed top-0 left-0 z-[9999] w-2 h-2 rounded-full bg-ast-light"
         style={{ transition: 'none' }}
       />
       <div
         ref={ringRef}
+        aria-hidden="true"
         className="pointer-events-none fixed top-0 left-0 z-[9998] w-9 h-9 rounded-full border-[1.5px] border-ast-light"
         style={{ transition: 'width 0.2s, height 0.2s, opacity 0.2s' }}
       />
