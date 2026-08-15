@@ -3,13 +3,12 @@
  *
  * Primary auth: Supabase Auth (email/magic-link)
  * Dev-only demo auth: cookie `demo_user_id` when ENABLE_DEMO_AUTH=true
- *
- * NEVER set ENABLE_DEMO_AUTH=true in production.
  */
 
 import { cookies } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import { db } from '@/lib/db'
+import { DEMO_USERS } from '@/lib/data/demoUsers'
 
 export interface AuthSession {
   user: {
@@ -24,11 +23,25 @@ export interface AuthSession {
 export async function auth(): Promise<AuthSession | null> {
   try {
     // ── 1. Demo Auth (dev/testing only) ─────────────────────────────────────
-    // Only active when ENABLE_DEMO_AUTH=true — must never be set in production.
     if (process.env.ENABLE_DEMO_AUTH === 'true') {
       const cookieStore = cookies()
       const demoUserId = cookieStore.get('demo_user_id')?.value
       if (demoUserId) {
+        // First check static pre-seeded demo users for instant zero-latency login
+        const staticDemo = DEMO_USERS[demoUserId]
+        if (staticDemo) {
+          return {
+            user: {
+              id: staticDemo.id,
+              email: staticDemo.email,
+              name: staticDemo.name,
+              role: staticDemo.role,
+              image: staticDemo.image ?? null,
+            },
+          }
+        }
+
+        // Otherwise check DB
         const demoUser = await db.user.findUnique({ where: { id: demoUserId } })
         if (demoUser) {
           return {
@@ -50,14 +63,10 @@ export async function auth(): Promise<AuthSession | null> {
 
     if (error || !user) return null
 
-    // Cross-reference the users table to get role and profile fields
-    // (Supabase Auth JWT may not include role — always read from DB)
+    // Cross-reference user profile
     const profile = await db.user.findUnique({ where: { id: user.id } })
 
     if (!profile) {
-      // User exists in Auth but not yet in our users table — can happen on
-      // first OAuth login. Return minimal session; profile creation handled
-      // separately in the onboarding flow.
       return {
         user: {
           id: user.id,

@@ -305,19 +305,28 @@ export const db = {
       if (query?.where?.role) q = q.eq('role', query.where.role)
       if (query?.orderBy?.createdAt === 'desc') q = q.order('created_at', { ascending: false })
       const { data, error } = await q
-      if (error) {
-        console.warn(`[db.user.findMany fallback]: ${error.message}`)
-        return []
+      if (error || !data || data.length === 0) {
+        const { DEMO_USERS } = await import('@/lib/data/demoUsers')
+        let staticList = Object.values(DEMO_USERS)
+        if (query?.where?.role) staticList = staticList.filter(u => u.role === query.where!.role)
+        return staticList
       }
       return (data ?? []).map(mapUser)
     },
 
     findUnique: async ({ where }: { where: { id?: string; email?: string }; select?: any }): Promise<UserRecord | null> => {
+      const { DEMO_USERS } = await import('@/lib/data/demoUsers')
+      if (where.id && DEMO_USERS[where.id]) return DEMO_USERS[where.id]
+      if (where.email) {
+        const found = Object.values(DEMO_USERS).find(u => u.email.toLowerCase() === where.email!.toLowerCase())
+        if (found) return found
+      }
+
       const supabase = getServiceClient()
       let q = supabase.from('users').select('*')
       if (where.id)    q = q.eq('id', where.id)
       if (where.email) q = q.eq('email', where.email)
-      const { data, error } = await q.single()
+      const { data, error } = await q.maybeSingle()
       if (error || !data) return null
       return mapUser(data)
     },

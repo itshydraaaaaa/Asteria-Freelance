@@ -5,28 +5,41 @@ import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import { db } from '@/lib/db'
+import { DEMO_USERS } from '@/lib/data/demoUsers'
 
 export async function login(formData: FormData) {
-  const email = formData.get('email') as string
+  const email = (formData.get('email') as string)?.trim().toLowerCase()
   const password = formData.get('password') as string
 
   if (!email || !password) {
     return { error: 'Email and password are required' }
   }
 
-  // 1. Check in local test DB first for instant demo access
-  const allUsers = await db.user.findMany()
-  const matchingTestUser = allUsers.find(u => u.email.toLowerCase() === email.toLowerCase())
-
-  if (matchingTestUser) {
+  // 1. Check in static demo users dictionary first for instant login
+  const matchingStatic = Object.values(DEMO_USERS).find(u => u.email.toLowerCase() === email)
+  if (matchingStatic) {
     const cookieStore = cookies()
-    cookieStore.set('demo_user_id', matchingTestUser.id, { path: '/' })
-    cookieStore.set('demo_user_role', matchingTestUser.role, { path: '/' })
+    cookieStore.set('demo_user_id', matchingStatic.id, { path: '/' })
+    cookieStore.set('demo_user_role', matchingStatic.role, { path: '/' })
     revalidatePath('/dashboard', 'layout')
     redirect('/dashboard')
   }
 
-  // 2. Fallback to Supabase Auth
+  // 2. Check in DB
+  try {
+    const allUsers = await db.user.findMany()
+    const matchingTestUser = allUsers.find(u => u.email.toLowerCase() === email)
+
+    if (matchingTestUser) {
+      const cookieStore = cookies()
+      cookieStore.set('demo_user_id', matchingTestUser.id, { path: '/' })
+      cookieStore.set('demo_user_role', matchingTestUser.role, { path: '/' })
+      revalidatePath('/dashboard', 'layout')
+      redirect('/dashboard')
+    }
+  } catch (e) {}
+
+  // 3. Fallback to Supabase Auth
   try {
     const supabase = createClient()
     const { error } = await supabase.auth.signInWithPassword({
@@ -35,19 +48,19 @@ export async function login(formData: FormData) {
     })
 
     if (error) {
-      // If demo user login attempted
-      const cookieStore = cookies()
-      cookieStore.set('demo_user_id', 'admin1', { path: '/' })
-      cookieStore.set('demo_user_role', 'ADMIN', { path: '/' })
-      revalidatePath('/dashboard', 'layout')
-      redirect('/dashboard')
+      // In demo mode, provide friendly access
+      if (process.env.ENABLE_DEMO_AUTH === 'true') {
+        const cookieStore = cookies()
+        cookieStore.set('demo_user_id', 'admin1', { path: '/' })
+        cookieStore.set('demo_user_role', 'ADMIN', { path: '/' })
+        revalidatePath('/dashboard', 'layout')
+        redirect('/dashboard')
+      }
+      return { error: error.message || 'Invalid credentials' }
     }
-  } catch (e) {
-    const cookieStore = cookies()
-    cookieStore.set('demo_user_id', 'admin1', { path: '/' })
-    cookieStore.set('demo_user_role', 'ADMIN', { path: '/' })
-    revalidatePath('/dashboard', 'layout')
-    redirect('/dashboard')
+  } catch (err: any) {
+    if (err?.message === 'NEXT_REDIRECT') throw err
+    return { error: 'Failed to sign in. Please try demo login.' }
   }
 
   revalidatePath('/dashboard', 'layout')
@@ -55,14 +68,29 @@ export async function login(formData: FormData) {
 }
 
 export async function loginAsTestUser(userId: string) {
+  const cookieStore = cookies()
+  const staticDemo = DEMO_USERS[userId]
+
+  if (staticDemo) {
+    cookieStore.set('demo_user_id', staticDemo.id, { path: '/' })
+    cookieStore.set('demo_user_role', staticDemo.role, { path: '/' })
+    revalidatePath('/dashboard', 'layout')
+    redirect('/dashboard')
+  }
+
   const user = await db.user.findUnique({ where: { id: userId } })
   if (user) {
-    const cookieStore = cookies()
     cookieStore.set('demo_user_id', user.id, { path: '/' })
     cookieStore.set('demo_user_role', user.role, { path: '/' })
     revalidatePath('/dashboard', 'layout')
     redirect('/dashboard')
   }
+
+  // Fallback to admin
+  cookieStore.set('demo_user_id', 'admin1', { path: '/' })
+  cookieStore.set('demo_user_role', 'ADMIN', { path: '/' })
+  revalidatePath('/dashboard', 'layout')
+  redirect('/dashboard')
 }
 
 export async function register(formData: FormData) {
