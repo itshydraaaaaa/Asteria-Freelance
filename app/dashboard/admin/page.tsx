@@ -12,13 +12,14 @@ export default async function AdminPage() {
     redirect('/dashboard')
   }
 
-  const [users, orders, gigs, verifications, logs, reports] = await Promise.all([
+  const [users, orders, gigs, verifications, logs, reports, withdrawals] = await Promise.all([
     db.user.findMany({ orderBy: { createdAt: 'desc' } }).catch(() => []),
     db.order.findMany({ orderBy: { createdAt: 'desc' }, take: 20 }).catch(() => []),
     db.gig.findMany({ orderBy: { createdAt: 'desc' }, take: 20 }).catch(() => []),
     db.verification.findMany({ orderBy: { submittedAt: 'desc' } }).catch(() => []),
     db.auditLog.findMany().catch(() => []),
     db.report.findMany().catch(() => []),
+    db.withdrawal.findMany().catch(() => []),
   ])
 
   return (
@@ -29,6 +30,7 @@ export default async function AdminPage() {
       initialVerifications={verifications}
       initialLogs={logs}
       initialReports={reports}
+      initialWithdrawals={withdrawals}
     />
   )
 }

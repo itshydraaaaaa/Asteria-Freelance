@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import {
   Shield, UserCheck, DollarSign, FileText, Flag, History, CheckCircle2,
-  XCircle, Search, ArrowUpRight, ArrowDownLeft, Eye, AlertCircle, Edit3, Lock, ShieldCheck, MessageSquare
+  XCircle, Search, ArrowUpRight, ArrowDownLeft, Eye, AlertCircle, Edit3, Lock, ShieldCheck, MessageSquare, Wallet
 } from 'lucide-react'
 
 interface Props {
@@ -13,6 +13,7 @@ interface Props {
   initialVerifications: any[]
   initialLogs: any[]
   initialReports: any[]
+  initialWithdrawals?: any[]
 }
 
 const ROLE_BADGE: Record<string, string> = {
@@ -39,8 +40,9 @@ export function AdminClient({
   initialVerifications,
   initialLogs,
   initialReports,
+  initialWithdrawals = [],
 }: Props) {
-  const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'VERIFICATIONS' | 'USERS' | 'LOGS' | 'REPORTS'>('OVERVIEW')
+  const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'WITHDRAWALS' | 'VERIFICATIONS' | 'USERS' | 'LOGS' | 'REPORTS'>('OVERVIEW')
 
   // State
   const [users, setUsers] = useState<any[]>(initialUsers)
@@ -49,6 +51,7 @@ export function AdminClient({
   const [verifications, setVerifications] = useState<any[]>(initialVerifications)
   const [logs, setLogs] = useState<any[]>(initialLogs)
   const [reports, setReports] = useState<any[]>(initialReports)
+  const [withdrawals, setWithdrawals] = useState<any[]>(initialWithdrawals)
 
   // Search
   const [userSearch, setUserSearch] = useState('')
@@ -208,6 +211,44 @@ export function AdminClient({
 
   const pendingVerifsCount = verifications.filter(v => v.status === 'PENDING').length
   const pendingReportsCount = reports.filter(r => r.status === 'PENDING').length
+  const pendingWithdrawalsCount = withdrawals.filter(w => w.status === 'PENDING').length
+
+  // Withdrawal Rejection Modal State
+  const [rejectingWithdrawal, setRejectingWithdrawal] = useState<any>(null)
+  const [withdrawalRejectionNotes, setWithdrawalRejectionNotes] = useState('')
+  const [withdrawalFilter, setWithdrawalFilter] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED'>('ALL')
+
+  const handleWithdrawalDecision = async (id: string, action: 'APPROVE' | 'REJECT', notes?: string) => {
+    try {
+      const res = await fetch('/api/admin/withdrawals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, action, adminNotes: notes }),
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to process payout')
+
+      setWithdrawals(prev => prev.map(w => w.id === id ? { ...w, status: action === 'APPROVE' ? 'APPROVED' : 'REJECTED', adminNotes: notes } : w))
+      
+      // Refresh audit logs
+      const logRes = await fetch('/api/admin/logs')
+      if (logRes.ok) {
+        const logData = await logRes.json()
+        setLogs(logData.logs)
+      }
+
+      showToast(data.message || `Payout request marked as ${action}!`)
+      setRejectingWithdrawal(null)
+      setWithdrawalRejectionNotes('')
+    } catch (err: any) {
+      alert(err.message)
+    }
+  }
+
+  const filteredWithdrawals = withdrawals.filter(w =>
+    withdrawalFilter === 'ALL' ? true : w.status === withdrawalFilter
+  )
 
   return (
     <div className="space-y-8">
@@ -226,7 +267,7 @@ export function AdminClient({
           </div>
           <div>
             <h1 className="font-heading font-bold text-3xl text-black">Master Admin Command</h1>
-            <p className="text-ast-gray text-xs">Manage users, account balances (solde), KYC identity approvals, reports & audit logs</p>
+            <p className="text-ast-gray text-xs">Manage users, account balances (solde), KYC identity approvals, payouts & dispute reports</p>
           </div>
         </div>
       </div>
@@ -235,6 +276,7 @@ export function AdminClient({
       <div className="flex flex-wrap items-center gap-2 border-b border-black/8 pb-4">
         {[
           { id: 'OVERVIEW',       label: 'Overview',              Icon: Shield,       badge: null },
+          { id: 'WITHDRAWALS',   label: 'Payout Requests',       Icon: Wallet,       badge: pendingWithdrawalsCount },
           { id: 'VERIFICATIONS', label: 'KYC Verifications',     Icon: UserCheck,    badge: pendingVerifsCount },
           { id: 'USERS',         label: 'Users & Balance (Solde)', Icon: DollarSign,   badge: users.length },
           { id: 'LOGS',          label: 'Admin Audit Logs',      Icon: History,      badge: logs.length },
@@ -265,12 +307,13 @@ export function AdminClient({
       {/* TAB 1: OVERVIEW */}
       {activeTab === 'OVERVIEW' && (
         <div className="space-y-8">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
             {[
               { label: 'Total Users',     value: String(users.length), sub: `${users.filter(u => u.role === 'FREELANCER').length} freelancers`, color: 'border-l-ast-primary' },
-              { label: 'Pending KYC',     value: String(pendingVerifsCount), sub: 'Awaiting admin review', color: 'border-l-amber-500' },
-              { label: 'Open Reports',    value: String(pendingReportsCount), sub: 'Flagged items', color: 'border-l-red-500' },
-              { label: 'Total Audit Logs', value: String(logs.length), sub: 'Administrative events', color: 'border-l-ast-dark' },
+              { label: 'Pending Payouts', value: String(pendingWithdrawalsCount), sub: 'Awaiting transfer', color: 'border-l-emerald-600' },
+              { label: 'Pending KYC',     value: String(pendingVerifsCount), sub: 'Awaiting ID review', color: 'border-l-amber-500' },
+              { label: 'Open Reports',    value: String(pendingReportsCount), sub: 'Flagged disputes', color: 'border-l-red-500' },
+              { label: 'Audit Events',    value: String(logs.length), sub: 'System audit logs', color: 'border-l-ast-dark' },
             ].map((s, i) => (
               <div key={i} className={`bg-white rounded-2xl border border-black/8 p-5 border-l-[4px] ${s.color}`}>
                 <p className="text-ast-gray text-xs uppercase tracking-wider mb-1">{s.label}</p>
@@ -342,6 +385,128 @@ export function AdminClient({
                 </div>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB: PAYOUT & WITHDRAWAL REQUESTS QUEUE */}
+      {activeTab === 'WITHDRAWALS' && (
+        <div className="bg-white rounded-2xl border border-black/8 overflow-hidden shadow-sm space-y-4">
+          <div className="px-6 py-5 border-b border-black/8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h2 className="font-semibold text-black text-lg flex items-center gap-2">
+                <Wallet size={20} className="text-emerald-600" /> Freelancer Payout & Withdrawal Requests
+              </h2>
+              <p className="text-ast-gray text-xs">Review bank accounts, Flouci transfers, and approve disbursements</p>
+            </div>
+            
+            {/* Filter Pills */}
+            <div className="flex items-center gap-2">
+              {(['ALL', 'PENDING', 'APPROVED', 'REJECTED'] as const).map(f => (
+                <button
+                  key={f}
+                  onClick={() => setWithdrawalFilter(f)}
+                  className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
+                    withdrawalFilter === f
+                      ? 'bg-ast-dark text-white'
+                      : 'bg-ast-surface text-ast-gray hover:text-black border border-black/10'
+                  }`}
+                >
+                  {f === 'ALL' ? 'All Requests' : f}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-black/8 text-left text-ast-gray text-xs uppercase tracking-wider bg-ast-surface/50">
+                  <th className="px-5 py-3 font-semibold">Freelancer</th>
+                  <th className="px-5 py-3 font-semibold">Amount (TND)</th>
+                  <th className="px-5 py-3 font-semibold">Payout Method</th>
+                  <th className="px-5 py-3 font-semibold">Destination Account / RIB</th>
+                  <th className="px-5 py-3 font-semibold">Status</th>
+                  <th className="px-5 py-3 font-semibold">Requested Date</th>
+                  <th className="px-5 py-3 font-semibold text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-black/5">
+                {filteredWithdrawals.map(w => (
+                  <tr key={w.id} className="hover:bg-ast-surface/40 transition-colors">
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-ast-primary text-white flex items-center justify-center text-xs font-bold shrink-0">
+                          {w.user?.name?.[0] ?? 'F'}
+                        </div>
+                        <div>
+                          <p className="font-semibold text-black">{w.user?.name ?? `Freelancer (${w.userId})`}</p>
+                          <p className="text-xs text-ast-gray">{w.user?.email}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-5 py-4">
+                      <span className="font-heading font-bold text-base text-emerald-700">
+                        {w.amount} TND
+                      </span>
+                    </td>
+                    <td className="px-5 py-4">
+                      <span className="inline-block px-2.5 py-1 rounded-lg text-xs font-semibold bg-ast-surface border border-black/10 text-black">
+                        {w.method}
+                      </span>
+                    </td>
+                    <td className="px-5 py-4">
+                      <p className="text-xs font-mono font-medium text-black bg-ast-surface px-2.5 py-1 rounded-lg border border-black/5 max-w-xs truncate">
+                        {w.accountDetails}
+                      </p>
+                    </td>
+                    <td className="px-5 py-4">
+                      <span className={`inline-block text-[11px] font-bold rounded-full px-2.5 py-0.5 ${STATUS_BADGE[w.status] ?? ''}`}>
+                        {w.status}
+                      </span>
+                      {w.adminNotes && (
+                        <p className="text-[10px] text-ast-gray mt-1 truncate max-w-[140px]" title={w.adminNotes}>
+                          {w.adminNotes}
+                        </p>
+                      )}
+                    </td>
+                    <td className="px-5 py-4 text-xs text-ast-gray">
+                      {new Date(w.createdAt).toLocaleDateString()}
+                    </td>
+                    <td className="px-5 py-4 text-right">
+                      {w.status === 'PENDING' ? (
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => handleWithdrawalDecision(w.id, 'APPROVE')}
+                            className="px-3.5 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-semibold hover:bg-emerald-700 shadow-sm transition-colors"
+                          >
+                            Approve & Mark Transferred
+                          </button>
+                          <button
+                            onClick={() => setRejectingWithdrawal(w)}
+                            className="px-3 py-1.5 bg-white border border-red-200 text-red-600 rounded-lg text-xs font-semibold hover:bg-red-50 transition-colors"
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-ast-gray font-medium">
+                          {w.status === 'APPROVED' ? '✓ Processed' : '✗ Rejected'}
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+
+                {filteredWithdrawals.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="py-12 text-center text-ast-gray text-sm">
+                      No withdrawal requests matching the selected filter.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
@@ -901,6 +1066,57 @@ export function AdminClient({
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: WITHDRAWAL REJECTION REASON */}
+      {rejectingWithdrawal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-black/10 space-y-4">
+            <h3 className="font-heading font-bold text-xl text-red-600 flex items-center gap-2">
+              <AlertCircle size={20} /> Reject Payout Request
+            </h3>
+            <p className="text-ast-gray text-xs">
+              Provide a clear reason for rejecting the {rejectingWithdrawal.amount} TND payout to <strong>{rejectingWithdrawal.user?.name ?? 'Freelancer'}</strong>. Funds will remain in the freelancer's wallet.
+            </p>
+
+            <form
+              onSubmit={e => {
+                e.preventDefault()
+                handleWithdrawalDecision(rejectingWithdrawal.id, 'REJECT', withdrawalRejectionNotes)
+              }}
+              className="space-y-4"
+            >
+              <div>
+                <label className="block text-xs font-semibold text-ast-dark mb-1">Rejection Reason *</label>
+                <textarea
+                  rows={3}
+                  required
+                  placeholder="e.g. Invalid bank RIB number, name mismatch with bank account, or KYC documentation pending..."
+                  value={withdrawalRejectionNotes}
+                  onChange={e => setWithdrawalRejectionNotes(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border border-black/15 text-xs outline-none focus:border-red-500 resize-none"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setRejectingWithdrawal(null)}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-ast-gray hover:bg-ast-surface"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!withdrawalRejectionNotes.trim()}
+                  className="px-5 py-2 rounded-xl text-xs font-semibold bg-red-600 text-white hover:bg-red-700 transition-colors shadow-sm disabled:opacity-50"
+                >
+                  Confirm Rejection
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
