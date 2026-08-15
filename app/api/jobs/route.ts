@@ -1,57 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { auth }          from '@/lib/auth'
+import { db }            from '@/lib/db'
+import { requireRole }   from '@/lib/authz'
+import { rateLimit }     from '@/lib/rateLimit'
 
 export async function GET(req: NextRequest) {
   try {
-    const supabase = createClient()
     const { searchParams } = new URL(req.url)
     const category = searchParams.get('category')
     const search   = searchParams.get('q')
-    const page     = parseInt(searchParams.get('page') ?? '1', 10)
-    const limit    = parseInt(searchParams.get('limit') ?? '12', 10)
     const status   = searchParams.get('status') ?? 'OPEN'
 
-    // 1. Build the Supabase query
-    // We join the client (User table) and count the proposals simultaneously
-    let query = supabase
-      .from('Job')
-      .select('*, client:User!clientId(name, image), proposals:Proposal(count)', { count: 'exact' })
-      .eq('status', status)
-      .order('createdAt', { ascending: false })
+    const jobs = await db.job.findMany({ where: { status } })
 
-    // 2. Add filters if they exist
-    if (category) {
-      query = query.eq('category', category)
-    }
-    if (search) {
-      query = query.ilike('title', `%${search}%`) // ilike does case-insensitive text search in Postgres
-    }
+    let result = jobs
+    if (category) result = result.filter((j) => j.category?.toLowerCase() === category.toLowerCase())
+    if (search)   result = result.filter((j) => j.title?.toLowerCase().includes(search.toLowerCase()))
 
-    // 3. Add pagination
-    const from = (page - 1) * limit
-    const to = from + limit - 1
-    query = query.range(from, to)
-
-    // 4. Execute the query
-    const { data: jobs, count, error } = await query
-
-    if (error) throw error
-
-    const total = count ?? 0
-
-    // 5. Format the data perfectly so your frontend UI components don't break
-    const formattedJobs = jobs?.map((job: any) => ({
-      ...job,
-      client: Array.isArray(job.client) ? job.client[0] : job.client,
-      _count: { proposals: job.proposals?.[0]?.count ?? 0 }
-    })) ?? []
-
-    return NextResponse.json({ 
-      jobs: formattedJobs, 
-      total, 
-      page, 
-      totalPages: Math.ceil(total / limit) 
-    })
+    return NextResponse.json({ jobs: result, total: result.length, page: 1, totalPages: 1 })
   } catch (err) {
     console.error('GET /api/jobs:', err)
     return NextResponse.json({ error: 'Failed to load jobs' }, { status: 500 })
@@ -60,40 +26,44 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const supabase = createClient()
-    
-    // Authenticate the user securely via Supabase cookies
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const session = await auth()
+
+    // ── Server-side authorization: CLIENT role required ──────────────────────
+    const authzError = requireRole(session, 'CLIENT')
+    if (authzError) return authzError
+
+    // ── Rate limiting: 3 job posts per minute per user ───────────────────────
+    const rateLimited = await rateLimit(session!.user.id, '/api/jobs')
+    if (rateLimited) return rateLimited
 
     const body = await req.json()
     const { title, description, category, budget, deliveryDays, skills } = body
 
     if (!title || !description || !category || !budget) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+      return NextResponse.json({ error: 'Missing required fields: title, description, category, budget' }, { status: 400 })
     }
 
-    const formattedSkills = Array.isArray(skills) 
-      ? skills 
+    const numericBudget = parseFloat(budget)
+    if (isNaN(numericBudget) || numericBudget <= 0) {
+      return NextResponse.json({ error: 'Budget must be a positive number' }, { status: 400 })
+    }
+
+    const formattedSkills = Array.isArray(skills)
+      ? skills
       : skills?.split(',').map((s: string) => s.trim()).filter(Boolean) ?? []
 
-    // Insert the new job securely 
-    const { data: job, error } = await supabase
-      .from('Job')
-      .insert({
+    const job = await db.job.create({
+      data: {
         title,
         description,
         category,
-        budget: parseFloat(budget),
+        budget: numericBudget,
         deliveryDays: parseInt(deliveryDays ?? 7, 10),
         skills: formattedSkills,
-        clientId: user.id,
-        status: 'OPEN'
-      })
-      .select()
-      .single()
-
-    if (error) throw error
+        clientId: session!.user.id,
+        status: 'OPEN',
+      }
+    })
 
     return NextResponse.json(job, { status: 201 })
   } catch (err) {

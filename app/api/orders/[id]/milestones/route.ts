@@ -1,53 +1,101 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
-import { db }   from '@/lib/db'
+import { auth }                    from '@/lib/auth'
+import { db }                      from '@/lib/db'
+import { requireOrderParty, requireOrderBuyer, requireOrderSeller } from '@/lib/authz'
+import { processMilestoneRelease }  from '@/lib/ledger'
+import { withIdempotency }          from '@/lib/idempotency'
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     const session = await auth()
-    const userId = session?.user?.id
-    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-    const body = await req.json()
-    const { action, milestoneId } = body // action: 'FUND' | 'SUBMIT' | 'RELEASE'
 
     const order = await db.order.findUnique({ where: { id: params.id } })
     if (!order) return NextResponse.json({ error: 'Order not found' }, { status: 404 })
 
-    let milestones = order.milestones ?? [
-      { id: 'ms_1', title: 'Milestone 1: Wireframes & System Architecture', percentage: 30, amount: order.amount * 0.3, status: 'FUNDED' },
-      { id: 'ms_2', title: 'Milestone 2: Frontend Implementation & Integration', percentage: 40, amount: order.amount * 0.4, status: 'PENDING' },
-      { id: 'ms_3', title: 'Milestone 3: Testing, Quality Assurance & Launch', percentage: 30, amount: order.amount * 0.3, status: 'PENDING' },
-    ]
+    // ── Server-side authorization: must be buyer or seller on this order ─────
+    const authzError = requireOrderParty(session, order)
+    if (authzError) return authzError
 
-    const targetIdx = milestones.findIndex((m: any) => m.id === milestoneId)
-    if (targetIdx !== -1) {
-      if (action === 'FUND') {
-        milestones[targetIdx].status = 'FUNDED'
-      } else if (action === 'SUBMIT') {
-        milestones[targetIdx].status = 'SUBMITTED'
-      } else if (action === 'RELEASE') {
-        milestones[targetIdx].status = 'RELEASED'
-        // Credit seller wallet with net payout for this milestone
-        const seller = await db.user.findUnique({ where: { id: order.sellerId } })
-        if (seller) {
-          const netMilestonePayout = milestones[targetIdx].amount * 0.85
-          await db.user.update({
-            where: { id: order.sellerId },
-            data: { walletBalance: seller.walletBalance + netMilestonePayout }
-          })
-        }
-      }
+    const body = await req.json()
+    const { action, milestoneId } = body as {
+      action: 'FUND' | 'SUBMIT' | 'RELEASE'
+      milestoneId: string
     }
 
-    const updatedOrder = await db.order.update({
-      where: { id: params.id },
-      data: { milestones }
-    })
+    if (!action || !milestoneId) {
+      return NextResponse.json({ error: 'action and milestoneId are required' }, { status: 400 })
+    }
 
-    return NextResponse.json({ order: updatedOrder, message: `Milestone status updated to ${action}!` })
+    // ── Role enforcement per action ──────────────────────────────────────────
+    // Only BUYER can FUND or RELEASE; only SELLER can SUBMIT
+    if ((action === 'FUND' || action === 'RELEASE') && session!.user.id !== order.buyerId) {
+      return NextResponse.json(
+        { error: 'Forbidden: only the buyer can fund or release milestones' },
+        { status: 403 }
+      )
+    }
+    if (action === 'SUBMIT' && session!.user.id !== order.sellerId) {
+      return NextResponse.json(
+        { error: 'Forbidden: only the seller can submit milestone deliverables' },
+        { status: 403 }
+      )
+    }
+
+    const milestone = await db.milestone.findUnique({ where: { id: milestoneId } })
+    if (!milestone || milestone.orderId !== params.id) {
+      return NextResponse.json({ error: 'Milestone not found on this order' }, { status: 404 })
+    }
+
+    // ── Idempotency key from request header ──────────────────────────────────
+    const idempotencyKey = req.headers.get('Idempotency-Key') ?? undefined
+
+    const result = await withIdempotency(
+      idempotencyKey,
+      `/api/orders/[id]/milestones:${action}`,
+      session!.user.id,
+      async () => {
+        // Map action to next status
+        const nextStatus: Record<string, 'FUNDED' | 'SUBMITTED' | 'RELEASED'> = {
+          FUND: 'FUNDED', SUBMIT: 'SUBMITTED', RELEASE: 'RELEASED',
+        }
+
+        const updatedMilestone = await db.milestone.update({
+          where: { id: milestoneId },
+          data: { status: nextStatus[action] },
+        })
+
+        let netPayout: number | undefined
+        if (action === 'RELEASE') {
+          // Process ledger payout for this milestone (85% net)
+          netPayout = await processMilestoneRelease(
+            order.id,
+            milestoneId,
+            order.sellerId,
+            milestone.amount
+          )
+
+          await db.auditLog.create({
+            data: {
+              adminId: 'system',
+              adminName: 'Escrow Engine',
+              action: 'MILESTONE_FUNDS_RELEASED',
+              targetId: order.id,
+              details: `Released $${netPayout} for milestone "${milestone.title}" on order ${order.id}`,
+            }
+          })
+        }
+
+        return {
+          milestone: updatedMilestone,
+          netPayout,
+          message: `Milestone ${action === 'FUND' ? 'funded' : action === 'SUBMIT' ? 'submitted for review' : 'payment released'} successfully.`,
+        }
+      }
+    )
+
+    return NextResponse.json(result)
   } catch (err) {
-    console.error('POST /api/orders/[id]/milestones error:', err)
+    console.error('POST /api/orders/[id]/milestones:', err)
     return NextResponse.json({ error: 'Failed to update milestone' }, { status: 500 })
   }
 }

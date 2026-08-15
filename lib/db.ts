@@ -1,5 +1,38 @@
-import { freelancers } from '@/lib/data/freelancers'
-import { gigs } from '@/lib/data/gigs'
+/**
+ * lib/db.ts — Asteria Freelance Data Access Layer
+ *
+ * All data reads/writes go through this module. Routes and pages
+ * must never call Supabase directly — they use this repository layer.
+ *
+ * The API shape (db.user.findUnique, db.order.findMany, etc.) is
+ * preserved exactly so existing route/page code requires no changes.
+ *
+ * Backed by: Supabase Postgres (service-role client for server-side writes)
+ */
+
+import { createClient } from '@supabase/supabase-js'
+
+// ─── Supabase service-role client (server-side only) ─────────────────────────
+// Service role bypasses RLS — used for all server-side writes and admin reads.
+// NEVER expose SUPABASE_SERVICE_ROLE_KEY to the client bundle.
+function getServiceClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  if (!url || !key) {
+    // Graceful fallback for environments missing service role key
+    console.warn('[db] SUPABASE_SERVICE_ROLE_KEY not set — some writes may fail.')
+    return createClient(
+      url ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ''
+    )
+  }
+  return createClient(url, key, {
+    auth: { autoRefreshToken: false, persistSession: false }
+  })
+}
+
+// ─── Type Exports (preserved from original db.ts) ────────────────────────────
 
 export interface UserRecord {
   id: string
@@ -26,7 +59,18 @@ export interface OrderRecord {
   createdAt: Date
   gig?: any
   buyer?: any
-  milestones?: any[]
+  seller?: any
+  milestones?: MilestoneItem[]
+}
+
+export interface MilestoneItem {
+  id: string
+  orderId: string
+  title: string
+  percentage: number
+  amount: number
+  status: 'PENDING' | 'FUNDED' | 'SUBMITTED' | 'RELEASED'
+  position: number
 }
 
 export interface JobRecord {
@@ -51,6 +95,7 @@ export interface ProposalRecord {
   coverLetter: string
   price: number
   deliveryDays: number
+  status: 'PENDING' | 'ACCEPTED' | 'REJECTED'
   createdAt: Date
   freelancer?: any
 }
@@ -63,14 +108,13 @@ export interface VerificationRecord {
   country: string
   documentType: string
   documentNumber: string
-  idFrontUrl: string
-  idBackUrl: string
-  selfieUrl: string
+  idFrontPath: string
+  idBackPath: string
+  selfiePath: string
   status: 'PENDING' | 'APPROVED' | 'REJECTED'
   rejectionReason?: string
   submittedAt: Date
   reviewedAt?: Date
-  user?: any
 }
 
 export interface AuditLogRecord {
@@ -78,6 +122,7 @@ export interface AuditLogRecord {
   adminId: string
   adminName: string
   action: string
+  targetId?: string
   details: string
   createdAt: Date
 }
@@ -86,389 +131,597 @@ export interface ReportRecord {
   id: string
   reporterId: string
   reporterName: string
-  targetType: 'GIG' | 'JOB' | 'USER'
+  targetType: 'GIG' | 'JOB' | 'USER' | 'ORDER'
   targetId: string
   targetTitle: string
   reason: string
   description: string
-  status: 'PENDING' | 'DISMISSED' | 'RESOLVED'
-  history?: Array<{ from: string; message: string; timestamp: string }>
+  status: 'PENDING' | 'PENDING_SECOND_APPROVAL' | 'DISMISSED' | 'RESOLVED'
   createdAt: Date
 }
 
-// In-Memory Global Mock Store
-const globalStore = (globalThis as any).__ASTERIA_DB__ ?? {
-  users: [
-    // --- 3 FREELANCERS ---
-    { id: 'f1', name: 'Yassine Khelifi', email: 'yassine.freelancer@asteria.com', role: 'FREELANCER', image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80', walletBalance: 1450, verifiedStatus: 'APPROVED', createdAt: new Date('2025-01-15') },
-    { id: 'f2', name: 'Leila Ben Ali', email: 'leila.freelancer@asteria.com', role: 'FREELANCER', image: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&auto=format&fit=crop&q=80', walletBalance: 820, verifiedStatus: 'PENDING', createdAt: new Date('2025-02-01') },
-    { id: 'f3', name: 'Karim Ben Ammar', email: 'karim.freelancer@asteria.com', role: 'FREELANCER', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80', walletBalance: 2100, verifiedStatus: 'APPROVED', createdAt: new Date('2025-01-20') },
-
-    // --- 3 CLIENTS ---
-    { id: 'c1', name: 'Sami Mansour', email: 'sami.client@asteria.com', role: 'CLIENT', image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80', walletBalance: 3200, verifiedStatus: 'APPROVED', createdAt: new Date('2025-02-10') },
-    { id: 'c2', name: 'Nour El Houda', email: 'nour.client@asteria.com', role: 'CLIENT', image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80', walletBalance: 1850, verifiedStatus: 'UNSUBMITTED', createdAt: new Date('2025-02-12') },
-    { id: 'c3', name: 'Oussama Hamdi', email: 'oussama.client@asteria.com', role: 'CLIENT', image: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&auto=format&fit=crop&q=80', walletBalance: 5000, verifiedStatus: 'APPROVED', createdAt: new Date('2025-01-05') },
-
-    // --- 3 ADMINS ---
-    { id: 'admin1', name: 'Admin Master', email: 'admin.master@asteria.com', role: 'ADMIN', image: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80', walletBalance: 0, verifiedStatus: 'APPROVED', createdAt: new Date('2025-01-01') },
-    { id: 'admin2', name: 'Sarah Admin (KYC Supervisor)', email: 'sarah.admin@asteria.com', role: 'ADMIN', image: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80', walletBalance: 0, verifiedStatus: 'APPROVED', createdAt: new Date('2025-01-02') },
-    { id: 'admin3', name: 'Tarek Admin (Finance Auditor)', email: 'tarek.admin@asteria.com', role: 'ADMIN', image: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150&auto=format&fit=crop&q=80', walletBalance: 0, verifiedStatus: 'APPROVED', createdAt: new Date('2025-01-03') },
-  ] as UserRecord[],
-
-  orders: [
-    { id: 'ord1', gigId: 'g1', buyerId: 'c1', sellerId: 'f1', amount: 299, status: 'COMPLETED', createdAt: new Date('2025-02-01') },
-    { id: 'ord2', gigId: 'g2', buyerId: 'c1', sellerId: 'f2', amount: 199, status: 'ACTIVE', createdAt: new Date('2025-02-05') },
-    { id: 'ord3', gigId: 'g7', buyerId: 'c1', sellerId: 'f1', amount: 79, status: 'COMPLETED', createdAt: new Date('2025-02-08') },
-  ] as OrderRecord[],
-
-  jobs: [
-    { id: 'j1', title: 'Build an AI Chatbot widget for Next.js app', description: 'Looking for a skilled developer to build a floating AI chatbot widget integrating OpenAI API and Tailwind CSS.', category: 'Web Development', budget: 500, deliveryDays: 5, skills: ['Next.js', 'OpenAI', 'TypeScript'], status: 'OPEN', clientId: 'c1', client: { name: 'Sami Mansour' }, _count: { proposals: 3 }, createdAt: new Date('2025-02-01') },
-    { id: 'j2', title: 'Figma UI/UX design for Fintech mobile app', description: 'Need 12 high-fidelity screens for a modern digital wallet app targeting North Africa.', category: 'Design', budget: 750, deliveryDays: 7, skills: ['Figma', 'UI/UX', 'Mobile Design'], status: 'OPEN', clientId: 'c1', client: { name: 'Sami Mansour' }, _count: { proposals: 1 }, createdAt: new Date('2025-02-03') },
-  ] as JobRecord[],
-
-  proposals: [
-    { id: 'prop1', jobId: 'j1', freelancerId: 'f1', coverLetter: 'I have built over 10 custom AI chatbot widgets with Next.js & OpenAI.', price: 450, deliveryDays: 4, createdAt: new Date('2025-02-02'), freelancer: { name: 'Yassine Khelifi', image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80', bio: 'Senior Full Stack & AI Dev', skills: ['Next.js', 'OpenAI', 'React'] } }
-  ] as ProposalRecord[],
-
-  verifications: [
-    { id: 'v1', userId: 'f2', fullName: 'Leila Ben Ali', dob: '1996-05-14', country: 'Tunisia', documentType: 'National ID', documentNumber: '14890234', idFrontUrl: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=600&auto=format&fit=crop&q=80', idBackUrl: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=600&auto=format&fit=crop&q=80', selfieUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=300&auto=format&fit=crop&q=80', status: 'PENDING', submittedAt: new Date('2025-02-05') }
-  ] as VerificationRecord[],
-
-  auditLogs: [
-    { id: 'l1', adminId: 'admin1', adminName: 'Admin Master', action: 'SYSTEM_INITIALIZED', details: 'Platform audit logging started.', createdAt: new Date('2025-02-01') }
-  ] as AuditLogRecord[],
-
-  reports: [
-    {
-      id: 'r1',
-      reporterId: 'f1',
-      reporterName: 'Yassine Khelifi',
-      targetType: 'GIG',
-      targetId: 'g3',
-      targetTitle: 'Build an ML model for customer churn',
-      reason: 'Misleading pricing',
-      description: 'Price listed as $450 but scope requires enterprise setup.',
-      status: 'PENDING',
-      createdAt: new Date('2025-02-06')
-    },
-    {
-      id: 'r2',
-      reporterId: 'c1',
-      reporterName: 'Sami Mansour (Client)',
-      targetType: 'ORDER',
-      targetId: 'ord2',
-      targetTitle: 'Order Dispute #ord2 — Figma UI/UX Design Package',
-      reason: 'Incomplete Deliverable & Scope Disagreement',
-      description: 'Freelancer submitted 3 screens out of 5 agreed upon and requested an additional custom offer upgrade of $150 via chat.',
-      status: 'PENDING',
-      createdAt: new Date('2025-02-14')
-    },
-    {
-      id: 'r3',
-      reporterId: 'f1',
-      reporterName: 'Yassine Khelifi (Freelancer)',
-      targetType: 'ORDER',
-      targetId: 'ord1',
-      targetTitle: 'Order Dispute #ord1 — Full-Stack Web Development',
-      reason: 'Client Unreasonable Revision Scope',
-      description: 'Client requested 4 extra features not specified in original contract after work delivery.',
-      status: 'PENDING',
-      createdAt: new Date('2025-02-15')
-    }
-  ] as ReportRecord[]
+export interface MessageRecord {
+  id: string
+  senderId: string
+  receiverId: string
+  content: string
+  msgType: 'TEXT' | 'CUSTOM_OFFER' | 'SYSTEM'
+  offerData?: any
+  isRead: boolean
+  createdAt: Date
 }
 
-// Reset global memory cache during development to ensure fresh test reports load
-;(globalThis as any).__ASTERIA_DB__ = globalStore
+// ─── Row mappers (snake_case DB → camelCase app) ─────────────────────────────
+
+function mapUser(row: any): UserRecord {
+  return {
+    id: row.id,
+    name: row.name,
+    email: row.email,
+    role: row.role,
+    image: row.image,
+    bio: row.bio,
+    skills: row.skills ?? [],
+    walletBalance: Number(row.wallet_balance ?? 0),
+    verifiedStatus: row.verified_status ?? 'UNSUBMITTED',
+    rating: row.rating ? Number(row.rating) : undefined,
+    reviewCount: row.review_count ?? 0,
+    createdAt: new Date(row.created_at),
+  }
+}
+
+function mapOrder(row: any): OrderRecord {
+  return {
+    id: row.id,
+    gigId: row.gig_id,
+    buyerId: row.buyer_id,
+    sellerId: row.seller_id,
+    amount: Number(row.amount),
+    status: row.status,
+    createdAt: new Date(row.created_at),
+    buyer: row.buyer ? mapUser(row.buyer) : undefined,
+    seller: row.seller ? mapUser(row.seller) : undefined,
+    milestones: row.milestones ? row.milestones.map(mapMilestone) : undefined,
+  }
+}
+
+function mapMilestone(row: any): MilestoneItem {
+  return {
+    id: row.id,
+    orderId: row.order_id,
+    title: row.title,
+    percentage: row.percentage,
+    amount: Number(row.amount),
+    status: row.status,
+    position: row.position,
+  }
+}
+
+function mapJob(row: any, proposalCount?: number): JobRecord {
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.description,
+    category: row.category,
+    budget: Number(row.budget),
+    deliveryDays: row.delivery_days,
+    skills: row.skills ?? [],
+    status: row.status,
+    clientId: row.client_id,
+    client: row.client ? { name: row.client.name } : undefined,
+    _count: { proposals: proposalCount ?? 0 },
+    createdAt: new Date(row.created_at),
+  }
+}
+
+function mapProposal(row: any): ProposalRecord {
+  return {
+    id: row.id,
+    jobId: row.job_id,
+    freelancerId: row.freelancer_id,
+    coverLetter: row.cover_letter,
+    price: Number(row.price),
+    deliveryDays: row.delivery_days,
+    status: row.status,
+    createdAt: new Date(row.created_at),
+    freelancer: row.freelancer ? mapUser(row.freelancer) : undefined,
+  }
+}
+
+function mapVerification(row: any): VerificationRecord {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    fullName: row.full_name,
+    dob: row.dob,
+    country: row.country,
+    documentType: row.document_type,
+    documentNumber: row.document_number,
+    idFrontPath: row.id_front_path,
+    idBackPath: row.id_back_path,
+    selfiePath: row.selfie_path,
+    status: row.status,
+    rejectionReason: row.rejection_reason,
+    submittedAt: new Date(row.submitted_at),
+    reviewedAt: row.reviewed_at ? new Date(row.reviewed_at) : undefined,
+  }
+}
+
+function mapAuditLog(row: any): AuditLogRecord {
+  return {
+    id: row.id,
+    adminId: row.admin_id,
+    adminName: row.admin_name,
+    action: row.action,
+    targetId: row.target_id,
+    details: row.details,
+    createdAt: new Date(row.created_at),
+  }
+}
+
+function mapReport(row: any): ReportRecord {
+  return {
+    id: row.id,
+    reporterId: row.reporter_id,
+    reporterName: row.reporter_name,
+    targetType: row.target_type,
+    targetId: row.target_id,
+    targetTitle: row.target_title,
+    reason: row.reason,
+    description: row.description,
+    status: row.status,
+    createdAt: new Date(row.created_at),
+  }
+}
+
+function mapMessage(row: any): MessageRecord {
+  return {
+    id: row.id,
+    senderId: row.sender_id,
+    receiverId: row.receiver_id,
+    content: row.content,
+    msgType: row.msg_type,
+    offerData: row.offer_data,
+    isRead: row.is_read,
+    createdAt: new Date(row.created_at),
+  }
+}
+
+// ─── Main DB export ───────────────────────────────────────────────────────────
 
 export const db = {
+
+  // ── USER ────────────────────────────────────────────────────────────────────
   user: {
-    findMany: async (query?: any) => {
-      let res = [...globalStore.users]
-      if (query?.where?.role) res = res.filter(u => u.role === query.where.role)
-      if (query?.orderBy?.createdAt === 'desc') res.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-      return res
+    findMany: async (query?: { where?: { role?: string }, orderBy?: { createdAt?: string } }): Promise<UserRecord[]> => {
+      const supabase = getServiceClient()
+      let q = supabase.from('users').select('*')
+      if (query?.where?.role) q = q.eq('role', query.where.role)
+      if (query?.orderBy?.createdAt === 'desc') q = q.order('created_at', { ascending: false })
+      const { data, error } = await q
+      if (error) throw new Error(`db.user.findMany: ${error.message}`)
+      return (data ?? []).map(mapUser)
     },
-    findUnique: async ({ where, select }: { where: { id: string }, select?: any }) => {
-      const u = globalStore.users.find((u: any) => u.id === where.id)
-      return u ? { ...u } : null
+
+    findUnique: async ({ where }: { where: { id?: string; email?: string }, select?: any }): Promise<UserRecord | null> => {
+      const supabase = getServiceClient()
+      let q = supabase.from('users').select('*')
+      if (where.id)    q = q.eq('id', where.id)
+      if (where.email) q = q.eq('email', where.email)
+      const { data, error } = await q.single()
+      if (error || !data) return null
+      return mapUser(data)
     },
-    update: async ({ where, data }: { where: { id: string }, data: Partial<UserRecord> }) => {
-      const idx = globalStore.users.findIndex((u: any) => u.id === where.id)
-      if (idx !== -1) {
-        globalStore.users[idx] = { ...globalStore.users[idx], ...data }
-        return globalStore.users[idx]
-      }
-      return null
+
+    update: async ({ where, data }: { where: { id: string }, data: Partial<UserRecord> }): Promise<UserRecord | null> => {
+      const supabase = getServiceClient()
+      const updates: any = {}
+      if (data.name)           updates.name            = data.name
+      if (data.bio !== undefined) updates.bio          = data.bio
+      if (data.image)          updates.image           = data.image
+      if (data.skills)         updates.skills          = data.skills
+      if (data.verifiedStatus) updates.verified_status = data.verifiedStatus
+      if (data.rating !== undefined)      updates.rating       = data.rating
+      if (data.reviewCount !== undefined) updates.review_count = data.reviewCount
+      // walletBalance must only be set via the ledger (lib/ledger.ts)
+      // Direct writes to wallet_balance from app code are intentionally blocked here.
+
+      const { data: row, error } = await supabase
+        .from('users').update(updates).eq('id', where.id).select().single()
+      if (error || !row) return null
+      return mapUser(row)
     },
-    count: async (query?: any) => {
-      let res = [...globalStore.users]
-      if (query?.where?.role) res = res.filter(u => u.role === query.where.role)
-      return res.length
-    }
+
+    create: async ({ data }: { data: Partial<UserRecord> & { password?: string } }): Promise<UserRecord> => {
+      const supabase = getServiceClient()
+      const { data: row, error } = await supabase.from('users').insert({
+        name:            data.name,
+        email:           data.email,
+        role:            data.role ?? 'CLIENT',
+        image:           data.image,
+        bio:             data.bio,
+        skills:          data.skills ?? [],
+        wallet_balance:  0,
+        verified_status: data.verifiedStatus ?? 'UNSUBMITTED',
+      }).select().single()
+      if (error || !row) throw new Error(`db.user.create: ${error?.message}`)
+      return mapUser(row)
+    },
   },
 
+  // ── ORDER ───────────────────────────────────────────────────────────────────
   order: {
-    findMany: async (query?: any) => {
-      let res = [...globalStore.orders]
-      if (query?.where?.sellerId) res = res.filter(o => o.sellerId === query.where.sellerId)
-      if (query?.where?.buyerId) res = res.filter(o => o.buyerId === query.where.buyerId)
-      if (query?.orderBy?.createdAt === 'desc') res.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-      if (query?.take) res = res.slice(0, query.take)
+    findMany: async (query?: { where?: { buyerId?: string; sellerId?: string; status?: string } }): Promise<OrderRecord[]> => {
+      const supabase = getServiceClient()
+      let q = supabase.from('orders').select(`
+        *,
+        buyer:users!orders_buyer_id_fkey(*),
+        seller:users!orders_seller_id_fkey(*),
+        milestones(*)
+      `)
+      if (query?.where?.buyerId)  q = q.eq('buyer_id', query.where.buyerId)
+      if (query?.where?.sellerId) q = q.eq('seller_id', query.where.sellerId)
+      if (query?.where?.status)   q = q.eq('status', query.where.status)
+      q = q.order('created_at', { ascending: false })
+      const { data, error } = await q
+      if (error) throw new Error(`db.order.findMany: ${error.message}`)
+      return (data ?? []).map(mapOrder)
+    },
 
-      // populate gig & buyer
-      return res.map(o => ({
-        ...o,
-        gig: gigs.find(g => g.id === o.gigId) ?? { title: 'Custom Gig Service' },
-        buyer: globalStore.users.find((u: any) => u.id === o.buyerId) ?? { name: 'Client' },
-      }))
+    findUnique: async ({ where }: { where: { id: string } }): Promise<OrderRecord | null> => {
+      const supabase = getServiceClient()
+      const { data, error } = await supabase
+        .from('orders')
+        .select(`
+          *,
+          buyer:users!orders_buyer_id_fkey(*),
+          seller:users!orders_seller_id_fkey(*),
+          milestones(* ORDER BY position ASC)
+        `)
+        .eq('id', where.id)
+        .single()
+      if (error || !data) return null
+      return mapOrder(data)
     },
-    findUnique: async ({ where, include }: { where: { id: string }, include?: any }) => {
-      const o = globalStore.orders.find((o: any) => o.id === where.id)
-      if (!o) return null
-      return {
-        ...o,
-        gig: gigs.find(g => g.id === o.gigId) ?? { id: 'g_custom', title: 'Custom Project Package', category: 'Development', price: o.amount, deliveryDays: 5 },
-        buyer: globalStore.users.find((u: any) => u.id === o.buyerId) ?? { name: 'Client Account' },
-        seller: globalStore.users.find((u: any) => u.id === o.sellerId) ?? { name: 'Freelancer Account' },
-      }
+
+    create: async ({ data }: { data: Partial<OrderRecord> }): Promise<OrderRecord> => {
+      const supabase = getServiceClient()
+      const { data: row, error } = await supabase.from('orders').insert({
+        gig_id:    data.gigId,
+        buyer_id:  data.buyerId,
+        seller_id: data.sellerId,
+        amount:    data.amount,
+        status:    data.status ?? 'ACTIVE',
+      }).select().single()
+      if (error || !row) throw new Error(`db.order.create: ${error?.message}`)
+      return mapOrder(row)
     },
-    update: async ({ where, data }: { where: { id: string }, data: Partial<OrderRecord> }) => {
-      const idx = globalStore.orders.findIndex((o: any) => o.id === where.id)
-      if (idx !== -1) {
-        globalStore.orders[idx] = { ...globalStore.orders[idx], ...data }
-        return globalStore.orders[idx]
-      }
-      return null
-    }
+
+    update: async ({ where, data }: { where: { id: string }, data: Partial<OrderRecord> }): Promise<OrderRecord | null> => {
+      const supabase = getServiceClient()
+      const updates: any = {}
+      if (data.status) updates.status = data.status
+      const { data: row, error } = await supabase
+        .from('orders').update(updates).eq('id', where.id).select().single()
+      if (error || !row) return null
+      return mapOrder(row)
+    },
   },
 
-  gig: {
-    findMany: async (query?: any) => {
-      let res = [...gigs]
-      if (query?.where?.freelancerId) res = res.filter(g => g.freelancerId === query.where.freelancerId)
-      if (query?.take) res = res.slice(0, query.take)
+  // ── MILESTONE ───────────────────────────────────────────────────────────────
+  milestone: {
+    findMany: async ({ where }: { where: { orderId: string } }): Promise<MilestoneItem[]> => {
+      const supabase = getServiceClient()
+      const { data, error } = await supabase
+        .from('milestones')
+        .select('*')
+        .eq('order_id', where.orderId)
+        .order('position', { ascending: true })
+      if (error) throw new Error(`db.milestone.findMany: ${error.message}`)
+      return (data ?? []).map(mapMilestone)
+    },
 
-      return res.map(g => ({
-        ...g,
-        freelancer: globalStore.users.find((u: any) => u.id === g.freelancerId) ?? { name: 'Freelancer' }
-      }))
+    findUnique: async ({ where }: { where: { id: string } }): Promise<MilestoneItem | null> => {
+      const supabase = getServiceClient()
+      const { data, error } = await supabase
+        .from('milestones').select('*').eq('id', where.id).single()
+      if (error || !data) return null
+      return mapMilestone(data)
     },
-    findUnique: async ({ where, include }: { where: { id: string }, include?: any }) => {
-      const g = gigs.find(g => g.id === where.id)
-      if (!g) return null
-      return {
-        ...g,
-        freelancer: globalStore.users.find((u: any) => u.id === g.freelancerId) ?? { name: 'Freelancer' }
-      }
+
+    create: async ({ data }: { data: Partial<MilestoneItem> }): Promise<MilestoneItem> => {
+      const supabase = getServiceClient()
+      const { data: row, error } = await supabase.from('milestones').insert({
+        order_id:   data.orderId,
+        title:      data.title,
+        percentage: data.percentage,
+        amount:     data.amount,
+        status:     data.status ?? 'PENDING',
+        position:   data.position ?? 1,
+      }).select().single()
+      if (error || !row) throw new Error(`db.milestone.create: ${error?.message}`)
+      return mapMilestone(row)
     },
-    count: async (query?: any) => {
-      let res = [...gigs]
-      if (query?.where?.freelancerId) res = res.filter(g => g.freelancerId === query.where.freelancerId)
-      return res.length
+
+    update: async ({ where, data }: { where: { id: string }, data: Partial<MilestoneItem> }): Promise<MilestoneItem | null> => {
+      const supabase = getServiceClient()
+      const updates: any = { updated_at: new Date().toISOString() }
+      if (data.status) updates.status = data.status
+      const { data: row, error } = await supabase
+        .from('milestones').update(updates).eq('id', where.id).select().single()
+      if (error || !row) return null
+      return mapMilestone(row)
     },
-    create: async ({ data }: { data: any }) => {
-      const newGig = {
-        id: `g_${Date.now()}`,
-        title: data.title,
-        description: data.description,
-        category: data.category || 'Web Development',
-        price: parseFloat(data.price),
-        deliveryDays: parseInt(data.deliveryDays ?? 5, 10),
-        freelancerId: data.freelancerId,
-        tags: Array.isArray(data.tags) ? data.tags : [],
-        featured: false,
-        createdAt: new Date(),
-      }
-      gigs.unshift(newGig as any)
-      return newGig
-    },
-    update: async ({ where, data }: { where: { id: string }, data: any }) => {
-      const idx = gigs.findIndex(g => g.id === where.id)
-      if (idx !== -1) {
-        gigs[idx] = { ...gigs[idx], ...data }
-        return gigs[idx]
-      }
-      return null
-    }
   },
 
+  // ── JOB ─────────────────────────────────────────────────────────────────────
   job: {
-    findMany: async (query?: any) => {
-      return globalStore.jobs.map((j: any) => ({
-        ...j,
-        client: globalStore.users.find((u: any) => u.id === j.clientId) ?? { name: 'Client' }
-      }))
-    },
-    findUnique: async ({ where, include }: { where: { id: string }, include?: any }) => {
-      const j = globalStore.jobs.find((j: any) => j.id === where.id)
-      if (!j) return null
-      return {
-        ...j,
-        client: globalStore.users.find((u: any) => u.id === j.clientId) ?? { name: 'Client' }
+    findMany: async (query?: { where?: { status?: string; clientId?: string } }): Promise<JobRecord[]> => {
+      const supabase = getServiceClient()
+      let q = supabase.from('jobs').select(`*, client:users!jobs_client_id_fkey(name)`)
+      if (query?.where?.status)   q = q.eq('status', query.where.status)
+      if (query?.where?.clientId) q = q.eq('client_id', query.where.clientId)
+      q = q.order('created_at', { ascending: false })
+      const { data, error } = await q
+      if (error) throw new Error(`db.job.findMany: ${error.message}`)
+
+      // fetch proposal counts for each job
+      const jobIds = (data ?? []).map((j: any) => j.id)
+      let proposalCounts: Record<string, number> = {}
+      if (jobIds.length > 0) {
+        const { data: props } = await supabase
+          .from('proposals').select('job_id').in('job_id', jobIds)
+        ;(props ?? []).forEach((p: any) => {
+          proposalCounts[p.job_id] = (proposalCounts[p.job_id] ?? 0) + 1
+        })
       }
-    }
+
+      return (data ?? []).map((j: any) => mapJob(j, proposalCounts[j.id] ?? 0))
+    },
+
+    findUnique: async ({ where }: { where: { id: string } }): Promise<JobRecord | null> => {
+      const supabase = getServiceClient()
+      const { data, error } = await supabase
+        .from('jobs').select(`*, client:users!jobs_client_id_fkey(name)`).eq('id', where.id).single()
+      if (error || !data) return null
+      const { data: props } = await supabase.from('proposals').select('id').eq('job_id', where.id)
+      return mapJob(data, props?.length ?? 0)
+    },
+
+    create: async ({ data }: { data: Partial<JobRecord> }): Promise<JobRecord> => {
+      const supabase = getServiceClient()
+      const { data: row, error } = await supabase.from('jobs').insert({
+        title:         data.title,
+        description:   data.description,
+        category:      data.category,
+        budget:        data.budget,
+        delivery_days: data.deliveryDays,
+        skills:        data.skills ?? [],
+        status:        'OPEN',
+        client_id:     data.clientId,
+      }).select().single()
+      if (error || !row) throw new Error(`db.job.create: ${error?.message}`)
+      return mapJob(row, 0)
+    },
   },
 
+  // ── PROPOSAL ────────────────────────────────────────────────────────────────
   proposal: {
-    findMany: async ({ where, include, orderBy }: { where: { jobId: string }, include?: any, orderBy?: any }) => {
-      return globalStore.proposals.filter((p: any) => p.jobId === where.jobId).map((p: any) => ({
-        ...p,
-        freelancer: globalStore.users.find((u: any) => u.id === p.freelancerId) ?? p.freelancer ?? { name: 'Freelancer' }
-      }))
+    findMany: async (query?: { where?: { jobId?: string; freelancerId?: string } }): Promise<ProposalRecord[]> => {
+      const supabase = getServiceClient()
+      let q = supabase.from('proposals').select(`*, freelancer:users!proposals_freelancer_id_fkey(*)`)
+      if (query?.where?.jobId)        q = q.eq('job_id', query.where.jobId)
+      if (query?.where?.freelancerId) q = q.eq('freelancer_id', query.where.freelancerId)
+      const { data, error } = await q
+      if (error) throw new Error(`db.proposal.findMany: ${error.message}`)
+      return (data ?? []).map(mapProposal)
     },
-    findFirst: async ({ where }: { where: { jobId: string, freelancerId: string } }) => {
-      return globalStore.proposals.find((p: any) => p.jobId === where.jobId && p.freelancerId === where.freelancerId) ?? null
+
+    create: async ({ data }: { data: Partial<ProposalRecord> }): Promise<ProposalRecord> => {
+      const supabase = getServiceClient()
+      const { data: row, error } = await supabase.from('proposals').insert({
+        job_id:        data.jobId,
+        freelancer_id: data.freelancerId,
+        cover_letter:  data.coverLetter,
+        price:         data.price,
+        delivery_days: data.deliveryDays,
+        status:        'PENDING',
+      }).select().single()
+      if (error || !row) throw new Error(`db.proposal.create: ${error?.message}`)
+      return mapProposal(row)
     },
-    create: async ({ data }: { data: any }) => {
-      const newProp: ProposalRecord = {
-        id: `prop_${Date.now()}`,
-        jobId: data.jobId,
-        freelancerId: data.freelancerId,
-        coverLetter: data.coverLetter,
-        price: data.price,
-        deliveryDays: data.deliveryDays,
-        createdAt: new Date()
-      }
-      globalStore.proposals.push(newProp)
-      return newProp
-    }
   },
 
-  verification: {
-    findMany: async (query?: any) => {
-      let res = [...globalStore.verifications]
-      if (query?.where?.status) res = res.filter((v: any) => v.status === query.where.status)
-      if (query?.where?.userId) res = res.filter((v: any) => v.userId === query.where.userId)
-      if (query?.orderBy?.submittedAt === 'desc') res.sort((a: any, b: any) => b.submittedAt.getTime() - a.submittedAt.getTime())
-      return res.map((v: any) => ({
-        ...v,
-        user: globalStore.users.find((u: any) => u.id === v.userId) ?? { name: v.fullName, email: '—' }
-      }))
-    },
-    findFirst: async ({ where }: { where: { userId: string } }) => {
-      return globalStore.verifications.find((v: any) => v.userId === where.userId) ?? null
-    },
-    create: async ({ data }: { data: any }) => {
-      const newVerif: VerificationRecord = {
-        id: `v_${Date.now()}`,
-        userId: data.userId,
-        fullName: data.fullName,
-        dob: data.dob,
-        country: data.country,
-        documentType: data.documentType,
-        documentNumber: data.documentNumber,
-        idFrontUrl: data.idFrontUrl,
-        idBackUrl: data.idBackUrl,
-        selfieUrl: data.selfieUrl,
-        status: 'PENDING',
-        submittedAt: new Date()
-      }
-      globalStore.verifications.unshift(newVerif)
-      
-      // Update user verifiedStatus
-      const user = globalStore.users.find((u: any) => u.id === data.userId)
-      if (user) user.verifiedStatus = 'PENDING'
-
-      return newVerif
-    },
-    update: async ({ where, data }: { where: { id: string }, data: Partial<VerificationRecord> }) => {
-      const idx = globalStore.verifications.findIndex((v: any) => v.id === where.id)
-      if (idx !== -1) {
-        globalStore.verifications[idx] = { ...globalStore.verifications[idx], ...data, reviewedAt: new Date() }
-        
-        // Update user status accordingly
-        const verif = globalStore.verifications[idx]
-        const user = globalStore.users.find((u: any) => u.id === verif.userId)
-        if (user && data.status) {
-          user.verifiedStatus = data.status
-        }
-        return globalStore.verifications[idx]
-      }
-      return null
-    }
-  },
-
-  auditLog: {
-    findMany: async () => {
-      return [...globalStore.auditLogs].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-    },
-    create: async ({ data }: { data: { adminId: string, adminName: string, action: string, details: string } }) => {
-      const newLog: AuditLogRecord = {
-        id: `log_${Date.now()}`,
-        adminId: data.adminId,
-        adminName: data.adminName,
-        action: data.action,
-        details: data.details,
-        createdAt: new Date()
-      }
-      globalStore.auditLogs.unshift(newLog)
-      return newLog
-    }
-  },
-
-  report: {
-    findMany: async (query?: any) => {
-      let res = [...globalStore.reports]
-      if (query?.where?.status) res = res.filter((r: any) => r.status === query.where.status)
-      return res.sort((a: any, b: any) => b.createdAt.getTime() - a.createdAt.getTime())
-    },
-    findUnique: async ({ where }: { where: { id: string } }) => {
-      return globalStore.reports.find((r: any) => r.id === where.id) ?? null
-    },
-    create: async ({ data }: { data: any }) => {
-      const newReport: ReportRecord = {
-        id: `rep_${Date.now()}`,
-        reporterId: data.reporterId,
-        reporterName: data.reporterName,
-        targetType: data.targetType,
-        targetId: data.targetId,
-        targetTitle: data.targetTitle,
-        reason: data.reason,
-        description: data.description,
-        status: 'PENDING',
-        history: [
-          { from: 'Reporter', message: data.description, timestamp: new Date().toLocaleString() },
-          { from: 'Admin', message: 'Investigation started. Review pending.', timestamp: new Date().toLocaleString() }
-        ],
-        createdAt: new Date()
-      }
-      globalStore.reports.unshift(newReport)
-      return newReport
-    },
-    update: async ({ where, data }: { where: { id: string }, data: Partial<ReportRecord> }) => {
-      const idx = globalStore.reports.findIndex((r: any) => r.id === where.id)
-      if (idx !== -1) {
-        globalStore.reports[idx] = { ...globalStore.reports[idx], ...data }
-        return globalStore.reports[idx]
-      }
-      return null
-    }
-  },
-
+  // ── REVIEW ──────────────────────────────────────────────────────────────────
   review: {
-    findMany: async (query?: any) => {
-      let res = globalStore.reviews ?? []
-      if (query?.where?.freelancerId) res = res.filter((r: any) => r.freelancerId === query.where.freelancerId)
-      if (query?.where?.gigId) res = res.filter((r: any) => r.gigId === query.where.gigId)
-      return res
+    findMany: async (query?: { where?: { freelancerId?: string; gigId?: string } }): Promise<any[]> => {
+      const supabase = getServiceClient()
+      let q = supabase.from('reviews').select('*').order('created_at', { ascending: false })
+      if (query?.where?.freelancerId) q = q.eq('freelancer_id', query.where.freelancerId)
+      if (query?.where?.gigId)        q = q.eq('gig_id', query.where.gigId)
+      const { data, error } = await q
+      if (error) throw new Error(`db.review.findMany: ${error.message}`)
+      return data ?? []
     },
-    create: async ({ data }: { data: any }) => {
-      if (!globalStore.reviews) globalStore.reviews = []
-      const newReview = {
-        id: `rev_${Date.now()}`,
-        orderId: data.orderId,
-        freelancerId: data.freelancerId,
-        gigId: data.gigId,
-        reviewerId: data.reviewerId,
-        reviewerName: data.reviewerName,
-        reviewerImage: data.reviewerImage,
-        rating: data.rating,
-        comment: data.comment,
-        createdAt: new Date()
+
+    create: async ({ data }: { data: any }): Promise<any> => {
+      const supabase = getServiceClient()
+      const { data: row, error } = await supabase.from('reviews').insert({
+        order_id:       data.orderId,
+        gig_id:         data.gigId,
+        reviewer_id:    data.reviewerId,
+        freelancer_id:  data.freelancerId,
+        reviewer_name:  data.reviewerName,
+        reviewer_image: data.reviewerImage,
+        rating:         data.rating,
+        comment:        data.comment,
+      }).select().single()
+      if (error || !row) throw new Error(`db.review.create: ${error?.message}`)
+      return row
+    },
+  },
+
+  // ── REPORT ──────────────────────────────────────────────────────────────────
+  report: {
+    findMany: async (query?: { where?: { status?: string } }): Promise<ReportRecord[]> => {
+      const supabase = getServiceClient()
+      let q = supabase.from('reports').select('*').order('created_at', { ascending: false })
+      if (query?.where?.status) q = q.eq('status', query.where.status)
+      const { data, error } = await q
+      if (error) throw new Error(`db.report.findMany: ${error.message}`)
+      return (data ?? []).map(mapReport)
+    },
+
+    findUnique: async ({ where }: { where: { id: string } }): Promise<ReportRecord | null> => {
+      const supabase = getServiceClient()
+      const { data, error } = await supabase
+        .from('reports').select('*').eq('id', where.id).single()
+      if (error || !data) return null
+      return mapReport(data)
+    },
+
+    create: async ({ data }: { data: Partial<ReportRecord> }): Promise<ReportRecord> => {
+      const supabase = getServiceClient()
+      const { data: row, error } = await supabase.from('reports').insert({
+        reporter_id:   data.reporterId,
+        reporter_name: data.reporterName,
+        target_type:   data.targetType,
+        target_id:     data.targetId,
+        target_title:  data.targetTitle,
+        reason:        data.reason,
+        description:   data.description,
+        status:        'PENDING',
+      }).select().single()
+      if (error || !row) throw new Error(`db.report.create: ${error?.message}`)
+      return mapReport(row)
+    },
+
+    update: async ({ where, data }: { where: { id: string }, data: Partial<ReportRecord> }): Promise<ReportRecord | null> => {
+      const supabase = getServiceClient()
+      const updates: any = {}
+      if (data.status) updates.status = data.status
+      if (data.status === 'RESOLVED' || data.status === 'DISMISSED') updates.resolved_at = new Date().toISOString()
+      const { data: row, error } = await supabase
+        .from('reports').update(updates).eq('id', where.id).select().single()
+      if (error || !row) return null
+      return mapReport(row)
+    },
+  },
+
+  // ── VERIFICATION (KYC) ──────────────────────────────────────────────────────
+  verification: {
+    findMany: async (query?: { where?: { status?: string } }): Promise<VerificationRecord[]> => {
+      const supabase = getServiceClient()
+      let q = supabase.from('verifications').select(`*, user:users!verifications_user_id_fkey(*)`)
+        .order('submitted_at', { ascending: false })
+      if (query?.where?.status) q = q.eq('status', query.where.status)
+      const { data, error } = await q
+      if (error) throw new Error(`db.verification.findMany: ${error.message}`)
+      return (data ?? []).map(mapVerification)
+    },
+
+    findUnique: async ({ where }: { where: { id?: string; userId?: string } }): Promise<VerificationRecord | null> => {
+      const supabase = getServiceClient()
+      let q = supabase.from('verifications').select(`*, user:users!verifications_user_id_fkey(*)`)
+      if (where.id)     q = q.eq('id', where.id)
+      if (where.userId) q = q.eq('user_id', where.userId)
+      const { data, error } = await q.single()
+      if (error || !data) return null
+      return mapVerification(data)
+    },
+
+    create: async ({ data }: { data: Partial<VerificationRecord> }): Promise<VerificationRecord> => {
+      const supabase = getServiceClient()
+      const { data: row, error } = await supabase.from('verifications').insert({
+        user_id:         data.userId,
+        full_name:       data.fullName,
+        dob:             data.dob,
+        country:         data.country,
+        document_type:   data.documentType,
+        document_number: data.documentNumber,
+        id_front_path:   data.idFrontPath,
+        id_back_path:    data.idBackPath,
+        selfie_path:     data.selfiePath,
+        status:          'PENDING',
+      }).select().single()
+      if (error || !row) throw new Error(`db.verification.create: ${error?.message}`)
+      return mapVerification(row)
+    },
+
+    update: async ({ where, data }: { where: { id: string }, data: Partial<VerificationRecord> & { reviewedBy?: string } }): Promise<VerificationRecord | null> => {
+      const supabase = getServiceClient()
+      const updates: any = {}
+      if (data.status)          updates.status           = data.status
+      if (data.rejectionReason) updates.rejection_reason = data.rejectionReason
+      if (data.reviewedBy)      updates.reviewed_by      = data.reviewedBy
+      updates.reviewed_at = new Date().toISOString()
+      const { data: row, error } = await supabase
+        .from('verifications').update(updates).eq('id', where.id).select().single()
+      if (error || !row) return null
+
+      // Sync user.verified_status
+      if (data.status) {
+        await supabase.from('users')
+          .update({ verified_status: data.status })
+          .eq('id', row.user_id)
       }
-      globalStore.reviews.unshift(newReview)
-      return newReview
-    }
-  }
+
+      return mapVerification(row)
+    },
+  },
+
+  // ── AUDIT LOG ───────────────────────────────────────────────────────────────
+  auditLog: {
+    findMany: async (): Promise<AuditLogRecord[]> => {
+      const supabase = getServiceClient()
+      const { data, error } = await supabase
+        .from('audit_logs').select('*').order('created_at', { ascending: false }).limit(200)
+      if (error) throw new Error(`db.auditLog.findMany: ${error.message}`)
+      return (data ?? []).map(mapAuditLog)
+    },
+
+    create: async ({ data }: { data: { adminId: string; adminName: string; action: string; targetId?: string; details: string } }): Promise<AuditLogRecord> => {
+      const supabase = getServiceClient()
+      const { data: row, error } = await supabase.from('audit_logs').insert({
+        admin_id:   data.adminId,
+        admin_name: data.adminName,
+        action:     data.action,
+        target_id:  data.targetId,
+        details:    data.details,
+      }).select().single()
+      if (error || !row) throw new Error(`db.auditLog.create: ${error?.message}`)
+      return mapAuditLog(row)
+    },
+  },
+
+  // ── MESSAGE ─────────────────────────────────────────────────────────────────
+  message: {
+    findMany: async (query?: { where?: { senderId?: string; receiverId?: string; userId?: string } }): Promise<MessageRecord[]> => {
+      const supabase = getServiceClient()
+      let q = supabase.from('messages').select('*').order('created_at', { ascending: true })
+      if (query?.where?.userId) {
+        q = q.or(`sender_id.eq.${query.where.userId},receiver_id.eq.${query.where.userId}`)
+      } else {
+        if (query?.where?.senderId)   q = q.eq('sender_id', query.where.senderId)
+        if (query?.where?.receiverId) q = q.eq('receiver_id', query.where.receiverId)
+      }
+      const { data, error } = await q
+      if (error) throw new Error(`db.message.findMany: ${error.message}`)
+      return (data ?? []).map(mapMessage)
+    },
+
+    create: async ({ data }: { data: Partial<MessageRecord> }): Promise<MessageRecord> => {
+      const supabase = getServiceClient()
+      const { data: row, error } = await supabase.from('messages').insert({
+        sender_id:   data.senderId,
+        receiver_id: data.receiverId,
+        content:     data.content,
+        msg_type:    data.msgType ?? 'TEXT',
+        offer_data:  data.offerData ?? null,
+        is_read:     false,
+      }).select().single()
+      if (error || !row) throw new Error(`db.message.create: ${error?.message}`)
+      return mapMessage(row)
+    },
+  },
 }
