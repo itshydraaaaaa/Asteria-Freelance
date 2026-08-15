@@ -1,7 +1,7 @@
 'use client'
 import { motion } from 'framer-motion'
 import { useEffect, useRef } from 'react'
-import { stagger, fadeUp } from '@/lib/motion'
+import { stagger, fadeUp, microHover, popIn } from '@/lib/motion'
 
 interface Metric { label: string; value: string; sub: string }
 
@@ -30,17 +30,23 @@ export function DashboardStats({ metrics }: { metrics: Metric[] }) {
       variants={stagger}
       initial="hidden"
       animate="visible"
-      className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8"
+      className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4"
     >
       {metrics.map((m, i) => (
         <motion.div
           key={i}
           variants={fadeUp}
-          className="bg-white rounded-2xl border border-black/8 p-6 border-l-[3px] border-l-ast-primary"
+          whileHover="hover"
+          initial="rest"
+          animate="rest"
+          whileTap={{ scale: 0.995 }}
+          className="rounded-3xl border border-black/8 bg-white p-6 border-l-[3px] border-l-ast-primary shadow-sm"
         >
-          <p className="text-ast-gray text-xs uppercase tracking-wider mb-2">{m.label}</p>
-          <p className="font-heading font-bold text-2xl text-black">{m.value}</p>
-          <p className="text-ast-gray text-xs mt-1">{m.sub}</p>
+          <motion.div variants={microHover} className="transition-transform">
+            <p className="text-ast-gray text-xs uppercase tracking-wider mb-2">{m.label}</p>
+            <p className="font-heading font-bold text-2xl text-black text-anim-count"><CountUp target={Number(m.value.replace(/[^0-9]/g, '')) || 0} /></p>
+            <p className="text-ast-gray text-xs mt-1">{m.sub}</p>
+          </motion.div>
         </motion.div>
       ))}
     </motion.div>

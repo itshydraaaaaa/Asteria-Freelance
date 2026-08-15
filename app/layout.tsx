@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { Exo_2, Inter, JetBrains_Mono } from 'next/font/google'
+import { Exo_2, Inter, JetBrains_Mono, Plus_Jakarta_Sans } from 'next/font/google'
 import './globals.css'
 import { Navbar } from '@/components/layout/Navbar'
 import { Footer } from '@/components/layout/Footer'
@@ -20,6 +20,11 @@ const jetbrains = JetBrains_Mono({
   subsets: ['latin'],
   variable: '--font-jetbrains',
 })
+const jakarta = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700', '800'],
+  variable: '--font-jakarta',
+})
 
 export const metadata: Metadata = {
   title: 'Asteria Freelance — Elite Microjob Marketplace',
@@ -32,7 +37,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${exo2.variable} ${inter.variable} ${jetbrains.variable}`}>
+    <html lang="en" className={`${exo2.variable} ${inter.variable} ${jetbrains.variable} ${jakarta.variable}`}>
       <body className="font-body bg-white text-black antialiased">
         <Providers>
           <CustomCursor />

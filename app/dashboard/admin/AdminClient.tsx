@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import {
   Shield, UserCheck, DollarSign, FileText, Flag, History, CheckCircle2,
-  XCircle, Search, ArrowUpRight, ArrowDownLeft, Eye, AlertCircle, Edit3, Lock, ShieldCheck
+  XCircle, Search, ArrowUpRight, ArrowDownLeft, Eye, AlertCircle, Edit3, Lock, ShieldCheck, MessageSquare
 } from 'lucide-react'
 
 interface Props {
@@ -63,6 +63,12 @@ export function AdminClient({
   // Verification Rejection Modal State
   const [rejectingVerif, setRejectingVerif] = useState<any>(null)
   const [rejectionReason, setRejectionReason] = useState('')
+
+  // Deep Case Dossier Inspection State
+  const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null)
+  const [caseDossier, setCaseDossier] = useState<any>(null)
+  const [caseLoading, setCaseLoading] = useState(false)
+  const [dossierTab, setDossierTab] = useState<'DEAL_LOGS' | 'CHAT_TRANSCRIPT' | 'PROFILES'>('DEAL_LOGS')
 
   // Image Preview Modal
   const [previewImage, setPreviewImage] = useState<string | null>(null)
@@ -150,6 +156,22 @@ export function AdminClient({
       setRejectionReason('')
     } catch (err: any) {
       alert(err.message)
+    }
+  }
+
+  // Handle Case Inspection
+  const handleInspectCase = async (reportId: string) => {
+    try {
+      setSelectedCaseId(reportId)
+      setCaseLoading(true)
+      const res = await fetch(`/api/admin/reports/${reportId}`)
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to fetch case dossier')
+      setCaseDossier(data)
+    } catch (err: any) {
+      alert(err.message)
+    } finally {
+      setCaseLoading(false)
     }
   }
 
@@ -567,17 +589,23 @@ export function AdminClient({
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => handleInspectCase(r.id)}
+                    className="px-3.5 py-2 bg-ast-primary text-white rounded-xl text-xs font-semibold hover:bg-ast-dark flex items-center gap-1.5 shadow-sm"
+                  >
+                    <Eye size={14} /> Inspect Case
+                  </button>
                   {r.status === 'PENDING' ? (
                     <>
                       <button
                         onClick={() => handleReportResolution(r.id, 'RESOLVED')}
-                        className="px-4 py-2 bg-ast-dark text-white rounded-xl text-xs font-semibold hover:bg-black"
+                        className="px-3 py-2 bg-ast-dark text-white rounded-xl text-xs font-semibold hover:bg-black"
                       >
-                        Resolve & Enforce
+                        Resolve
                       </button>
                       <button
                         onClick={() => handleReportResolution(r.id, 'DISMISSED')}
-                        className="px-4 py-2 bg-ast-surface border border-black/15 text-ast-gray rounded-xl text-xs font-semibold hover:bg-gray-100"
+                        className="px-3 py-2 bg-ast-surface border border-black/15 text-ast-gray rounded-xl text-xs font-semibold hover:bg-gray-100"
                       >
                         Dismiss
                       </button>
@@ -715,6 +743,168 @@ export function AdminClient({
           </div>
         </div>
       )}
+
+      {/* DEEP CASE DOSSIER INSPECTION MODAL */}
+      {selectedCaseId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white rounded-3xl max-w-3xl w-full p-6 shadow-2xl border border-black/10 relative space-y-5 max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between border-b border-black/8 pb-4 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-red-50 text-red-600 border border-red-200 flex items-center justify-center">
+                  <ShieldCheck size={22} />
+                </div>
+                <div>
+                  <h3 className="font-heading font-bold text-xl text-black">Case Dossier #{selectedCaseId}</h3>
+                  <p className="text-ast-gray text-xs">Deep investigation suite — Deal logs, Chat history & Profiles</p>
+                </div>
+              </div>
+              <button onClick={() => setSelectedCaseId(null)} className="text-ast-gray hover:text-black font-bold text-lg">✕</button>
+            </div>
+
+            {caseLoading ? (
+              <div className="py-20 text-center space-y-2 flex-1 flex flex-col items-center justify-center">
+                <div className="w-8 h-8 rounded-full border-2 border-ast-primary border-t-transparent animate-spin" />
+                <p className="text-ast-gray text-xs font-semibold">Loading Case Investigation Data...</p>
+              </div>
+            ) : caseDossier ? (
+              <div className="flex-1 overflow-y-auto space-y-5 pr-1">
+                {/* Dossier Tabs */}
+                <div className="flex items-center gap-2 border-b border-black/8 pb-2">
+                  {[
+                    { id: 'DEAL_LOGS', label: 'Deal Financial Logs', Icon: DollarSign },
+                    { id: 'CHAT_TRANSCRIPT', label: 'Full Chat History', Icon: MessageSquare },
+                    { id: 'PROFILES', label: 'Parties Profiles', Icon: UserCheck },
+                  ].map(({ id, label, Icon }) => (
+                    <button
+                      key={id}
+                      onClick={() => setDossierTab(id as any)}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                        dossierTab === id
+                          ? 'bg-ast-primary text-white shadow-sm'
+                          : 'bg-ast-surface text-ast-gray hover:text-black'
+                      }`}
+                    >
+                      <Icon size={14} /> {label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* TAB 1: DEAL FINANCIAL LOGS */}
+                {dossierTab === 'DEAL_LOGS' && (
+                  <div className="space-y-4">
+                    {caseDossier.dealLogs ? (
+                      <div className="bg-ast-surface/50 rounded-2xl p-5 border border-black/8 space-y-3">
+                        <div className="flex items-center justify-between border-b border-black/8 pb-2">
+                          <span className="text-xs font-bold uppercase tracking-wider text-ast-gray">Escrow Agreement</span>
+                          <span className="font-heading font-bold text-lg text-ast-primary">${caseDossier.dealLogs.amount}</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3 text-xs">
+                          <div>
+                            <p className="text-ast-gray">Order ID</p>
+                            <p className="font-semibold text-black">{caseDossier.dealLogs.orderId}</p>
+                          </div>
+                          <div>
+                            <p className="text-ast-gray">Order Status</p>
+                            <span className={`inline-block px-2 py-0.5 rounded-full font-bold text-[10px] ${STATUS_BADGE[caseDossier.dealLogs.status]}`}>
+                              {caseDossier.dealLogs.status}
+                            </span>
+                          </div>
+                          <div>
+                            <p className="text-ast-gray">Buyer</p>
+                            <p className="font-semibold text-black">{caseDossier.dealLogs.buyer?.name} (${caseDossier.dealLogs.buyer?.walletBalance})</p>
+                          </div>
+                          <div>
+                            <p className="text-ast-gray">Seller</p>
+                            <p className="font-semibold text-black">{caseDossier.dealLogs.seller?.name} (${caseDossier.dealLogs.seller?.walletBalance})</p>
+                          </div>
+                        </div>
+                        <div className="pt-2 border-t border-black/5">
+                          <p className="text-xs text-ast-gray">Gig Service: <strong className="text-black">{caseDossier.dealLogs.gig?.title ?? 'Custom Service'}</strong></p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="p-8 text-center text-ast-gray text-xs bg-ast-surface rounded-2xl">
+                        No direct order deal linked to this general report.
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* TAB 2: CHAT HISTORY TRANSCRIPT */}
+                {dossierTab === 'CHAT_TRANSCRIPT' && (
+                  <div className="bg-ast-surface/30 rounded-2xl p-4 border border-black/8 space-y-3 max-h-72 overflow-y-auto">
+                    <p className="text-xs font-bold text-black border-b border-black/8 pb-2">Direct Message History Transcript</p>
+                    {caseDossier.chatTranscript?.map((msg: any, i: number) => (
+                      <div key={i} className="bg-white p-3 rounded-xl border border-black/5 text-xs space-y-1">
+                        <div className="flex items-center justify-between text-[10px] text-ast-gray">
+                          <span className="font-bold text-ast-primary">{msg.sender}</span>
+                          <span>{msg.time}</span>
+                        </div>
+                        <p className="text-black">{msg.text}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* TAB 3: PARTIES PROFILES */}
+                {dossierTab === 'PROFILES' && (
+                  <div className="grid grid-cols-2 gap-4 text-xs">
+                    <div className="bg-ast-surface p-4 rounded-2xl border border-black/8 space-y-2">
+                      <p className="font-bold text-sm text-black border-b border-black/8 pb-1">Reporter Profile</p>
+                      <p>Name: <strong>{caseDossier.reporterProfile?.name}</strong></p>
+                      <p>Email: <strong>{caseDossier.reporterProfile?.email}</strong></p>
+                      <p>KYC: <span className="font-bold text-emerald-600">{caseDossier.reporterProfile?.kyc}</span></p>
+                      <p>Solde: <strong>${caseDossier.reporterProfile?.walletBalance}</strong></p>
+                    </div>
+
+                    <div className="bg-ast-surface p-4 rounded-2xl border border-black/8 space-y-2">
+                      <p className="font-bold text-sm text-black border-b border-black/8 pb-1">Report Details</p>
+                      <p>Reason: <strong className="text-red-600">{caseDossier.report?.reason}</strong></p>
+                      <p>Description: {caseDossier.report?.description}</p>
+                      <p>Status: <strong>{caseDossier.report?.status}</strong></p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : null}
+
+            {/* Action Bar */}
+            <div className="border-t border-black/8 pt-4 flex items-center justify-between shrink-0">
+              <span className="text-xs text-ast-gray">Admin Escrow Resolution Tools</span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    handleReportResolution(selectedCaseId, 'RESOLVED')
+                    setSelectedCaseId(null)
+                  }}
+                  className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-semibold hover:bg-emerald-700 shadow-sm"
+                >
+                  Refund Buyer & Close
+                </button>
+                <button
+                  onClick={() => {
+                    handleReportResolution(selectedCaseId, 'RESOLVED')
+                    setSelectedCaseId(null)
+                  }}
+                  className="px-4 py-2 bg-ast-primary text-white rounded-xl text-xs font-semibold hover:bg-ast-dark shadow-sm"
+                >
+                  Release Payout to Seller
+                </button>
+                <button
+                  onClick={() => {
+                    handleReportResolution(selectedCaseId, 'DISMISSED')
+                    setSelectedCaseId(null)
+                  }}
+                  className="px-4 py-2 bg-ast-surface border border-black/15 text-ast-gray rounded-xl text-xs font-semibold hover:bg-gray-100"
+                >
+                  Dismiss Report
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
+

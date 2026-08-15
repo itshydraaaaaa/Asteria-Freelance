@@ -22,9 +22,19 @@ const config: Config = {
         },
       },
       fontFamily: {
-        heading: ['var(--font-exo2)', 'sans-serif'],
-        body:    ['var(--font-inter)', 'sans-serif'],
-        mono:    ['var(--font-jetbrains)', 'monospace'],
+        // Use CSS variables so we can swap/override in globals.css
+        heading: ['var(--font-heading)', 'system-ui', 'sans-serif'],
+        body:    ['var(--font-body)', 'system-ui', 'sans-serif'],
+        mono:    ['var(--font-mono)', 'ui-monospace', 'SFMono-Regular', 'monospace'],
+      },
+      fontSize: {
+        xs: ['0.75rem', { lineHeight: '1rem' }],
+        sm: ['0.875rem', { lineHeight: '1.25rem' }],
+        base: ['1rem', { lineHeight: '1.5rem' }],
+        lg: ['1.125rem', { lineHeight: '1.75rem' }],
+        xl: ['1.25rem', { lineHeight: '1.75rem' }],
+        '2xl': ['1.5rem', { lineHeight: '2rem' }],
+        '3xl': ['1.875rem', { lineHeight: '2.25rem' }],
       },
       letterSpacing: {
         widest2: '0.2em',

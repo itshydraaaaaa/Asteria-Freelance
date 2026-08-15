@@ -2,8 +2,9 @@
 import { useState, useRef }    from 'react'
 import { useRouter }   from 'next/navigation'
 import { categories }  from '@/lib/data/categories'
-import { Check, ChevronRight, Image as ImageIcon, Loader2 } from 'lucide-react'
+import { Check, ChevronRight, Image as ImageIcon, Loader2, Sparkles } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { AIAssistantModal } from '@/components/ai/AIAssistantModal'
 
 const STEPS = ['Basic Info', 'Details & Pricing', 'Tags & Publish']
 
@@ -31,6 +32,7 @@ export default function NewGigPage() {
   const [uploadingImage, setUploadingImage] = useState(false)
   const [error,   setError]     = useState('')
   const [success, setSuccess]   = useState(false)
+  const [showAiModal, setShowAiModal] = useState(false)
 
   const handle = (k: keyof Form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
     setForm(f => ({ ...f, [k]: e.target.value }))
@@ -180,6 +182,22 @@ export default function NewGigPage() {
                   </div>
                 </div>
 
+                <div className="flex items-center justify-between bg-ast-muted/60 p-4 rounded-2xl border border-ast-primary/20 mb-2">
+                  <div>
+                    <p className="font-bold text-xs text-ast-dark flex items-center gap-1.5">
+                      <Sparkles size={14} className="text-ast-primary" /> AI Freelancer Gig Generator
+                    </p>
+                    <p className="text-[11px] text-ast-gray">Generate service titles, scopes & pricing suggestions with AI</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowAiModal(true)}
+                    className="bg-ast-primary text-white text-xs font-semibold px-4 py-2 rounded-xl hover:bg-ast-dark transition-colors shadow-sm"
+                  >
+                    AI Draft Gig
+                  </button>
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium text-black mb-2">Gig Title <span className="text-red-500">*</span></label>
                   <input
@@ -307,6 +325,20 @@ export default function NewGigPage() {
           )}
         </div>
       </div>
+
+      <AIAssistantModal
+        mode="GIG_GENERATOR"
+        titleContext={form.title}
+        isOpen={showAiModal}
+        onClose={() => setShowAiModal(false)}
+        onInsertText={(text, extra) => {
+          setForm(f => ({
+            ...f,
+            description: text,
+            price: extra?.price ? String(extra.price) : f.price
+          }))
+        }}
+      />
     </div>
   )
 }

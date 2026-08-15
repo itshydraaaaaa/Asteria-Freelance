@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import { gigs } from '@/lib/data/gigs'
 import { categories } from '@/lib/data/categories'
-import { scaleIn, stagger } from '@/lib/motion'
+import { scaleIn, stagger, microHover } from '@/lib/motion'
 import { Star, Clock } from 'lucide-react'
 
 const FILTERS = ['All', ...categories.map(c => c.name).slice(0, 5)]
@@ -59,28 +59,30 @@ export function FeaturedGigsSection() {
               {filtered.map(gig => (
                 <motion.div key={gig.id} variants={scaleIn}>
                   <Link href={`/gig/${gig.id}`} className="group block bg-white rounded-2xl overflow-hidden border border-black/8 hover:border-ast-light/60 hover:shadow-lg transition-all">
-                    <div className="h-40 bg-gradient-to-br from-ast-dark to-ast-primary flex items-center justify-center">
-                      <span className="font-mono text-ast-light/30 text-xs tracking-widest2">{gig.category.toUpperCase()}</span>
-                    </div>
-                    <div className="p-5">
-                      <span className="inline-block text-xs font-medium text-ast-primary bg-ast-muted rounded-full px-2.5 py-0.5 mb-3">
-                        {gig.category}
-                      </span>
-                      <h3 className="font-heading font-semibold text-black text-base leading-snug mb-3 group-hover:text-ast-primary transition-colors line-clamp-2">
-                        {gig.title}
-                      </h3>
-                      <div className="flex items-center justify-between text-sm text-ast-gray">
-                        <span className="flex items-center gap-1">
-                          <Star size={13} className="text-yellow-400 fill-yellow-400" />
-                          5.0
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Clock size={13} />
-                          {gig.deliveryDays}d
-                        </span>
-                        <span className="font-semibold text-black">From ${gig.price}</span>
+                    <motion.div variants={microHover} initial="rest" whileHover="hover" whileTap={{ scale: 0.995 }}>
+                      <div className="h-40 bg-gradient-to-br from-ast-dark to-ast-primary flex items-center justify-center">
+                        <span className="font-mono text-ast-light/30 text-xs tracking-widest2">{gig.category.toUpperCase()}</span>
                       </div>
-                    </div>
+                      <div className="p-5">
+                        <span className="inline-block text-xs font-medium text-ast-primary bg-ast-muted rounded-full px-2.5 py-0.5 mb-3">
+                          {gig.category}
+                        </span>
+                        <h3 className="font-heading font-semibold text-black text-base leading-snug mb-3 group-hover:text-ast-primary transition-colors line-clamp-2">
+                          {gig.title}
+                        </h3>
+                        <div className="flex items-center justify-between text-sm text-ast-gray">
+                          <span className="flex items-center gap-1">
+                            <Star size={13} className="text-yellow-400 fill-yellow-400" />
+                            5.0
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Clock size={13} />
+                            {gig.deliveryDays}d
+                          </span>
+                          <span className="font-semibold text-black">From ${gig.price}</span>
+                        </div>
+                      </div>
+                    </motion.div>
                   </Link>
                 </motion.div>
               ))}

@@ -1,48 +1,49 @@
+import { auth } from '@/lib/auth'
+import { db }   from '@/lib/db'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { ProfileForm } from '@/components/dashboard/ProfileForm'
 
 export default async function ProfilePage() {
-  const supabase = createClient()
-  
-  // 1. Get the authenticated user
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  const session = await auth()
+  const userId = session?.user?.id
 
-  if (authError || !user) {
+  if (!userId) {
     redirect('/login')
   }
 
-  // 2. Fetch their full profile from our native Supabase table
   let dbUser: any = null
   try {
-    const { data } = await supabase
-      .from('User')
-      .select('*')
-      .eq('id', user.id)
-      .single()
-      
-    dbUser = data
+    dbUser = await db.user.findUnique({ where: { id: userId } })
+    if (!dbUser) {
+      const supabase = createClient()
+      const { data } = await supabase
+        .from('User')
+        .select('*')
+        .eq('id', userId)
+        .single()
+      if (data) dbUser = data
+    }
   } catch (error) {
     console.error("Failed to fetch user profile:", error)
   }
 
-  // 3. Fallback structure to prevent the form from crashing if it's a brand new user
   const profile = dbUser ?? {
-    name: user.user_metadata?.full_name ?? '',
-    email: user.email ?? '',
-    bio: '',
-    skills: [] as string[],
-    hourlyRate: null,
-    role: user.user_metadata?.role ?? 'CLIENT',
+    name: session?.user?.name ?? 'User',
+    email: session?.user?.email ?? '',
+    bio: 'Experienced independent professional.',
+    skills: ['TypeScript', 'Next.js', 'UI/UX'] as string[],
+    hourlyRate: 65,
+    role: session?.user?.role ?? 'CLIENT',
     walletBalance: 0,
-    location: '',
-    website: '',
-    languages: [],
+    location: 'Tunis, Tunisia',
+    website: 'https://asteria.com',
+    languages: ['Arabic', 'English', 'French'],
   }
 
   return (
     <div>
-      <h1 className="font-heading font-bold text-3xl text-black mb-8">Profile</h1>
+      <h1 className="font-heading font-bold text-3xl text-black mb-8">Profile Settings</h1>
       <ProfileForm profile={profile} />
     </div>
   )

@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Search, Star, Award, TrendingUp, CheckCircle } from 'lucide-react'
 import type { Category } from '@/lib/data/categories'
-import { scaleIn, stagger } from '@/lib/motion'
+import { scaleIn, stagger, microHover } from '@/lib/motion'
 
 export function FreelancerBrowser({ freelancers, categories }: { freelancers: any[]; categories: Category[] }) {
   const [query,    setQuery]    = useState('')
@@ -71,43 +71,45 @@ export function FreelancerBrowser({ freelancers, categories }: { freelancers: an
                 <motion.div key={f.id} variants={scaleIn}>
                   {/* 👉 FIXED LINK: Points to /freelancers/ instead of /profile/ */}
                   <Link href={`/freelancers/${f.id}`} className="group block bg-white rounded-2xl border border-black/8 p-5 hover:border-ast-light/60 hover:shadow-md transition-all">
-                    <div className="flex items-center gap-3 mb-4">
-                      {f.image ? (
-                        <img src={f.image} alt={f.name} className="w-12 h-12 rounded-full object-cover shrink-0 border border-black/5" />
-                      ) : (
-                        <div className="w-12 h-12 rounded-full bg-ast-primary flex items-center justify-center text-white font-bold text-lg shrink-0">
-                          {initials}
+                    <motion.div variants={microHover} initial="rest" whileHover="hover" whileTap={{ scale: 0.995 }}>
+                      <div className="flex items-center gap-3 mb-4">
+                        {f.image ? (
+                          <img src={f.image} alt={f.name} className="w-12 h-12 rounded-full object-cover shrink-0 border border-black/5" />
+                        ) : (
+                          <div className="w-12 h-12 rounded-full bg-ast-primary flex items-center justify-center text-white font-bold text-lg shrink-0">
+                            {initials}
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <p className="font-heading font-semibold text-black text-sm group-hover:text-ast-primary transition-colors truncate">{f.name}</p>
+                          <p className="text-xs text-ast-gray truncate">{f.category || 'Freelancer'}</p>
                         </div>
-                      )}
-                      <div className="min-w-0">
-                        <p className="font-heading font-semibold text-black text-sm group-hover:text-ast-primary transition-colors truncate">{f.name}</p>
-                        <p className="text-xs text-ast-gray truncate">{f.category || 'Freelancer'}</p>
                       </div>
-                    </div>
 
-                    <div className="h-7 mb-2">
-                      {bc && (
-                        <div className={`inline-flex items-center gap-1 border rounded-full px-2.5 py-0.5 text-xs font-medium ${bc.color}`}>
-                          <bc.Icon size={11} />
-                          {bc.label}
-                        </div>
-                      )}
-                    </div>
+                      <div className="h-7 mb-2">
+                        {bc && (
+                          <div className={`inline-flex items-center gap-1 border rounded-full px-2.5 py-0.5 text-xs font-medium ${bc.color}`}>
+                            <bc.Icon size={11} />
+                            {bc.label}
+                          </div>
+                        )}
+                      </div>
 
-                    <div className="flex flex-wrap gap-1 mb-4 h-6 overflow-hidden">
-                      {skills.length > 0 ? (
-                        skills.slice(0, 3).map((s: string) => (
-                          <span key={s} className="text-[11px] bg-ast-surface text-ast-gray rounded-full px-2 py-0.5">{s}</span>
-                        ))
-                      ) : (
-                        <span className="text-[11px] text-black/30 italic">No skills listed</span>
-                      )}
-                    </div>
+                      <div className="flex flex-wrap gap-1 mb-4 h-6 overflow-hidden">
+                        {skills.length > 0 ? (
+                          skills.slice(0, 3).map((s: string) => (
+                            <span key={s} className="text-[11px] bg-ast-surface text-ast-gray rounded-full px-2 py-0.5">{s}</span>
+                          ))
+                        ) : (
+                          <span className="text-[11px] text-black/30 italic">No skills listed</span>
+                        )}
+                      </div>
 
-                    <div className="flex items-center justify-between text-xs border-t border-black/5 pt-3">
-                      <span className="flex items-center gap-1 text-ast-gray"><Star size={11} className={rating > 0 ? "text-yellow-400 fill-yellow-400" : ""} />{rating} ({reviewCount})</span>
-                      <span className="font-semibold text-black">From ${hourlyRate}/hr</span>
-                    </div>
+                      <div className="flex items-center justify-between text-xs border-t border-black/5 pt-3">
+                        <span className="flex items-center gap-1 text-ast-gray"><Star size={11} className={rating > 0 ? "text-yellow-400 fill-yellow-400" : ""} />{rating} ({reviewCount})</span>
+                        <span className="font-semibold text-black">From ${hourlyRate}/hr</span>
+                      </div>
+                    </motion.div>
                   </Link>
                 </motion.div>
               )

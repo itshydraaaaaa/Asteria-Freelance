@@ -32,8 +32,9 @@ export function DashboardChart({ data, color = '#11606e', label = 'Earnings' }: 
   const gradId = `grad-${color.replace('#', '')}`
 
   return (
-    <div className="bg-white rounded-2xl border border-black/8 p-6 h-64">
+    <div className="h-64 rounded-3xl border border-black/8 bg-white p-6 shadow-sm card-hover">
       <h3 className="font-semibold text-black mb-4">{label} — This Year</h3>
+      <div className="w-full h-full">
       <ResponsiveContainer width="100%" height="80%">
         <AreaChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
           <defs>
@@ -52,10 +53,11 @@ export function DashboardChart({ data, color = '#11606e', label = 'Earnings' }: 
           <Area
             type="monotone" dataKey="value" stroke={color} strokeWidth={2}
             fill={`url(#${gradId})`}
-            animationDuration={1800} animationEasing="ease-out"
+            animationDuration={1400} animationEasing="ease-out"
           />
         </AreaChart>
       </ResponsiveContainer>
+      </div>
     </div>
   )
 }

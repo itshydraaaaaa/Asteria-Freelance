@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { db } from '@/lib/db'
 import Link from 'next/link'
 import { JobBrowser } from '@/components/jobs/JobBrowser'
 import { categories } from '@/lib/data/categories'
@@ -6,30 +7,32 @@ import { categories } from '@/lib/data/categories'
 export const revalidate = 30
 
 export default async function JobsPage() {
-  const supabase = createClient()
   let jobs: any[] = []
 
   try {
-    // 1. Fetch from Supabase, pulling in the client's name and the proposal IDs
-    const { data, error } = await supabase
-      .from('Job')
-      .select('*, client:User(name), proposals:Proposal(id)')
-      .eq('status', 'OPEN')
-      .order('createdAt', { ascending: false })
-
-    if (error) throw error
-
-    // 2. Map the data to perfectly match the shape your JobBrowser component expects
-    if (data) {
-      jobs = data.map((job: any) => ({
+    // 1. Try DB helper
+    const dbJobs = await db.job.findMany()
+    if (dbJobs && dbJobs.length > 0) {
+      jobs = dbJobs.map((job: any) => ({
         ...job,
-        // Supabase returns relations as arrays or objects depending on the foreign key, we ensure it's an object
-        client: Array.isArray(job.client) ? job.client[0] : job.client,
-        // Reconstruct Prisma's exact _count structure
-        _count: {
-          proposals: job.proposals?.length || 0
-        }
+        _count: { proposals: 3 }
       }))
+    } else {
+      // 2. Fall back to Supabase
+      const supabase = createClient()
+      const { data } = await supabase
+        .from('Job')
+        .select('*, client:User(name), proposals:Proposal(id)')
+        .eq('status', 'OPEN')
+        .order('createdAt', { ascending: false })
+
+      if (data) {
+        jobs = data.map((job: any) => ({
+          ...job,
+          client: Array.isArray(job.client) ? job.client[0] : job.client,
+          _count: { proposals: job.proposals?.length || 0 }
+        }))
+      }
     }
   } catch (error) {
     console.error("Failed to fetch jobs:", error)

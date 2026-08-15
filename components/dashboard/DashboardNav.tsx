@@ -1,6 +1,8 @@
 'use client'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
+import { motion } from 'framer-motion'
+import { microHover } from '@/lib/motion'
 import { createClient } from '@/lib/supabase/client'
 import {
   LayoutDashboard, Package, MessageSquare, Settings, LogOut,
@@ -25,13 +27,16 @@ const COMMON_NAV = [
 ]
 
 const FREELANCER_NAV = [
-  { label: 'My Gigs',   href: '/dashboard/gigs',      Icon: Star },
-  { label: 'Wallet',    href: '/dashboard/wallet',     Icon: Wallet },
-  { label: 'Analytics', href: '/dashboard/analytics',  Icon: BarChart2 },
+  { label: 'Browse Jobs',   href: '/jobs',               Icon: Briefcase },
+  { label: 'My Gigs',       href: '/dashboard/gigs',      Icon: Star },
+  { label: 'Wallet',        href: '/dashboard/wallet',     Icon: Wallet },
+  { label: 'Analytics',     href: '/dashboard/analytics',  Icon: BarChart2 },
 ]
 
 const CLIENT_NAV = [
-  { label: 'Post a Job', href: '/post-job',           Icon: Briefcase },
+  { label: 'Explore Gigs',  href: '/explore',            Icon: Star },
+  { label: 'Post a Job',    href: '/post-job',           Icon: Briefcase },
+  { label: 'Wallet',        href: '/dashboard/wallet',     Icon: Wallet },
 ]
 
 export function DashboardNav({ name, email, role, initials, image }: Props) {
@@ -53,10 +58,7 @@ export function DashboardNav({ name, email, role, initials, image }: Props) {
   }
 
   return (
-    // 👉 Changed pt-24 to pt-8 to fix the top gap
-    <aside className="w-64 shrink-0 bg-white border-r border-black/8 flex flex-col pt-8 pb-8 px-4 fixed left-0 top-0 bottom-0 z-30 overflow-y-auto">
-      
-      {/* 👉 Brand Logo Linked to Home */}
+    <aside className="sticky top-0 z-30 flex h-screen w-64 shrink-0 flex-col border-r border-black/8 bg-white px-4 pb-8 pt-8 shadow-[0_0_0_1px_rgba(0,0,0,0.02)] overflow-y-auto">
       <div className="mb-8 px-2">
         <Link href="/" className="flex items-center gap-2 group">
           <svg width="24" height="24" viewBox="0 0 64 64" fill="none">
@@ -92,17 +94,21 @@ export function DashboardNav({ name, email, role, initials, image }: Props) {
 
       <nav className="flex-1 space-y-0.5">
         {COMMON_NAV.map(({ label, href, Icon }) => (
-          <Link
-            key={href}
-            href={href}
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors ${
-              isActive(href)
-                ? 'bg-ast-primary text-white font-medium'
-                : 'text-ast-gray hover:text-black hover:bg-ast-surface'
-            }`}
-          >
-            <Icon size={16} />
-            {label}
+          <Link key={href} href={href}>
+            <motion.a
+              variants={microHover}
+              initial="rest"
+              whileHover="hover"
+              whileFocus="hover"
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors focus-ring-primary ${
+                isActive(href)
+                  ? 'bg-ast-primary text-white font-medium'
+                  : 'text-ast-gray hover:text-black hover:bg-ast-surface'
+              }`}
+            >
+              <Icon size={16} />
+              <span className="truncate">{label}</span>
+            </motion.a>
           </Link>
         ))}
 

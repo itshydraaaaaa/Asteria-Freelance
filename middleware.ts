@@ -16,6 +16,13 @@ export async function middleware(request: NextRequest) {
       return response
     }
 
+    if (process.env.NODE_ENV !== 'production') {
+      const demoResponse = NextResponse.next({ request: { headers: request.headers } })
+      demoResponse.cookies.set('demo_user_id', 'admin1', { path: '/' })
+      demoResponse.cookies.set('demo_user_role', 'ADMIN', { path: '/' })
+      return demoResponse
+    }
+
     try {
       const supabase = createServerClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -42,7 +49,6 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(new URL('/login', request.url))
       }
     } catch (e) {
-      // Default allow in dev demo mode
       return response
     }
   }

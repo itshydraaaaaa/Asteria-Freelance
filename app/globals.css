@@ -4,8 +4,21 @@
 
 @layer base {
   html { scroll-behavior: auto; }
+  body {
+    @apply bg-ast-surface text-black antialiased;
+    /* Apple system font stack for macOS / iOS + fallbacks */
+    --font-heading: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', 'Segoe UI', Roboto, 'Noto Sans', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol';
+    --font-body: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', 'Segoe UI', Roboto, 'Noto Sans', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol';
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', 'Courier New', monospace;
+  }
   *, *::before, *::after { box-sizing: border-box; }
   input, textarea, select { cursor: auto !important; }
+  a { @apply transition-colors; }
+  a:hover { @apply text-ast-primary; }
+  :focus-visible {
+    outline: 2px solid #60c8d4;
+    outline-offset: 3px;
+  }
   ::selection { background: #60c8d4; color: #0a3a40; }
 
   @keyframes float {
@@ -28,6 +41,25 @@
     from { transform: rotate(0deg); }
     to   { transform: rotate(360deg); }
   }
+}
+
+/* Micro-interaction utilities */
+@layer components {
+  .btn-ghost {
+    @apply bg-transparent border rounded-lg px-3 py-2 text-sm transition-transform duration-180 ease-out;
+    border-color: rgba(0,0,0,0.08);
+  }
+  .btn-ghost:hover { transform: translateY(-3px) scale(1.01); box-shadow: 0 6px 20px rgba(10,58,64,0.06); }
+
+  .card-hover { @apply rounded-2xl bg-white border p-4 transition-all duration-200; border-color: rgba(0,0,0,0.08); }
+  .card-hover:hover { transform: translateY(-6px); box-shadow: 0 10px 30px rgba(10,58,64,0.08); }
+
+  .focus-ring-primary:focus { outline: none; box-shadow: 0 0 0 6px rgba(96,200,212,0.12); border-color: #60c8d4; }
+}
+
+/* Slightly tighter selection for counters */
+@layer utilities {
+  .text-anim-count { animation: count-up 900ms cubic-bezier(0.22,1,0.36,1) both; }
 }
 
 @layer utilities {

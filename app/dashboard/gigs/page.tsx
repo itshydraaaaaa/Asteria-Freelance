@@ -1,28 +1,34 @@
+import { auth } from '@/lib/auth'
+import { db } from '@/lib/db'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Plus, Star, Clock, Pencil, Eye } from 'lucide-react'
 
 export default async function DashboardGigsPage() {
-  const supabase = createClient()
-  
-  // 1. Get the authenticated user
-  const { data: { user } } = await supabase.auth.getUser()
+  const session = await auth()
+  const userId = session?.user?.id
 
-  if (!user) {
+  if (!userId) {
     redirect('/login')
   }
 
-  // 2. Fetch the user's gigs AND join their orders to calculate earnings securely
   let gigs: any[] = []
   try {
-    const { data } = await supabase
-      .from('Gig')
-      .select('*, orders:Order(*)') // Supabase relational join!
-      .eq('freelancerId', user.id)
-      .order('createdAt', { ascending: false })
-      
-    if (data) gigs = data
+    // 1. Check in unified db helper first
+    gigs = await db.gig.findMany({ where: { freelancerId: userId } })
+
+    // 2. If empty, check Supabase
+    if (gigs.length === 0) {
+      const supabase = createClient()
+      const { data } = await supabase
+        .from('Gig')
+        .select('*, orders:Order(*)')
+        .eq('freelancerId', userId)
+        .order('createdAt', { ascending: false })
+
+      if (data && data.length > 0) gigs = data
+    }
   } catch (error) {
     console.error("Failed to fetch gigs:", error)
   }
@@ -61,15 +67,14 @@ export default async function DashboardGigsPage() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
           {gigs.map((gig: any) => {
-            // The orders array was joined natively via Supabase
             const orders       = gig.orders ?? []
             const earnings     = orders.filter((o: any) => o.status === 'COMPLETED').reduce((s: number, o: any) => s + o.amount, 0)
             const activeOrders = orders.filter((o: any) => o.status === 'ACTIVE').length
 
             return (
               <div key={gig.id} className="bg-white rounded-2xl border border-black/8 overflow-hidden group hover:shadow-md transition-all">
-                <div className="h-32 bg-gradient-to-br from-ast-dark to-ast-primary flex items-center justify-center">
-                  <span className="font-mono text-ast-light/30 text-[9px] tracking-widest">{gig.category.toUpperCase()}</span>
+                <div className="h-32 bg-gradient-to-br from-ast-dark to-ast-primary flex items-center justify-center p-4">
+                  <span className="font-mono text-ast-light/60 text-xs tracking-widest uppercase font-bold text-center">{gig.category}</span>
                 </div>
 
                 <div className="p-5">

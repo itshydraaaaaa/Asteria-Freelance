@@ -2,8 +2,9 @@
 import { useState }           from 'react'
 import { useRouter }          from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Check, ChevronRight, ChevronLeft, Upload, Briefcase } from 'lucide-react'
+import { Check, ChevronRight, ChevronLeft, Upload, Briefcase, Sparkles } from 'lucide-react'
 import { categories } from '@/lib/data/categories'
+import { AIAssistantModal } from '@/components/ai/AIAssistantModal'
 
 const STEPS = ['Describe', 'Budget & Timeline', 'Skills', 'Review & Post']
 
@@ -26,6 +27,7 @@ export default function PostJobPage() {
   const [submitted, setSubmitted] = useState(false)
   const [loading,   setLoading]   = useState(false)
   const [error,     setError]     = useState('')
+  const [showAiModal, setShowAiModal] = useState(false)
 
   const next = () => { setDir(1);  setStep(s => Math.min(s + 1, STEPS.length - 1)) }
   const prev = () => { setDir(-1); setStep(s => Math.max(s - 1, 0)) }
@@ -140,7 +142,16 @@ export default function PostJobPage() {
                       className="w-full border border-black/15 rounded-xl px-4 py-3 text-sm outline-none focus:border-ast-primary focus:ring-2 focus:ring-ast-primary/20" />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-black mb-2">Description <span className="text-red-500">*</span></label>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-sm font-medium text-black">Description <span className="text-red-500">*</span></label>
+                      <button
+                        type="button"
+                        onClick={() => setShowAiModal(true)}
+                        className="text-xs text-ast-primary font-semibold flex items-center gap-1 bg-ast-muted px-3 py-1 rounded-full hover:bg-ast-primary hover:text-white transition-colors"
+                      >
+                        <Sparkles size={13} /> AI Draft Description
+                      </button>
+                    </div>
                     <textarea value={form.description} onChange={handle('description')} required rows={5}
                       placeholder="Describe your project in detail — what you need, scope, goals, references, tech stack preferences…"
                       className="w-full border border-black/15 rounded-xl px-4 py-3 text-sm outline-none focus:border-ast-primary focus:ring-2 focus:ring-ast-primary/20 resize-none" />
@@ -257,6 +268,14 @@ export default function PostJobPage() {
           </div>
         </div>
       </div>
+
+      <AIAssistantModal
+        mode="JOB_DESCRIPTION"
+        titleContext={form.title}
+        isOpen={showAiModal}
+        onClose={() => setShowAiModal(false)}
+        onInsertText={(text) => setForm(f => ({ ...f, description: text }))}
+      />
     </div>
   )
 }

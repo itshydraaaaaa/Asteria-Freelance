@@ -2,11 +2,33 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation' // 👉 Added import
 
-const LINKS = {
-  Platform: ['Explore Gigs', 'Find Freelancers', 'Post a Job', 'How It Works'],
-  Company:  ['About', 'Blog', 'Careers', 'Press'],
-  Support:  ['Help Center', 'Contact', 'Privacy Policy', 'Terms of Service'],
-}
+const LINKS = [
+  {
+    title: 'Platform',
+    items: [
+      { label: 'Explore Gigs', href: '/explore' },
+      { label: 'Find Freelancers', href: '/freelancers' },
+      { label: 'Post a Job', href: '/post-job' },
+      { label: 'How It Works', href: '/#how-it-works' },
+    ],
+  },
+  {
+    title: 'Company',
+    items: [
+      { label: 'About', href: '/about' },
+      { label: 'Contact', href: '/contact' },
+      { label: 'Jobs', href: '/jobs' },
+    ],
+  },
+  {
+    title: 'Support',
+    items: [
+      { label: 'Help Center', href: '/contact' },
+      { label: 'Terms of Service', href: '/about' },
+      { label: 'Privacy Policy', href: '/contact' },
+    ],
+  },
+]
 
 export function Footer() {
   const pathname = usePathname() // 👉 Grab the current URL
@@ -31,14 +53,14 @@ export function Footer() {
             </p>
           </div>
 
-          {Object.entries(LINKS).map(([title, items]) => (
-            <div key={title}>
-              <h3 className="text-white font-semibold text-sm tracking-wide mb-4">{title}</h3>
+          {LINKS.map(section => (
+            <div key={section.title}>
+              <h3 className="text-white font-semibold text-sm tracking-wide mb-4">{section.title}</h3>
               <ul className="space-y-2">
-                {items.map(item => (
-                  <li key={item}>
-                    <Link href="#" className="text-ast-gray hover:text-ast-light text-sm transition-colors">
-                      {item}
+                {section.items.map(item => (
+                  <li key={item.label}>
+                    <Link href={item.href} className="text-ast-gray hover:text-ast-light text-sm transition-colors">
+                      {item.label}
                     </Link>
                   </li>
                 ))}

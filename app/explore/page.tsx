@@ -1,28 +1,31 @@
 import { createClient } from '@/lib/supabase/server'
+import { db } from '@/lib/db'
 import { GigBrowser } from '@/components/explore/GigBrowser'
 import { categories } from '@/lib/data/categories'
 
 export const revalidate = 60
 
 export default async function ExplorePage() {
-  const supabase = createClient()
   let gigs: any[] = []
 
   try {
-    // Fetch gigs and join the freelancer's details!
-    const { data, error } = await supabase
-      .from('Gig')
-      .select('*, freelancer:User(name, image, location)')
-      .order('createdAt', { ascending: false })
-
-    if (error) throw error
-
-    if (data) {
-      gigs = data.map((gig: any) => ({
-        ...gig,
-        // Ensure relations are objects, not arrays
-        freelancer: Array.isArray(gig.freelancer) ? gig.freelancer[0] : gig.freelancer
-      }))
+    // 1. Try DB helper
+    const dbGigs = await db.gig.findMany()
+    if (dbGigs && dbGigs.length > 0) {
+      gigs = dbGigs
+    } else {
+      // 2. Fall back to Supabase
+      const supabase = createClient()
+      const { data } = await supabase
+        .from('Gig')
+        .select('*, freelancer:User(name, image, location)')
+        .order('createdAt', { ascending: false })
+      if (data) {
+        gigs = data.map((gig: any) => ({
+          ...gig,
+          freelancer: Array.isArray(gig.freelancer) ? gig.freelancer[0] : gig.freelancer
+        }))
+      }
     }
   } catch (error) {
     console.error("Failed to fetch gigs:", error)

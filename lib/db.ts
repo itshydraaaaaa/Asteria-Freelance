@@ -11,6 +11,8 @@ export interface UserRecord {
   skills?: string[]
   walletBalance: number
   verifiedStatus?: 'UNSUBMITTED' | 'PENDING' | 'APPROVED' | 'REJECTED'
+  rating?: number
+  reviewCount?: number
   createdAt: Date
 }
 
@@ -24,6 +26,7 @@ export interface OrderRecord {
   createdAt: Date
   gig?: any
   buyer?: any
+  milestones?: any[]
 }
 
 export interface JobRecord {
@@ -89,6 +92,7 @@ export interface ReportRecord {
   reason: string
   description: string
   status: 'PENDING' | 'DISMISSED' | 'RESOLVED'
+  history?: Array<{ from: string; message: string; timestamp: string }>
   createdAt: Date
 }
 
@@ -135,13 +139,47 @@ const globalStore = (globalThis as any).__ASTERIA_DB__ ?? {
   ] as AuditLogRecord[],
 
   reports: [
-    { id: 'r1', reporterId: 'f1', reporterName: 'Yassine Khelifi', targetType: 'GIG', targetId: 'g3', targetTitle: 'Build an ML model for customer churn', reason: 'Misleading pricing', description: 'Price listed as $450 but scope requires enterprise setup.', status: 'PENDING', createdAt: new Date('2025-02-06') }
+    {
+      id: 'r1',
+      reporterId: 'f1',
+      reporterName: 'Yassine Khelifi',
+      targetType: 'GIG',
+      targetId: 'g3',
+      targetTitle: 'Build an ML model for customer churn',
+      reason: 'Misleading pricing',
+      description: 'Price listed as $450 but scope requires enterprise setup.',
+      status: 'PENDING',
+      createdAt: new Date('2025-02-06')
+    },
+    {
+      id: 'r2',
+      reporterId: 'c1',
+      reporterName: 'Sami Mansour (Client)',
+      targetType: 'ORDER',
+      targetId: 'ord2',
+      targetTitle: 'Order Dispute #ord2 — Figma UI/UX Design Package',
+      reason: 'Incomplete Deliverable & Scope Disagreement',
+      description: 'Freelancer submitted 3 screens out of 5 agreed upon and requested an additional custom offer upgrade of $150 via chat.',
+      status: 'PENDING',
+      createdAt: new Date('2025-02-14')
+    },
+    {
+      id: 'r3',
+      reporterId: 'f1',
+      reporterName: 'Yassine Khelifi (Freelancer)',
+      targetType: 'ORDER',
+      targetId: 'ord1',
+      targetTitle: 'Order Dispute #ord1 — Full-Stack Web Development',
+      reason: 'Client Unreasonable Revision Scope',
+      description: 'Client requested 4 extra features not specified in original contract after work delivery.',
+      status: 'PENDING',
+      createdAt: new Date('2025-02-15')
+    }
   ] as ReportRecord[]
 }
 
-if (process.env.NODE_ENV !== 'production') {
-  ;(globalThis as any).__ASTERIA_DB__ = globalStore
-}
+// Reset global memory cache during development to ensure fresh test reports load
+;(globalThis as any).__ASTERIA_DB__ = globalStore
 
 export const db = {
   user: {
@@ -186,7 +224,14 @@ export const db = {
       }))
     },
     findUnique: async ({ where, include }: { where: { id: string }, include?: any }) => {
-      return globalStore.orders.find((o: any) => o.id === where.id) ?? null
+      const o = globalStore.orders.find((o: any) => o.id === where.id)
+      if (!o) return null
+      return {
+        ...o,
+        gig: gigs.find(g => g.id === o.gigId) ?? { id: 'g_custom', title: 'Custom Project Package', category: 'Development', price: o.amount, deliveryDays: 5 },
+        buyer: globalStore.users.find((u: any) => u.id === o.buyerId) ?? { name: 'Client Account' },
+        seller: globalStore.users.find((u: any) => u.id === o.sellerId) ?? { name: 'Freelancer Account' },
+      }
     },
     update: async ({ where, data }: { where: { id: string }, data: Partial<OrderRecord> }) => {
       const idx = globalStore.orders.findIndex((o: any) => o.id === where.id)
@@ -221,6 +266,30 @@ export const db = {
       let res = [...gigs]
       if (query?.where?.freelancerId) res = res.filter(g => g.freelancerId === query.where.freelancerId)
       return res.length
+    },
+    create: async ({ data }: { data: any }) => {
+      const newGig = {
+        id: `g_${Date.now()}`,
+        title: data.title,
+        description: data.description,
+        category: data.category || 'Web Development',
+        price: parseFloat(data.price),
+        deliveryDays: parseInt(data.deliveryDays ?? 5, 10),
+        freelancerId: data.freelancerId,
+        tags: Array.isArray(data.tags) ? data.tags : [],
+        featured: false,
+        createdAt: new Date(),
+      }
+      gigs.unshift(newGig as any)
+      return newGig
+    },
+    update: async ({ where, data }: { where: { id: string }, data: any }) => {
+      const idx = gigs.findIndex(g => g.id === where.id)
+      if (idx !== -1) {
+        gigs[idx] = { ...gigs[idx], ...data }
+        return gigs[idx]
+      }
+      return null
     }
   },
 
@@ -344,6 +413,9 @@ export const db = {
       if (query?.where?.status) res = res.filter((r: any) => r.status === query.where.status)
       return res.sort((a: any, b: any) => b.createdAt.getTime() - a.createdAt.getTime())
     },
+    findUnique: async ({ where }: { where: { id: string } }) => {
+      return globalStore.reports.find((r: any) => r.id === where.id) ?? null
+    },
     create: async ({ data }: { data: any }) => {
       const newReport: ReportRecord = {
         id: `rep_${Date.now()}`,
@@ -355,6 +427,10 @@ export const db = {
         reason: data.reason,
         description: data.description,
         status: 'PENDING',
+        history: [
+          { from: 'Reporter', message: data.description, timestamp: new Date().toLocaleString() },
+          { from: 'Admin', message: 'Investigation started. Review pending.', timestamp: new Date().toLocaleString() }
+        ],
         createdAt: new Date()
       }
       globalStore.reports.unshift(newReport)
@@ -367,6 +443,32 @@ export const db = {
         return globalStore.reports[idx]
       }
       return null
+    }
+  },
+
+  review: {
+    findMany: async (query?: any) => {
+      let res = globalStore.reviews ?? []
+      if (query?.where?.freelancerId) res = res.filter((r: any) => r.freelancerId === query.where.freelancerId)
+      if (query?.where?.gigId) res = res.filter((r: any) => r.gigId === query.where.gigId)
+      return res
+    },
+    create: async ({ data }: { data: any }) => {
+      if (!globalStore.reviews) globalStore.reviews = []
+      const newReview = {
+        id: `rev_${Date.now()}`,
+        orderId: data.orderId,
+        freelancerId: data.freelancerId,
+        gigId: data.gigId,
+        reviewerId: data.reviewerId,
+        reviewerName: data.reviewerName,
+        reviewerImage: data.reviewerImage,
+        rating: data.rating,
+        comment: data.comment,
+        createdAt: new Date()
+      }
+      globalStore.reviews.unshift(newReview)
+      return newReview
     }
   }
 }

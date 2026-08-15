@@ -1,8 +1,9 @@
 'use client'
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Bell, Shield, CreditCard, Globe, Moon, LogOut } from 'lucide-react'
-import { signOut } from 'next-auth/react'
+import { createClient } from '@/lib/supabase/client'
 
 function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
   return (
@@ -18,6 +19,9 @@ function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void 
 }
 
 export default function SettingsPage() {
+  const router = useRouter()
+  const supabase = createClient()
+
   const [notifications, setNotifications] = useState({
     newOrders:    true,
     messages:     true,
@@ -33,6 +37,14 @@ export default function SettingsPage() {
   const save = (section: string) => {
     setSaved(section)
     setTimeout(() => setSaved(''), 2000)
+  }
+
+  const handleSignOut = async () => {
+    try {
+      await supabase.auth.signOut()
+    } catch {}
+    router.push('/login')
+    router.refresh()
   }
 
   return (
@@ -151,7 +163,7 @@ export default function SettingsPage() {
           </h2>
           <p className="text-sm text-red-600/80 mb-4">You will be signed out of all devices.</p>
           <button
-            onClick={() => signOut({ callbackUrl: '/' })}
+            onClick={handleSignOut}
             className="text-sm bg-white border border-red-200 text-red-600 rounded-xl px-5 py-2.5 font-medium hover:bg-red-600 hover:text-white transition-colors"
           >
             Sign Out
