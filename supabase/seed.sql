@@ -151,7 +151,7 @@ VALUES
 ON CONFLICT (id) DO NOTHING;
 
 -- ============================================================
--- DEMO REPORTS
+-- DEMO REPORTS (Unsolved Disputes & Policy Flags)
 -- ============================================================
 INSERT INTO reports (id, reporter_id, reporter_name, target_type, target_id, target_title, reason, description, status, created_at)
 VALUES
@@ -160,8 +160,8 @@ VALUES
    'Yassine Khelifi',
    'GIG', 'g3',
    'Build an ML model for customer churn',
-   'Misleading pricing',
-   'Price listed as $450 but the actual scope described requires enterprise ML pipelines, compliance integrations, and custom infrastructure setup costing significantly more.',
+   'Misleading pricing & Unrealistic scope',
+   'Price listed as 80 TND but the actual scope requires setting up dedicated GPU clusters and full database migrations worth over 1,500 TND.',
    'PENDING', '2025-02-06 00:00:00+00'),
 
   ('rep20000-0000-0000-0000-000000000002',
@@ -170,7 +170,7 @@ VALUES
    'ORDER', 'ord20000-0000-0000-0000-000000000002',
    'Order Dispute — Figma UI/UX Design Package',
    'Incomplete Deliverable & Scope Disagreement',
-   'Freelancer submitted 3 screens out of 5 agreed upon and requested an additional custom offer upgrade of $150 via chat. The original agreement specified all 5 screens for $199.',
+   'Freelancer submitted 3 wireframe screens out of 5 agreed upon in the contract and demanded an additional 150 TND upgrade via direct chat. The original contract specified all 5 screens.',
    'PENDING', '2025-02-14 00:00:00+00'),
 
   ('rep30000-0000-0000-0000-000000000003',
@@ -178,26 +178,71 @@ VALUES
    'Yassine Khelifi',
    'ORDER', 'ord10000-0000-0000-0000-000000000001',
    'Order Dispute — Full-Stack Web Development',
-   'Client Unreasonable Revision Scope',
-   'Client requested 4 extra features not specified in the original contract after work was delivered and accepted. Requesting admin review of the original order scope documentation.',
-   'PENDING', '2025-02-15 00:00:00+00')
+   'Unresponsive Client & Blocked Escrow Approval',
+   'Completed codebase and deployment credentials were submitted 5 days ago. The client has reviewed and deployed to staging but has ceased responding to milestone approval requests.',
+   'PENDING', '2025-02-15 00:00:00+00'),
+
+  ('rep40000-0000-0000-0000-000000000004',
+   'c2000000-0000-0000-0000-000000000002',
+   'Nour El Houda',
+   'USER', 'f4000000-0000-0000-0000-000000000004',
+   'User Flag — Karim Youssef',
+   'Off-Platform Direct Payment Solicitation',
+   'Freelancer offered a 20% discount if the order deposit is sent directly via Western Union or WhatsApp instead of using the Asteria Escrow protection system.',
+   'PENDING', '2025-02-16 00:00:00+00'),
+
+  ('rep50000-0000-0000-0000-000000000005',
+   'f3000000-0000-0000-0000-000000000003',
+   'Karim Ben Ammar',
+   'JOB', 'job20000-0000-0000-0000-000000000002',
+   'Job Posting — Reverse Engineer Mobile Banking APK',
+   'Prohibited Security Violation / Policy Breach',
+   'Job description asks candidates to decompile and bypass authentication checks of proprietary Tunisian banking APKs, which violates Asteria Terms of Service.',
+   'PENDING', '2025-02-17 00:00:00+00')
 
 ON CONFLICT (id) DO NOTHING;
 
 -- ============================================================
--- DEMO KYC VERIFICATION (for Leila Ben Ali — PENDING)
+-- DEMO KYC VERIFICATIONS (Unsolved / Pending ID Queue)
 -- ============================================================
 INSERT INTO verifications (id, user_id, full_name, dob, country, document_type, document_number,
   id_front_path, id_back_path, selfie_path, status, submitted_at)
 VALUES
   ('ver10000-0000-0000-0000-000000000001',
    'f2000000-0000-0000-0000-000000000002',
-   'Leila Ben Ali', '1996-05-14', 'Tunisia',
-   'National ID', '14890234',
-   'kyc-documents/f2/id_front.jpg',
-   'kyc-documents/f2/id_back.jpg',
-   'kyc-documents/f2/selfie.jpg',
-   'PENDING', '2025-02-05 00:00:00+00')
+   'Leila Ben Ali', '1996-05-14', 'Tunisia (Tunis)',
+   'National ID (CIN)', '14890234',
+   'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=600&auto=format&fit=crop&q=80',
+   'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=600&auto=format&fit=crop&q=80',
+   'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=400&auto=format&fit=crop&q=80',
+   'PENDING', '2025-02-05 00:00:00+00'),
+
+  ('ver20000-0000-0000-0000-000000000002',
+   'f4000000-0000-0000-0000-000000000004',
+   'Karim Youssef', '1993-11-20', 'Tunisia (Sousse)',
+   'Passport', 'TN-K8904123',
+   'https://images.unsplash.com/photo-1544717305-2782549b5136?w=600&auto=format&fit=crop&q=80',
+   'https://images.unsplash.com/photo-1544717305-2782549b5136?w=600&auto=format&fit=crop&q=80',
+   'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&auto=format&fit=crop&q=80',
+   'PENDING', '2025-02-08 00:00:00+00'),
+
+  ('ver30000-0000-0000-0000-000000000003',
+   'f5000000-0000-0000-0000-000000000005',
+   'Nadia Khalil', '1998-03-08', 'Tunisia (Sfax)',
+   'National ID (CIN)', '09812456',
+   'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=600&auto=format&fit=crop&q=80',
+   'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=600&auto=format&fit=crop&q=80',
+   'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80',
+   'PENDING', '2025-02-10 00:00:00+00'),
+
+  ('ver40000-0000-0000-0000-000000000004',
+   'f6000000-0000-0000-0000-000000000006',
+   'Ahmed Farouk', '1991-08-25', 'Tunisia (Bizerte)',
+   'Driver''s License', 'DL-TN-459012',
+   'https://images.unsplash.com/photo-1544717305-2782549b5136?w=600&auto=format&fit=crop&q=80',
+   'https://images.unsplash.com/photo-1544717305-2782549b5136?w=600&auto=format&fit=crop&q=80',
+   'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&auto=format&fit=crop&q=80',
+   'PENDING', '2025-02-12 00:00:00+00')
 
 ON CONFLICT (id) DO NOTHING;
 
