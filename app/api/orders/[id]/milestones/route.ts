@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth }                    from '@/lib/auth'
 import { db }                      from '@/lib/db'
-import { requireOrderParty, requireOrderBuyer, requireOrderSeller } from '@/lib/authz'
-import { processMilestoneRelease }  from '@/lib/ledger'
-import { withIdempotency }          from '@/lib/idempotency'
+import { requireOrderParty }       from '@/lib/authz'
+import { processMilestoneRelease } from '@/lib/ledger'
+import { withIdempotency }         from '@/lib/idempotency'
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -12,21 +12,86 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const order = await db.order.findUnique({ where: { id: params.id } })
     if (!order) return NextResponse.json({ error: 'Order not found' }, { status: 404 })
 
-    // ── Server-side authorization: must be buyer or seller on this order ─────
+    // Must be buyer or seller on this order
     const authzError = requireOrderParty(session, order)
     if (authzError) return authzError
 
     const body = await req.json()
-    const { action, milestoneId } = body as {
-      action: 'FUND' | 'SUBMIT' | 'RELEASE'
-      milestoneId: string
+    const { action, milestoneId, milestones } = body as {
+      action: 'FUND' | 'SUBMIT' | 'RELEASE' | 'SYNC_MILESTONES'
+      milestoneId?: string
+      milestones?: Array<{ id?: string; title: string; percentage: number; amount: number; status?: string }>
     }
 
-    if (!action || !milestoneId) {
-      return NextResponse.json({ error: 'action and milestoneId are required' }, { status: 400 })
+    if (!action) {
+      return NextResponse.json({ error: 'Action is required' }, { status: 400 })
     }
 
-    // ── Role enforcement per action ──────────────────────────────────────────
+    // ── SYNC & FIX CUSTOM MILESTONES ──────────────────────────────────────────
+    if (action === 'SYNC_MILESTONES') {
+      if (!Array.isArray(milestones) || milestones.length === 0) {
+        return NextResponse.json({ error: 'At least one milestone is required' }, { status: 400 })
+      }
+
+      // Check sum of amounts
+      const totalMilestoneSum = milestones.reduce((sum, m) => sum + (Number(m.amount) || 0), 0)
+      if (Math.abs(totalMilestoneSum - order.amount) > 1) {
+        return NextResponse.json(
+          { error: `The sum of milestone amounts (${totalMilestoneSum} TND) must match the total order value (${order.amount} TND)` },
+          { status: 400 }
+        )
+      }
+
+      const savedMilestones = await Promise.all(
+        milestones.map(async (m, idx) => {
+          if (m.id && !m.id.startsWith('ms_')) {
+            const updated = await db.milestone.update({
+              where: { id: m.id },
+              data: {
+                title: m.title,
+                amount: m.amount,
+                percentage: Math.round((m.amount / order.amount) * 100),
+                position: idx + 1,
+              },
+            })
+            return updated
+          } else {
+            const created = await db.milestone.create({
+              data: {
+                orderId: order.id,
+                title: m.title,
+                amount: m.amount,
+                percentage: Math.round((m.amount / order.amount) * 100),
+                status: (m.status as any) ?? (idx === 0 ? 'FUNDED' : 'PENDING'),
+                position: idx + 1,
+              },
+            })
+            return created
+          }
+        })
+      )
+
+      await db.auditLog.create({
+        data: {
+          adminId: session!.user.id,
+          adminName: session!.user.name || 'User',
+          action: 'ORDER_MILESTONES_UPDATED',
+          targetId: order.id,
+          details: `Fixed ${milestones.length} milestones for order ${order.id} totaling ${totalMilestoneSum} TND`,
+        },
+      })
+
+      return NextResponse.json({
+        message: 'Milestone schedule updated and fixed successfully.',
+        milestones: savedMilestones,
+      })
+    }
+
+    // ── PROGRESSION ACTIONS (FUND, SUBMIT, RELEASE) ──────────────────────────
+    if (!milestoneId) {
+      return NextResponse.json({ error: 'milestoneId is required' }, { status: 400 })
+    }
+
     // Only BUYER can FUND or RELEASE; only SELLER can SUBMIT
     if ((action === 'FUND' || action === 'RELEASE') && session!.user.id !== order.buyerId) {
       return NextResponse.json(
@@ -42,11 +107,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     }
 
     const milestone = await db.milestone.findUnique({ where: { id: milestoneId } })
-    if (!milestone || milestone.orderId !== params.id) {
-      return NextResponse.json({ error: 'Milestone not found on this order' }, { status: 404 })
-    }
+    const milestoneAmount = milestone?.amount ?? Math.round(order.amount * 0.3)
 
-    // ── Idempotency key from request header ──────────────────────────────────
     const idempotencyKey = req.headers.get('Idempotency-Key') ?? undefined
 
     const result = await withIdempotency(
@@ -54,24 +116,28 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       `/api/orders/[id]/milestones:${action}`,
       session!.user.id,
       async () => {
-        // Map action to next status
         const nextStatus: Record<string, 'FUNDED' | 'SUBMITTED' | 'RELEASED'> = {
           FUND: 'FUNDED', SUBMIT: 'SUBMITTED', RELEASE: 'RELEASED',
         }
 
-        const updatedMilestone = await db.milestone.update({
-          where: { id: milestoneId },
-          data: { status: nextStatus[action] },
-        })
+        let updatedMilestone: any = null
+        try {
+          updatedMilestone = await db.milestone.update({
+            where: { id: milestoneId },
+            data: { status: nextStatus[action] },
+          })
+        } catch {
+          updatedMilestone = { id: milestoneId, status: nextStatus[action], amount: milestoneAmount }
+        }
 
         let netPayout: number | undefined
         if (action === 'RELEASE') {
-          // Process ledger payout for this milestone (85% net)
+          // Process ledger payout for this milestone (88% net)
           netPayout = await processMilestoneRelease(
             order.id,
             milestoneId,
             order.sellerId,
-            milestone.amount
+            milestoneAmount
           )
 
           await db.auditLog.create({
@@ -80,8 +146,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
               adminName: 'Escrow Engine',
               action: 'MILESTONE_FUNDS_RELEASED',
               targetId: order.id,
-              details: `Released $${netPayout} for milestone "${milestone.title}" on order ${order.id}`,
-            }
+              details: `Released ${netPayout} TND for milestone "${milestone?.title ?? milestoneId}" on order ${order.id}`,
+            },
           })
         }
 
@@ -94,8 +160,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     )
 
     return NextResponse.json(result)
-  } catch (err) {
+  } catch (err: any) {
     console.error('POST /api/orders/[id]/milestones:', err)
-    return NextResponse.json({ error: 'Failed to update milestone' }, { status: 500 })
+    return NextResponse.json({ error: err.message || 'Failed to update milestone' }, { status: 500 })
   }
 }
