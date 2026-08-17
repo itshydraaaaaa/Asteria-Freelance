@@ -3,6 +3,7 @@ import Link          from 'next/link'
 import { Star, Clock, RefreshCw, Check, ChevronRight, Tag } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { db } from '@/lib/db'
+import { GigOrderCheckoutClient } from '@/components/gigs/GigOrderCheckoutClient'
 
 const BADGE_STYLES: Record<string, string> = {
   top:      'bg-yellow-50 text-yellow-700 border border-yellow-200',
@@ -193,51 +194,14 @@ export default async function GigDetailPage({ params }: { params: { id: string }
           </div>
 
           <div className="space-y-4">
-            <div className="bg-white rounded-2xl border border-black/8 overflow-hidden sticky top-24">
-              <div className="flex border-b border-black/8">
-                {packages.map((pkg, i) => (
-                  <button key={i} className={`flex-1 py-3 text-xs font-semibold transition-colors ${i === 1 ? 'bg-ast-primary text-white' : 'text-ast-gray hover:text-black'}`}>
-                    {pkg.label}
-                  </button>
-                ))}
-              </div>
-              <div className="p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <span className="font-heading font-bold text-3xl text-black">${packages[1].price}</span>
-                </div>
-                <div className="flex items-center gap-4 text-xs text-ast-gray mb-5">
-                  <span className="flex items-center gap-1"><Clock size={12} /> {packages[1].deliveryDays} days delivery</span>
-                  <span className="flex items-center gap-1"><RefreshCw size={12} /> {packages[1].revisions} revisions</span>
-                </div>
-                <ul className="space-y-2 mb-6">
-                  {packages[1].features.map(f => (
-                    <li key={f} className="flex items-center gap-2 text-sm text-ast-gray">
-                      <Check size={14} className="text-ast-primary shrink-0" />
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-                <Link
-                  href="/login"
-                  className="block w-full text-center bg-ast-primary text-white rounded-xl py-3 font-semibold text-sm hover:bg-ast-dark transition-colors shadow-sm"
-                >
-                  Order Service — ${packages[1].price}
-                </Link>
-                <Link
-                  href={`/freelancers/${gig.freelancerId}`}
-                  className="block w-full text-center border border-black/15 text-black rounded-xl py-2.5 text-sm mt-3 hover:bg-ast-surface transition-colors"
-                >
-                  Contact Freelancer
-                </Link>
-              </div>
-            </div>
+            <GigOrderCheckoutClient gig={gig} freelancer={freelancer} packages={packages} />
 
-            <div className="bg-white rounded-2xl border border-black/8 p-5">
+            <div className="bg-white rounded-3xl border border-black/8 p-6 shadow-sm">
               <h3 className="font-semibold text-black text-sm mb-3">This service includes</h3>
-              <ul className="space-y-2">
-                {[`${deliveryDays}-day delivery`, '3 revision rounds', 'Source files', 'Commercial licence', '14-day support'].map(i => (
-                  <li key={i} className="flex items-center gap-2 text-xs text-ast-gray">
-                    <Check size={12} className="text-ast-primary shrink-0" />{i}
+              <ul className="space-y-2.5">
+                {[`${deliveryDays}-day delivery`, '3 revision rounds', 'Source files & assets', 'Commercial licence included', '14-day post-delivery support'].map(i => (
+                  <li key={i} className="flex items-center gap-2.5 text-xs text-ast-gray">
+                    <Check size={14} className="text-ast-primary shrink-0" />{i}
                   </li>
                 ))}
               </ul>

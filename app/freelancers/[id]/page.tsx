@@ -114,14 +114,14 @@ export default async function FreelancerProfilePage({ params }: { params: { id: 
             <div className="flex flex-col gap-3 lg:items-end">
               <div className="text-right">
                 <p className="text-xs text-ast-gray mb-0.5">Starting from</p>
-                <p className="font-heading font-bold text-3xl text-ast-primary">${startingPrice}</p>
+                <p className="font-heading font-bold text-3xl text-ast-primary">{startingPrice} TND</p>
               </div>
               <Link
-                href={`/dashboard/messages?new=${person.id}`}
-                className="flex items-center gap-2 bg-ast-primary text-white rounded-xl px-5 py-2.5 text-sm font-semibold hover:bg-ast-dark transition-colors"
+                href={`/dashboard/messages?user=${person.id}`}
+                className="flex items-center gap-2 bg-ast-primary text-white rounded-xl px-5 py-2.5 text-sm font-semibold hover:bg-ast-dark transition-colors shadow-sm"
               >
                 <MessageSquare size={14} />
-                Contact
+                Contact Freelancer
               </Link>
             </div>
           </div>
