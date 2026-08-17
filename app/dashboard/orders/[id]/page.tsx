@@ -1,8 +1,7 @@
 import { auth } from '@/lib/auth'
 import { db }   from '@/lib/db'
-import { redirect, notFound } from 'next/navigation'
+import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { MilestoneTracker } from '@/components/orders/MilestoneTracker'
 import { OrderWorkspaceClient } from '@/components/orders/OrderWorkspaceClient'
 
 export default async function OrderWorkspacePage({ params }: { params: { id: string } }) {
@@ -33,28 +32,39 @@ export default async function OrderWorkspacePage({ params }: { params: { id: str
     }
   }
 
+  // Ensure buyer and seller info is populated
+  if (!order.buyer || typeof order.buyer === 'string') {
+    const b = await db.user.findUnique({ where: { id: order.buyerId } })
+    order.buyer = b ?? { id: order.buyerId, name: 'Client' }
+  }
+  if (!order.seller || typeof order.seller === 'string') {
+    const s = await db.user.findUnique({ where: { id: order.sellerId } })
+    order.seller = s ?? { id: order.sellerId, name: 'Freelancer' }
+  }
+
   const currentOrder = order!
   const isBuyer = currentOrder.buyerId === userId
-  const isSeller = currentOrder.sellerId === userId
   const userRole = isBuyer ? 'BUYER' : 'SELLER'
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <Link href="/dashboard/orders" className="text-xs text-ast-primary font-semibold hover:underline">
               ← Back to My Orders
             </Link>
           </div>
-          <h1 className="font-heading font-bold text-3xl text-black">Order Workspace #{currentOrder.id}</h1>
+          <h1 className="font-heading font-bold text-3xl text-black">Order Workspace #{currentOrder.id.slice(0, 8)}</h1>
           <p className="text-ast-gray text-xs mt-1">
             Escrow Agreement between <strong>{currentOrder.buyer?.name}</strong> and <strong>{currentOrder.seller?.name}</strong>
           </p>
         </div>
-        <span className="bg-ast-primary text-white font-bold text-sm px-4 py-2 rounded-2xl shadow-sm">
-          ${currentOrder.amount} Escrow Locked
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="bg-emerald-600 text-white font-bold text-sm px-4 py-2 rounded-2xl shadow-sm">
+            {currentOrder.amount} TND Escrow Locked
+          </span>
+        </div>
       </div>
 
       {/* Interactive Order Workspace Client Component */}
