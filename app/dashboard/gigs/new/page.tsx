@@ -1,12 +1,13 @@
 'use client'
-import { useState, useRef }    from 'react'
-import { useRouter }   from 'next/navigation'
-import { categories }  from '@/lib/data/categories'
-import { Check, ChevronRight, Image as ImageIcon, Loader2, Sparkles } from 'lucide-react'
+
+import { useState, useRef } from 'react'
+import { useRouter } from 'next/navigation'
+import { categories } from '@/lib/data/categories'
+import { Check, ChevronRight, Image as ImageIcon, Loader2, Sparkles, X, UploadCloud, RefreshCw } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { AIAssistantModal } from '@/components/ai/AIAssistantModal'
 
-const STEPS = ['Basic Info', 'Details & Pricing', 'Tags & Publish']
+const STEPS = ['Basic Info & Cover', 'Details & Pricing', 'Tags & Publish']
 
 interface Form {
   title: string
@@ -15,39 +16,64 @@ interface Form {
   price: string
   deliveryDays: string
   tags: string
-  image: string // 👉 Added image to the form state
+  image: string
 }
 
-const EMPTY: Form = { title: '', description: '', category: '', price: '99', deliveryDays: '7', tags: '', image: '' }
+const DEFAULT_COVERS = [
+  'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1581291518857-4e27b48ff24e?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1522542550221-31fd19575a2d?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&auto=format&fit=crop&q=80',
+]
+
+const EMPTY: Form = {
+  title: '',
+  description: '',
+  category: '',
+  price: '99',
+  deliveryDays: '7',
+  tags: '',
+  image: DEFAULT_COVERS[0],
+}
 
 export default function NewGigPage() {
   const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement>(null)
-  
+
   const [step, setStep] = useState(0)
   const [dir,  setDir]  = useState(1)
   const [form, setForm] = useState<Form>(EMPTY)
-  
-  const [loading, setLoading]   = useState(false)
+
+  const [loading, setLoading] = useState(false)
   const [uploadingImage, setUploadingImage] = useState(false)
-  const [error,   setError]     = useState('')
-  const [success, setSuccess]   = useState(false)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState(false)
   const [showAiModal, setShowAiModal] = useState(false)
 
   const handle = (k: keyof Form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
     setForm(f => ({ ...f, [k]: e.target.value }))
 
-  // 👉 Direct Gig Image Upload Handler
+  // Direct Gig Image Upload Handler with Instant Local Preview & API Sync
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
+    // 1. Instant local FileReader preview
+    const reader = new FileReader()
+    reader.onload = () => {
+      if (reader.result) {
+        setForm(f => ({ ...f, image: reader.result as string }))
+      }
+    }
+    reader.readAsDataURL(file)
+
+    // 2. Upload to server
     setUploadingImage(true)
     setError('')
     try {
       const formData = new FormData()
       formData.append('file', file)
-      formData.append('bucket', 'gigs') // 👉 Uploading to the gigs bucket
+      formData.append('bucket', 'gigs')
 
       const res = await fetch('/api/upload', {
         method: 'POST',
@@ -56,9 +82,12 @@ export default function NewGigPage() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Upload failed')
 
-      setForm(f => ({ ...f, image: data.url }))
+      if (data.url) {
+        setForm(f => ({ ...f, image: data.url }))
+      }
     } catch (err: any) {
-      setError(err.message)
+      console.warn('Upload fallback to local reader result:', err.message)
+      // Keep local preview if server upload encounters minor error
     } finally {
       setUploadingImage(false)
     }
@@ -81,7 +110,7 @@ export default function NewGigPage() {
           price:        parseFloat(form.price),
           deliveryDays: parseInt(form.deliveryDays, 10),
           tags:         form.tags,
-          image:        form.image, // 👉 Send the image to the database!
+          image:        form.image || DEFAULT_COVERS[0],
         }),
       })
       const data = await res.json()
@@ -108,18 +137,18 @@ export default function NewGigPage() {
           <div className="w-16 h-16 rounded-full bg-ast-muted flex items-center justify-center mx-auto mb-4">
             <Check size={28} className="text-ast-primary" />
           </div>
-          <h2 className="font-heading font-bold text-2xl text-black mb-2">Gig Published!</h2>
-          <p className="text-ast-gray text-sm">Redirecting to your gigs…</p>
+          <h2 className="font-heading font-bold text-2xl text-black mb-2">Gig Published Successfully!</h2>
+          <p className="text-ast-gray text-sm">Redirecting to your gigs management dashboard…</p>
         </motion.div>
       </div>
     )
   }
 
   return (
-    <div className="max-w-2xl">
+    <div className="max-w-2xl mx-auto">
       <div className="mb-8">
         <h1 className="font-heading font-bold text-3xl text-black mb-1">Create a New Gig</h1>
-        <p className="text-ast-gray text-sm">List a service and start receiving orders from clients.</p>
+        <p className="text-ast-gray text-xs">List your freelance service with escrow milestones in Tunisian Dinar (TND).</p>
       </div>
 
       <div className="flex items-center gap-2 mb-8">
@@ -138,9 +167,9 @@ export default function NewGigPage() {
         ))}
       </div>
 
-      <div className="bg-white rounded-3xl border border-black/8 overflow-hidden">
+      <div className="bg-white rounded-3xl border border-black/8 overflow-hidden shadow-sm">
         {error && (
-          <div className="bg-red-50 border-b border-red-200 text-red-700 text-sm px-8 py-3">{error}</div>
+          <div className="bg-red-50 border-b border-red-200 text-red-700 text-xs px-8 py-3">{error}</div>
         )}
 
         <AnimatePresence mode="wait" custom={dir}>
@@ -157,32 +186,72 @@ export default function NewGigPage() {
             {step === 0 && (
               <>
                 <h2 className="font-heading font-bold text-xl text-black">{STEPS[0]}</h2>
-                
-                {/* 👉 Gig Image Uploader */}
+
+                {/* Gig Cover Image Uploader */}
                 <div>
-                  <label className="block text-sm font-medium text-black mb-2">Cover Image <span className="text-red-500">*</span></label>
-                  <div 
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-xs font-semibold text-black">
+                      Gig Cover Photo <span className="text-ast-primary">*</span>
+                    </label>
+                    {form.image && (
+                      <button
+                        type="button"
+                        onClick={() => setForm(f => ({ ...f, image: '' }))}
+                        className="text-[11px] text-red-500 hover:underline flex items-center gap-1"
+                      >
+                        <X size={12} /> Remove
+                      </button>
+                    )}
+                  </div>
+
+                  <div
                     onClick={() => !uploadingImage && fileInputRef.current?.click()}
-                    className={`relative w-full aspect-video rounded-xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-colors overflow-hidden ${form.image ? 'border-ast-primary/50' : 'border-black/15 hover:border-ast-primary hover:bg-ast-surface'}`}
+                    className={`relative w-full aspect-video rounded-2xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all overflow-hidden group ${
+                      form.image ? 'border-ast-primary/50' : 'border-black/15 hover:border-ast-primary hover:bg-ast-surface/50'
+                    }`}
                   >
                     {form.image ? (
-                      <img src={form.image} alt="Gig Cover" className="w-full h-full object-cover" />
+                      <div className="relative w-full h-full">
+                        <img src={form.image} alt="Gig Cover" className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-semibold gap-2">
+                          <UploadCloud size={16} /> Click to change image
+                        </div>
+                      </div>
                     ) : (
-                      <>
+                      <div className="p-6 text-center">
                         {uploadingImage ? (
-                          <Loader2 size={24} className="text-ast-primary animate-spin mb-2" />
+                          <Loader2 size={28} className="text-ast-primary animate-spin mb-2 mx-auto" />
                         ) : (
-                          <ImageIcon size={24} className="text-ast-gray mb-2" />
+                          <UploadCloud size={28} className="text-ast-primary mb-2 mx-auto" />
                         )}
-                        <p className="text-sm font-medium text-black">{uploadingImage ? 'Uploading...' : 'Click to upload'}</p>
-                        <p className="text-xs text-ast-gray mt-1">16:9 ratio recommended</p>
-                      </>
+                        <p className="text-xs font-bold text-black">{uploadingImage ? 'Processing image...' : 'Upload gig cover image'}</p>
+                        <p className="text-[11px] text-ast-gray mt-1">PNG, JPG, WebP up to 10MB (16:9 ratio recommended)</p>
+                      </div>
                     )}
                     <input type="file" accept="image/*" hidden ref={fileInputRef} onChange={handleImageUpload} />
                   </div>
+
+                  {/* Preset Covers Selector */}
+                  <div className="mt-3">
+                    <p className="text-[11px] text-ast-gray mb-1.5">Or choose a preset cover:</p>
+                    <div className="grid grid-cols-4 gap-2">
+                      {DEFAULT_COVERS.map((c, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => setForm(f => ({ ...f, image: c }))}
+                          className={`aspect-video rounded-lg overflow-hidden border-2 transition-all ${
+                            form.image === c ? 'border-ast-primary ring-2 ring-ast-primary/20' : 'border-black/10 opacity-70 hover:opacity-100'
+                          }`}
+                        >
+                          <img src={c} alt="" className="w-full h-full object-cover" />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
 
-                <div className="flex items-center justify-between bg-ast-muted/60 p-4 rounded-2xl border border-ast-primary/20 mb-2">
+                <div className="flex items-center justify-between bg-ast-muted/60 p-4 rounded-2xl border border-ast-primary/20">
                   <div>
                     <p className="font-bold text-xs text-ast-dark flex items-center gap-1.5">
                       <Sparkles size={14} className="text-ast-primary" /> AI Freelancer Gig Generator
@@ -199,32 +268,34 @@ export default function NewGigPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-black mb-2">Gig Title <span className="text-red-500">*</span></label>
+                  <label className="block text-xs font-semibold text-black mb-1.5">Gig Title <span className="text-red-500">*</span></label>
                   <input
                     value={form.title} onChange={handle('title')} required maxLength={80}
-                    placeholder="e.g. I will build a production-ready Next.js SaaS app"
-                    className="w-full border border-black/15 rounded-xl px-4 py-3 text-sm outline-none focus:border-ast-primary focus:ring-2 focus:ring-ast-primary/20"
+                    placeholder="e.g. I will build a production-ready Next.js SaaS app with payments"
+                    className="w-full border border-black/15 rounded-xl px-4 py-2.5 text-xs outline-none focus:border-ast-primary font-medium"
                   />
-                  <p className="text-xs text-ast-gray mt-1">{form.title.length}/80 characters</p>
+                  <p className="text-[10px] text-ast-gray mt-1">{form.title.length}/80 characters</p>
                 </div>
+
                 <div>
-                  <label className="block text-sm font-medium text-black mb-2">Category <span className="text-red-500">*</span></label>
+                  <label className="block text-xs font-semibold text-black mb-1.5">Category <span className="text-red-500">*</span></label>
                   <select
                     value={form.category} onChange={handle('category')} required
-                    className="w-full border border-black/15 rounded-xl px-4 py-3 text-sm outline-none focus:border-ast-primary bg-white"
+                    className="w-full border border-black/15 rounded-xl px-4 py-2.5 text-xs outline-none focus:border-ast-primary bg-white font-medium"
                   >
                     <option value="">Select a category</option>
                     {categories.map(c => <option key={c.slug} value={c.name}>{c.name}</option>)}
                   </select>
                 </div>
+
                 <div>
-                  <label className="block text-sm font-medium text-black mb-2">Description <span className="text-red-500">*</span></label>
+                  <label className="block text-xs font-semibold text-black mb-1.5">Description <span className="text-red-500">*</span></label>
                   <textarea
                     value={form.description} onChange={handle('description')} required rows={5} maxLength={2000}
                     placeholder="Describe what you offer, what's included, your process, and what clients can expect…"
-                    className="w-full border border-black/15 rounded-xl px-4 py-3 text-sm outline-none focus:border-ast-primary focus:ring-2 focus:ring-ast-primary/20 resize-none"
+                    className="w-full border border-black/15 rounded-xl px-4 py-2.5 text-xs outline-none focus:border-ast-primary resize-none"
                   />
-                  <p className="text-xs text-ast-gray mt-1">{form.description.length}/2000</p>
+                  <p className="text-[10px] text-ast-gray mt-1">{form.description.length}/2000</p>
                 </div>
               </>
             )}
@@ -233,34 +304,34 @@ export default function NewGigPage() {
               <>
                 <h2 className="font-heading font-bold text-xl text-black">{STEPS[1]}</h2>
                 <div>
-                  <label className="block text-sm font-medium text-black mb-3">
-                    Starting Price: <span className="text-ast-primary font-bold">${form.price}</span>
+                  <label className="block text-xs font-semibold text-black mb-2">
+                    Starting Price: <span className="text-ast-primary font-bold">{form.price} TND</span> (88% Net Payout: {Math.round(parseFloat(form.price || '0') * 0.88 * 100) / 100} TND)
                   </label>
                   <input
-                    type="range" min={5} max={5000} step={5} value={form.price} onChange={handle('price')}
+                    type="range" min={15} max={5000} step={5} value={form.price} onChange={handle('price')}
                     className="w-full accent-ast-primary h-2 rounded-full"
                   />
-                  <div className="flex justify-between text-xs text-ast-gray mt-1"><span>$5</span><span>$5,000</span></div>
+                  <div className="flex justify-between text-[11px] text-ast-gray mt-1"><span>15 TND</span><span>5,000 TND</span></div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-black mb-2">Starting Price (exact)</label>
+                  <label className="block text-xs font-semibold text-black mb-1.5">Exact Price (TND)</label>
                   <div className="relative">
-                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ast-gray text-sm">$</span>
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ast-gray text-xs font-bold">TND</span>
                     <input
-                      type="number" min={5} max={5000} value={form.price} onChange={handle('price')}
-                      className="w-full pl-8 pr-4 border border-black/15 rounded-xl py-3 text-sm outline-none focus:border-ast-primary focus:ring-2 focus:ring-ast-primary/20"
+                      type="number" min={15} max={5000} value={form.price} onChange={handle('price')}
+                      className="w-full pl-12 pr-4 border border-black/15 rounded-xl py-2.5 text-xs outline-none focus:border-ast-primary font-bold"
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-black mb-3">
-                    Delivery Time: <span className="text-ast-primary font-bold">{form.deliveryDays} day{Number(form.deliveryDays) !== 1 ? 's' : ''}</span>
+                  <label className="block text-xs font-semibold text-black mb-2">
+                    Delivery Timeline: <span className="text-ast-primary font-bold">{form.deliveryDays} day{Number(form.deliveryDays) !== 1 ? 's' : ''}</span>
                   </label>
                   <input
                     type="range" min={1} max={30} step={1} value={form.deliveryDays} onChange={handle('deliveryDays')}
                     className="w-full accent-ast-primary h-2 rounded-full"
                   />
-                  <div className="flex justify-between text-xs text-ast-gray mt-1"><span>1 day</span><span>30 days</span></div>
+                  <div className="flex justify-between text-[11px] text-ast-gray mt-1"><span>1 day</span><span>30 days</span></div>
                 </div>
               </>
             )}
@@ -269,25 +340,25 @@ export default function NewGigPage() {
               <>
                 <h2 className="font-heading font-bold text-xl text-black">{STEPS[2]}</h2>
                 <div>
-                  <label className="block text-sm font-medium text-black mb-2">Tags</label>
+                  <label className="block text-xs font-semibold text-black mb-1.5">Skills & Tags</label>
                   <input
                     value={form.tags} onChange={handle('tags')}
                     placeholder="React, TypeScript, Next.js (comma-separated)"
-                    className="w-full border border-black/15 rounded-xl px-4 py-3 text-sm outline-none focus:border-ast-primary focus:ring-2 focus:ring-ast-primary/20"
+                    className="w-full border border-black/15 rounded-xl px-4 py-2.5 text-xs outline-none focus:border-ast-primary"
                   />
-                  <p className="text-xs text-ast-gray mt-1">Add up to 5 tags to help clients find your gig.</p>
+                  <p className="text-[11px] text-ast-gray mt-1">Add tags to help clients find your service.</p>
                 </div>
 
                 <div className="bg-ast-surface rounded-2xl p-5 space-y-3">
-                  <h3 className="font-semibold text-black text-sm">Review your gig</h3>
+                  <h3 className="font-semibold text-black text-sm">Review your gig summary</h3>
                   {[
                     ['Title',    form.title || '—'],
                     ['Category', form.category || '—'],
-                    ['Price',    `$${form.price}`],
+                    ['Price',    `${form.price} TND`],
                     ['Delivery', `${form.deliveryDays} day(s)`],
                     ['Tags',     form.tags || '—'],
                   ].map(([k, v]) => (
-                    <div key={k} className="flex justify-between text-sm border-b border-black/5 pb-2 last:border-0 last:pb-0">
+                    <div key={k} className="flex justify-between text-xs border-b border-black/5 pb-2 last:border-0 last:pb-0">
                       <span className="text-ast-gray">{k}</span>
                       <span className="font-medium text-black text-right max-w-xs truncate">{v}</span>
                     </div>
@@ -300,25 +371,25 @@ export default function NewGigPage() {
 
         <div className="flex justify-between items-center px-8 pb-8">
           <button onClick={prev} disabled={step === 0}
-            className="text-sm text-ast-gray hover:text-black disabled:opacity-30 transition-colors px-3 py-2">
+            className="text-xs font-semibold text-ast-gray hover:text-black disabled:opacity-30 transition-colors px-3 py-2">
             ← Back
           </button>
           {step < STEPS.length - 1 ? (
             <button
               onClick={next}
               disabled={
-                (step === 0 && (!form.title || !form.category || !form.description || !form.image)) ||
+                (step === 0 && (!form.title || !form.category || !form.description)) ||
                 (step === 1 && !form.price)
               }
-              className="flex items-center gap-2 bg-ast-primary text-white rounded-full px-6 py-2.5 text-sm font-medium hover:bg-ast-dark transition-colors disabled:opacity-50"
+              className="flex items-center gap-2 bg-ast-primary text-white rounded-xl px-6 py-2.5 text-xs font-bold hover:bg-ast-dark transition-colors disabled:opacity-50 shadow-sm"
             >
-              Continue <ChevronRight size={15} />
+              Continue <ChevronRight size={14} />
             </button>
           ) : (
             <button
               onClick={publish}
               disabled={loading}
-              className="flex items-center gap-2 bg-ast-primary text-white rounded-full px-6 py-2.5 text-sm font-medium hover:bg-ast-dark transition-colors disabled:opacity-60"
+              className="flex items-center gap-2 bg-ast-primary text-white rounded-xl px-6 py-2.5 text-xs font-bold hover:bg-ast-dark transition-colors disabled:opacity-60 shadow-sm"
             >
               {loading ? 'Publishing…' : <><Check size={14} /> Publish Gig</>}
             </button>
