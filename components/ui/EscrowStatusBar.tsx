@@ -50,7 +50,7 @@ const STATUS_CONFIG: Record<OrderStatus, {
   COMPLETED: {
     Icon:      CheckCircle2,
     label:     'Payment Released',
-    sublabel:  '85% net payout has been credited to the freelancer\'s wallet',
+    sublabel:  '88% net payout has been credited to the freelancer\'s wallet (12% platform fee)',
     bg:        'bg-emerald-50',
     border:    'border-emerald-200',
     text:      'text-emerald-900',

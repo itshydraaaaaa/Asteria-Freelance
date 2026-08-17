@@ -40,8 +40,8 @@ export default async function WalletPage() {
   } catch {}
 
   const balance         = Number(dbUser?.walletBalance ?? (role === 'FREELANCER' ? 1450 : 3200))
-  const totalEarned     = orders.filter(o => o.status === 'COMPLETED').reduce((s, o) => s + (role === 'FREELANCER' ? o.amount * 0.85 : o.amount), 0)
-  const pendingEarnings = orders.filter(o => o.status === 'ACTIVE' || o.status === 'PENDING').reduce((s, o) => s + (role === 'FREELANCER' ? o.amount * 0.85 : o.amount), 0)
+  const totalEarned     = orders.filter(o => o.status === 'COMPLETED').reduce((s, o) => s + (role === 'FREELANCER' ? o.amount * 0.88 : o.amount), 0)
+  const pendingEarnings = orders.filter(o => o.status === 'ACTIVE' || o.status === 'PENDING').reduce((s, o) => s + (role === 'FREELANCER' ? o.amount * 0.88 : o.amount), 0)
   const totalOrders     = orders.length
 
   return (
@@ -73,7 +73,7 @@ export default async function WalletPage() {
             bg: 'bg-ast-primary/10',
           },
           {
-            label: role === 'FREELANCER' ? 'Total Payouts (85%)' : 'Total Spent',
+            label: role === 'FREELANCER' ? 'Total Payouts (88%)' : 'Total Spent',
             value: `${totalEarned.toLocaleString()} TND`,
             Icon: ArrowDownLeft,
             color: 'text-emerald-600',
@@ -180,7 +180,7 @@ export default async function WalletPage() {
           <div className="bg-ast-dark rounded-2xl p-5 text-white shadow-sm space-y-2">
             <h3 className="font-semibold text-sm">Platform Commission</h3>
             <p className="text-white/70 text-xs leading-relaxed">
-              Asteria retains a transparent 15% platform fee on completed orders. The freelancer receives 85% net payout directly to their available balance upon approval.
+              Asteria retains a transparent 12% platform fee on completed orders. The freelancer receives 88% net payout directly to their available balance upon approval.
             </p>
           </div>
         </div>

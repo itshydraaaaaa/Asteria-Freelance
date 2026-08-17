@@ -46,7 +46,7 @@ export interface TransactionMeta {
   idempotencyKey?: string
 }
 
-const PLATFORM_FEE_RATE = 0.15  // 15% platform commission
+const PLATFORM_FEE_RATE = 0.12  // 12% platform commission
 
 // ─── getBalance ───────────────────────────────────────────────────────────────
 /**
@@ -124,8 +124,8 @@ export async function debitWallet(
 // ─── processEscrowRelease ─────────────────────────────────────────────────────
 /**
  * Releases escrow funds for a completed order:
- *  - Credits seller 85% (net payout)
- *  - Credits admin/platform 15% (platform fee)
+ *  - Credits seller 88% (net payout)
+ *  - Credits admin/platform 12% (platform fee)
  * Both writes are idempotent using the orderId as key component.
  */
 export async function processEscrowRelease(

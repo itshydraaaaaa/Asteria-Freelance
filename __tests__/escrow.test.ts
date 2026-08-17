@@ -6,7 +6,7 @@
 
 // ─── Escrow Math ─────────────────────────────────────────────────────────────
 
-const PLATFORM_FEE_RATE = 0.15
+const PLATFORM_FEE_RATE = 0.12
 
 function calculatePayout(amount: number) {
   const sellerPayout = Math.round(amount * (1 - PLATFORM_FEE_RATE) * 100) / 100
@@ -15,14 +15,14 @@ function calculatePayout(amount: number) {
 }
 
 describe('Escrow Math', () => {
-  test('seller receives 85% of order amount', () => {
+  test('seller receives 88% of order amount', () => {
     const { sellerPayout } = calculatePayout(100)
-    expect(sellerPayout).toBe(85.00)
+    expect(sellerPayout).toBe(88.00)
   })
 
-  test('platform receives 15% of order amount', () => {
+  test('platform receives 12% commission fee', () => {
     const { platformFee } = calculatePayout(100)
-    expect(platformFee).toBe(15.00)
+    expect(platformFee).toBe(12.00)
   })
 
   test('payout + fee = full order amount (no rounding loss)', () => {
@@ -31,24 +31,24 @@ describe('Escrow Math', () => {
     expect(sellerPayout + platformFee).toBe(amount)
   })
 
-  test('correct split on $79 order', () => {
-    const { sellerPayout, platformFee } = calculatePayout(79)
-    expect(sellerPayout).toBe(67.15)
-    expect(platformFee).toBe(11.85)
-    expect(sellerPayout + platformFee).toBe(79)
+  test('correct split on 100 TND order', () => {
+    const { sellerPayout, platformFee } = calculatePayout(100)
+    expect(sellerPayout).toBe(88.00)
+    expect(platformFee).toBe(12.00)
+    expect(sellerPayout + platformFee).toBe(100)
   })
 
-  test('correct split on $199 order', () => {
-    const { sellerPayout, platformFee } = calculatePayout(199)
-    expect(sellerPayout).toBe(169.15)
-    expect(platformFee).toBe(29.85)
+  test('correct split on 200 TND order', () => {
+    const { sellerPayout, platformFee } = calculatePayout(200)
+    expect(sellerPayout).toBe(176.00)
+    expect(platformFee).toBe(24.00)
   })
 
   test('fractional amounts round to 2 decimal places', () => {
     const { sellerPayout, platformFee } = calculatePayout(1)
-    // $1 → seller gets $0.85, platform gets $0.15
-    expect(sellerPayout).toBe(0.85)
-    expect(platformFee).toBe(0.15)
+    // 1 TND → seller gets 0.88 TND, platform gets 0.12 TND
+    expect(sellerPayout).toBe(0.88)
+    expect(platformFee).toBe(0.12)
   })
 })
 

@@ -65,7 +65,7 @@ function renderTemplate(event: EmailEvent, data: Record<string, any>): { subject
         <div style="background:#fff;border-radius:8px;padding:16px;margin:16px 0;">
           <p><strong>Service:</strong> ${data.gigTitle}</p>
           <p><strong>Amount in Escrow:</strong> ${data.amount} TND</p>
-          <p><strong>Your Net Payout:</strong> ${(data.amount * 0.85).toFixed(2)} TND (85%)</p>
+          <p><strong>Your Net Payout:</strong> ${(data.amount * 0.88).toFixed(2)} TND (88%)</p>
         </div>
         <a href="https://asteria.com/dashboard/orders/${data.orderId}" style="background:#11606e;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;display:inline-block;">View Order →</a>
       `,
@@ -81,10 +81,10 @@ function renderTemplate(event: EmailEvent, data: Record<string, any>): { subject
     },
 
     ORDER_COMPLETED: {
-      subject: `Payment Released — ${data.netPayout ?? data.amount * 0.85} TND Credited to Your Wallet`,
+      subject: `Payment Released — ${data.netPayout ?? data.amount * 0.88} TND Credited to Your Wallet`,
       body: `
         <h2 style="color:#0a3a40">Payment received! 💰</h2>
-        <p style="color:#374151"><strong>${data.netPayout ?? (data.amount * 0.85).toFixed(2)} TND</strong> has been credited to your Asteria wallet.</p>
+        <p style="color:#374151"><strong>${data.netPayout ?? (data.amount * 0.88).toFixed(2)} TND</strong> has been credited to your Asteria wallet.</p>
         <a href="https://asteria.com/dashboard" style="background:#11606e;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;display:inline-block;">View Wallet →</a>
       `,
     },
@@ -132,7 +132,7 @@ function renderTemplate(event: EmailEvent, data: Record<string, any>): { subject
       subject: `Milestone Payment — ${data.netPayout} TND Credited to Wallet`,
       body: `
         <h2 style="color:#0a3a40">Milestone payment released! 💸</h2>
-        <p style="color:#374151"><strong>${data.netPayout} TND</strong> (85% net) has been credited for milestone: <em>${data.milestoneTitle}</em>.</p>
+        <p style="color:#374151"><strong>${data.netPayout} TND</strong> (88% net) has been credited for milestone: <em>${data.milestoneTitle}</em>.</p>
         <a href="https://asteria.com/dashboard" style="background:#11606e;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;display:inline-block;">View Wallet →</a>
       `,
     },

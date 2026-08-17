@@ -9,15 +9,24 @@ import { AIAssistantModal } from '@/components/ai/AIAssistantModal'
 const STEPS = ['Describe', 'Budget & Timeline', 'Skills', 'Review & Post']
 
 interface FormData {
-  title:       string
-  description: string
-  category:    string
-  budget:      number
-  deliveryDays: number
-  skills:      string
+  title:            string
+  description:      string
+  category:         string
+  budget:           number
+  deliveryDays:     number
+  skills:           string
+  paymentStructure: 'FULL_JOB' | 'MILESTONE'
 }
 
-const INITIAL: FormData = { title: '', description: '', category: '', budget: 500, deliveryDays: 7, skills: '' }
+const INITIAL: FormData = {
+  title:            '',
+  description:      '',
+  category:         '',
+  budget:           500,
+  deliveryDays:     7,
+  skills:           '',
+  paymentStructure: 'FULL_JOB',
+}
 
 export default function PostJobPage() {
   const router  = useRouter()
@@ -170,22 +179,55 @@ export default function PostJobPage() {
               {step === 1 && (
                 <div className="space-y-6">
                   <h2 className="font-heading font-bold text-xl text-black">{STEPS[1]}</h2>
+
+                  {/* Payment Structure */}
+                  <div className="space-y-2">
+                    <label className="block text-xs font-semibold text-black">Payment Escrow Structure</label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setForm(f => ({ ...f, paymentStructure: 'FULL_JOB' }))}
+                        className={`p-3.5 rounded-2xl border text-left transition-all ${
+                          form.paymentStructure === 'FULL_JOB'
+                            ? 'border-ast-primary bg-ast-primary/5 ring-2 ring-ast-primary/20'
+                            : 'border-black/10 bg-white hover:border-black/20'
+                        }`}
+                      >
+                        <span className="font-semibold text-xs text-black block mb-0.5">Fixed Price (Full Job)</span>
+                        <p className="text-[11px] text-ast-gray">Pay 100% in escrow, released upon full completion.</p>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setForm(f => ({ ...f, paymentStructure: 'MILESTONE' }))}
+                        className={`p-3.5 rounded-2xl border text-left transition-all ${
+                          form.paymentStructure === 'MILESTONE'
+                            ? 'border-ast-primary bg-ast-primary/5 ring-2 ring-ast-primary/20'
+                            : 'border-black/10 bg-white hover:border-black/20'
+                        }`}
+                      >
+                        <span className="font-semibold text-xs text-black block mb-0.5">Milestone Payments</span>
+                        <p className="text-[11px] text-ast-gray">Divide project into funded progressive phases.</p>
+                      </button>
+                    </div>
+                  </div>
+
                   <div>
                     <label className="block text-sm font-medium text-black mb-3">
-                      Budget: <span className="text-ast-primary font-bold">${form.budget.toLocaleString()}</span>
+                      Project Budget: <span className="text-ast-primary font-bold">{form.budget.toLocaleString()} TND</span>
                     </label>
                     <input type="range" min={25} max={10000} step={25} value={form.budget}
                       onChange={e => setForm(f => ({ ...f, budget: parseInt(e.target.value, 10) }))}
                       className="w-full accent-ast-primary h-2 rounded-full" />
-                    <div className="flex justify-between text-xs text-ast-gray mt-1"><span>$25</span><span>$10,000</span></div>
+                    <div className="flex justify-between text-xs text-ast-gray mt-1"><span>25 TND</span><span>10,000 TND</span></div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-black mb-2">Exact Budget</label>
+                    <label className="block text-sm font-medium text-black mb-2">Exact Budget (TND)</label>
                     <div className="relative">
-                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ast-gray text-sm">$</span>
+                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ast-gray text-sm">TND</span>
                       <input type="number" min={25} max={50000} value={form.budget}
                         onChange={e => setForm(f => ({ ...f, budget: parseInt(e.target.value, 10) }))}
-                        className="w-full pl-8 pr-4 border border-black/15 rounded-xl py-3 text-sm outline-none focus:border-ast-primary focus:ring-2 focus:ring-ast-primary/20" />
+                        className="w-full pl-12 pr-4 border border-black/15 rounded-xl py-3 text-sm outline-none focus:border-ast-primary focus:ring-2 focus:ring-ast-primary/20 font-semibold" />
                     </div>
                   </div>
                   <div>
