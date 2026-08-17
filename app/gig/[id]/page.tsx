@@ -17,7 +17,7 @@ const MOCK_REVIEWS = [
   { name: 'Khaled Nasser',  initials: 'KN', rating: 4, comment: 'Very good quality. Minor revision needed but handled quickly.', date: '2 months ago' },
 ]
 
-export const revalidate = 60 
+export const dynamic = 'force-dynamic'
 
 export default async function GigDetailPage({ params }: { params: { id: string } }) {
   let gig: any = null

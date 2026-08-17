@@ -1,39 +1,16 @@
-import { createClient } from '@/lib/supabase/server'
 import { db } from '@/lib/db'
 import Link from 'next/link'
 import { JobBrowser } from '@/components/jobs/JobBrowser'
 import { categories } from '@/lib/data/categories'
 
-export const revalidate = 30
+export const dynamic = 'force-dynamic'
 
 export default async function JobsPage() {
   let jobs: any[] = []
 
   try {
-    // 1. Try DB helper
     const dbJobs = await db.job.findMany()
-    if (dbJobs && dbJobs.length > 0) {
-      jobs = dbJobs.map((job: any) => ({
-        ...job,
-        _count: { proposals: 3 }
-      }))
-    } else {
-      // 2. Fall back to Supabase
-      const supabase = createClient()
-      const { data } = await supabase
-        .from('Job')
-        .select('*, client:User(name), proposals:Proposal(id)')
-        .eq('status', 'OPEN')
-        .order('createdAt', { ascending: false })
-
-      if (data) {
-        jobs = data.map((job: any) => ({
-          ...job,
-          client: Array.isArray(job.client) ? job.client[0] : job.client,
-          _count: { proposals: job.proposals?.length || 0 }
-        }))
-      }
-    }
+    jobs = dbJobs ?? []
   } catch (error) {
     console.error("Failed to fetch jobs:", error)
   }
@@ -51,7 +28,7 @@ export default async function JobsPage() {
           </div>
           <Link
             href="/post-job"
-            className="shrink-0 bg-ast-primary text-white rounded-full px-6 py-3 font-semibold text-sm hover:bg-ast-dark transition-colors"
+            className="shrink-0 bg-ast-primary text-white rounded-full px-6 py-3 font-semibold text-sm hover:bg-ast-dark transition-colors shadow-sm"
           >
             + Post a Job
           </Link>

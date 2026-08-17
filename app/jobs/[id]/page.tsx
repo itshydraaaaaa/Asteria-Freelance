@@ -5,6 +5,8 @@ import { db }                 from '@/lib/db'
 import { ProposalForm }       from '@/components/jobs/ProposalForm'
 import { Clock, DollarSign, Users, Tag, Calendar, CheckCircle } from 'lucide-react'
 
+export const dynamic = 'force-dynamic'
+
 export default async function JobDetailPage({ params }: { params: { id: string } }) {
   let job: any = null
   try {

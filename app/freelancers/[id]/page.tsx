@@ -16,7 +16,7 @@ const MOCK_REVIEWS = [
   { name: 'Dina Khalil',   initials: 'DK', rating: 4, comment: 'Very talented. Minor tweaks needed but overall fantastic experience.', date: '2 months ago' },
 ]
 
-export const revalidate = 60
+export const dynamic = 'force-dynamic'
 
 export default async function FreelancerProfilePage({ params }: { params: { id: string } }) {
   let person: any = null

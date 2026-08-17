@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth }          from '@/lib/auth'
-import { db }            from '@/lib/db'
-import { requireRole }   from '@/lib/authz'
+import { auth } from '@/lib/auth'
+import { db } from '@/lib/db'
+import { requireRole } from '@/lib/authz'
 
 export async function GET(req: NextRequest) {
   try {
@@ -9,10 +9,7 @@ export async function GET(req: NextRequest) {
     const category = searchParams.get('category')
     const search   = searchParams.get('q')
 
-    // Gigs are served from static data (lib/data/gigs.ts) — public, no auth needed
-    // Dynamic gigs created by freelancers are stored separately (future: merge with static)
-    const { gigs } = await import('@/lib/data/gigs')
-    let result = [...gigs]
+    let result = await db.gig.findMany()
     if (category) result = result.filter((g: any) => g.category?.toLowerCase() === category.toLowerCase())
     if (search)   result = result.filter((g: any) => g.title?.toLowerCase().includes(search.toLowerCase()))
 
@@ -47,22 +44,18 @@ export async function POST(req: NextRequest) {
       ? tags
       : tags?.split(',').map((t: string) => t.trim()).filter(Boolean) ?? []
 
-    // Insert into gigs table (to be added to migration — for now returns mock)
-    const gig = {
-      id:           `gig_${Date.now()}`,
-      title,
-      description,
-      category,
-      price:        numericPrice,
-      deliveryDays: parseInt(deliveryDays ?? 7, 10),
-      tags:         formattedTags,
-      image:        image ?? null,
-      freelancerId: session!.user.id,
-      freelancer:   { name: session!.user.name, image: session!.user.image },
-      rating:       5.0,
-      reviewCount:  0,
-      createdAt:    new Date(),
-    }
+    const gig = await db.gig.create({
+      data: {
+        title,
+        description,
+        category,
+        price: numericPrice,
+        deliveryDays: parseInt(deliveryDays ?? 7, 10),
+        tags: formattedTags,
+        image: image || 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=800&auto=format&fit=crop&q=80',
+        freelancerId: session!.user.id,
+      },
+    })
 
     return NextResponse.json(gig, { status: 201 })
   } catch (err) {

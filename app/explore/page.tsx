@@ -1,32 +1,15 @@
-import { createClient } from '@/lib/supabase/server'
 import { db } from '@/lib/db'
 import { GigBrowser } from '@/components/explore/GigBrowser'
 import { categories } from '@/lib/data/categories'
 
-export const revalidate = 60
+export const dynamic = 'force-dynamic'
 
 export default async function ExplorePage() {
   let gigs: any[] = []
 
   try {
-    // 1. Try DB helper
     const dbGigs = await db.gig.findMany()
-    if (dbGigs && dbGigs.length > 0) {
-      gigs = dbGigs
-    } else {
-      // 2. Fall back to Supabase
-      const supabase = createClient()
-      const { data } = await supabase
-        .from('Gig')
-        .select('*, freelancer:User(name, image, location)')
-        .order('createdAt', { ascending: false })
-      if (data) {
-        gigs = data.map((gig: any) => ({
-          ...gig,
-          freelancer: Array.isArray(gig.freelancer) ? gig.freelancer[0] : gig.freelancer
-        }))
-      }
-    }
+    gigs = dbGigs ?? []
   } catch (error) {
     console.error("Failed to fetch gigs:", error)
   }

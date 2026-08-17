@@ -21,25 +21,23 @@ export async function login(formData: FormData) {
     const cookieStore = cookies()
     cookieStore.set('demo_user_id', matchingStatic.id, { path: '/' })
     cookieStore.set('demo_user_role', matchingStatic.role, { path: '/' })
-    revalidatePath('/dashboard', 'layout')
+    revalidatePath('/', 'layout')
     redirect('/dashboard')
   }
 
-  // 2. Check in DB
+  // 2. Check in unified db.user repository (includes registered accounts)
   try {
-    const allUsers = await db.user.findMany()
-    const matchingTestUser = allUsers.find(u => u.email.toLowerCase() === email)
-
-    if (matchingTestUser) {
+    const user = await db.user.findUnique({ where: { email } })
+    if (user) {
       const cookieStore = cookies()
-      cookieStore.set('demo_user_id', matchingTestUser.id, { path: '/' })
-      cookieStore.set('demo_user_role', matchingTestUser.role, { path: '/' })
-      revalidatePath('/dashboard', 'layout')
+      cookieStore.set('demo_user_id', user.id, { path: '/' })
+      cookieStore.set('demo_user_role', user.role, { path: '/' })
+      revalidatePath('/', 'layout')
       redirect('/dashboard')
     }
   } catch (e) {}
 
-  // 3. Fallback to Supabase Auth
+  // 3. Fallback to Supabase Auth if cloud credentials exist
   try {
     const supabase = createClient()
     const { error } = await supabase.auth.signInWithPassword({
@@ -47,24 +45,15 @@ export async function login(formData: FormData) {
       password,
     })
 
-    if (error) {
-      // In demo mode, provide friendly access
-      if (process.env.ENABLE_DEMO_AUTH === 'true') {
-        const cookieStore = cookies()
-        cookieStore.set('demo_user_id', 'admin1', { path: '/' })
-        cookieStore.set('demo_user_role', 'ADMIN', { path: '/' })
-        revalidatePath('/dashboard', 'layout')
-        redirect('/dashboard')
-      }
-      return { error: error.message || 'Invalid credentials' }
+    if (!error) {
+      revalidatePath('/', 'layout')
+      redirect('/dashboard')
     }
   } catch (err: any) {
     if (err?.message === 'NEXT_REDIRECT') throw err
-    return { error: 'Failed to sign in. Please try demo login.' }
   }
 
-  revalidatePath('/dashboard', 'layout')
-  redirect('/dashboard')
+  return { error: 'Invalid email or password. Please create an account or select a demo user.' }
 }
 
 export async function loginAsTestUser(userId: string) {
@@ -74,7 +63,7 @@ export async function loginAsTestUser(userId: string) {
   if (staticDemo) {
     cookieStore.set('demo_user_id', staticDemo.id, { path: '/' })
     cookieStore.set('demo_user_role', staticDemo.role, { path: '/' })
-    revalidatePath('/dashboard', 'layout')
+    revalidatePath('/', 'layout')
     redirect('/dashboard')
   }
 
@@ -82,32 +71,53 @@ export async function loginAsTestUser(userId: string) {
   if (user) {
     cookieStore.set('demo_user_id', user.id, { path: '/' })
     cookieStore.set('demo_user_role', user.role, { path: '/' })
-    revalidatePath('/dashboard', 'layout')
+    revalidatePath('/', 'layout')
     redirect('/dashboard')
   }
 
   // Fallback to admin
   cookieStore.set('demo_user_id', 'admin1', { path: '/' })
   cookieStore.set('demo_user_role', 'ADMIN', { path: '/' })
-  revalidatePath('/dashboard', 'layout')
+  revalidatePath('/', 'layout')
   redirect('/dashboard')
 }
 
 export async function register(formData: FormData) {
-  const email = formData.get('email') as string
+  const email = (formData.get('email') as string)?.trim().toLowerCase()
   const password = formData.get('password') as string
-  const name = formData.get('name') as string
-  const role = (formData.get('role') as string) || 'CLIENT'
+  const name = (formData.get('name') as string)?.trim()
+  const role = ((formData.get('role') as string) || 'CLIENT') as 'CLIENT' | 'FREELANCER'
 
   if (!email || !password || !name) {
     return { error: 'All fields are required' }
   }
 
-  const cookieStore = cookies()
-  cookieStore.set('demo_user_id', `u_${Date.now()}`, { path: '/' })
-  cookieStore.set('demo_user_role', role, { path: '/' })
+  // Check if account already exists
+  const existing = await db.user.findUnique({ where: { email } })
+  if (existing) {
+    return { error: 'An account with this email already exists. Please sign in.' }
+  }
 
-  revalidatePath('/dashboard', 'layout')
+  // Create real user in unified db repository
+  const newUser = await db.user.create({
+    data: {
+      name,
+      email,
+      role,
+      password,
+      walletBalance: role === 'CLIENT' ? 5000 : 0,
+      verifiedStatus: 'APPROVED',
+      image: role === 'FREELANCER'
+        ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'
+        : 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
+    },
+  })
+
+  const cookieStore = cookies()
+  cookieStore.set('demo_user_id', newUser.id, { path: '/' })
+  cookieStore.set('demo_user_role', newUser.role, { path: '/' })
+
+  revalidatePath('/', 'layout')
   redirect('/dashboard')
 }
 
