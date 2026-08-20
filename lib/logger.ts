@@ -99,10 +99,10 @@ export const logger = {
     if (level === 'AUDIT' || level === 'SECURITY' || level === 'ERROR') {
       db.auditLog.create({
         data: {
-          adminId: context.userId || 'system',
-          adminName: `${level} Logger`,
+          adminId: context.adminId || context.userId || 'system',
+          adminName: context.adminName || `${level} Logger`,
           action: event,
-          targetId: context.orderId || context.milestoneId || context.userId || undefined,
+          targetId: context.orderId || context.milestoneId || context.userId || context.adminId || undefined,
           details: `${message} | Context: ${JSON.stringify(sanitize(context))}`,
         },
       }).catch(() => {})

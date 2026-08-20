@@ -31,6 +31,7 @@ export async function POST(req: NextRequest) {
     const userId = session.metadata?.userId
     const tndAmount = parseFloat(session.metadata?.tndAmount || session.metadata?.amount || '0')
     const paymentType = session.metadata?.paymentType || 'ORDER_PAYMENT'
+    const exchangeRateApplied = session.metadata?.exchangeRateApplied ? parseFloat(session.metadata.exchangeRateApplied) : undefined
 
     try {
       if (orderId && tndAmount > 0) {
@@ -40,25 +41,28 @@ export async function POST(req: NextRequest) {
           data: { status: 'ACTIVE' },
         })
 
-        // 2. Record atomic deposit and escrow lock in the financial ledger
+        // 2. Record atomic deposit and escrow lock in the financial ledger with applied rate
         const buyerId = userId || updatedOrder?.buyerId || 'system'
         await creditWallet(buyerId, tndAmount, 'DEPOSIT', {
           note: `Deposit via Stripe Checkout for Order #${orderId}`,
           orderId,
           idempotencyKey: `stripe-dep-order-${session.id}`,
+          exchangeRateApplied,
         })
 
         await debitWallet(buyerId, tndAmount, 'FUND_ESCROW', {
           note: `Escrow funded via Stripe Checkout for Order #${orderId}`,
           orderId,
           idempotencyKey: `stripe-fund-order-${session.id}`,
+          exchangeRateApplied,
         })
 
         // 3. Log audit event
-        logger.audit('STRIPE_ORDER_ESCROW_FUNDED', `Order #${orderId} funded via Stripe (${tndAmount} TND)`, {
+        logger.audit('STRIPE_ORDER_ESCROW_FUNDED', `Order #${orderId} funded via Stripe (${tndAmount} TND at rate ${exchangeRateApplied ?? 'N/A'})`, {
           orderId,
           userId: buyerId,
           amount: tndAmount,
+          exchangeRateApplied,
           sessionId: session.id,
         })
       } else if (userId && tndAmount > 0) {
@@ -66,11 +70,13 @@ export async function POST(req: NextRequest) {
         await creditWallet(userId, tndAmount, 'DEPOSIT', {
           note: `Wallet Deposit via Stripe (Checkout Session ${session.id})`,
           idempotencyKey: `stripe-deposit-${session.id}`,
+          exchangeRateApplied,
         })
 
-        logger.audit('STRIPE_WALLET_DEPOSIT', `User #${userId} deposited ${tndAmount} TND via Stripe`, {
+        logger.audit('STRIPE_WALLET_DEPOSIT', `User #${userId} deposited ${tndAmount} TND via Stripe (Rate: ${exchangeRateApplied ?? 'N/A'})`, {
           userId,
           amount: tndAmount,
+          exchangeRateApplied,
           sessionId: session.id,
         })
       }

@@ -3,11 +3,9 @@ import Stripe from 'stripe'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { requireAuth } from '@/lib/authz'
+import { getTndToUsdRate } from '@/lib/fx'
 
 export const dynamic = 'force-dynamic'
-
-// 1 TND ≈ 0.32 USD (configurable via env)
-const TND_TO_USD_RATE = parseFloat(process.env.TND_TO_USD_RATE || '0.32')
 
 export async function POST(req: NextRequest) {
   try {
@@ -35,8 +33,11 @@ export async function POST(req: NextRequest) {
     const currencyConfig = (process.env.CURRENCY || 'tnd').toLowerCase()
     const chargeCurrency = currencyConfig === 'tnd' ? 'usd' : currencyConfig
 
-    // Calculate charge amount in cents, accounting for exchange rate if converting TND -> USD
-    const chargeAmountUsd = currencyConfig === 'tnd' ? (numericTndAmount * TND_TO_USD_RATE) : numericTndAmount
+    // Fetch Live FX rate (Task 2.1)
+    const { rate: currentFxRate, source: fxSource } = await getTndToUsdRate()
+
+    // Calculate charge amount in cents, accounting for live FX rate if converting TND -> USD
+    const chargeAmountUsd = currencyConfig === 'tnd' ? (numericTndAmount * currentFxRate) : numericTndAmount
     const unitAmountCents = Math.max(50, Math.round(chargeAmountUsd * 100)) // Stripe minimum 50 cents
 
     const origin = req.headers.get('origin') || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:5000'
@@ -50,7 +51,7 @@ export async function POST(req: NextRequest) {
             product_data: {
               name: title,
               description: currencyConfig === 'tnd'
-                ? `Asteria Escrow: ${numericTndAmount.toFixed(2)} TND (~$${chargeAmountUsd.toFixed(2)} USD at rate ${TND_TO_USD_RATE}) for Order #${orderId || 'Direct'}`
+                ? `Asteria Escrow: ${numericTndAmount.toFixed(2)} TND (~$${chargeAmountUsd.toFixed(2)} USD at ${fxSource} rate ${currentFxRate}) for Order #${orderId || 'Direct'}`
                 : `Asteria Freelance Escrow Protection — Safe payment for order #${orderId || 'Direct'}`,
             },
             unit_amount: unitAmountCents,
@@ -71,6 +72,8 @@ export async function POST(req: NextRequest) {
         paymentType: type,
         tndAmount: String(numericTndAmount),
         usdAmount: String(chargeAmountUsd.toFixed(2)),
+        exchangeRateApplied: String(currentFxRate),
+        fxSource,
       },
     })
 

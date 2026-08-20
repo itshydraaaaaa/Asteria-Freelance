@@ -6,14 +6,16 @@ import crypto from 'crypto'
 
 export const dynamic = 'force-dynamic'
 
+const WEBHOOK_TOLERANCE_MS = 5 * 60 * 1000 // 5 minutes
+
 /**
  * Konnect Sandbox Payment Gateway Handler
- * Supports generating payment sessions and verifying webhook notifications
+ * Supports generating payment sessions and verifying webhook notifications with constant-time HMAC & timestamp anti-replay.
  */
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { action, amount, orderId, userId, paymentRef, signature } = body
+    const { action, amount, orderId, userId, paymentRef, signature, timestamp } = body
 
     if (action === 'INITIATE_PAYMENT') {
       const session = await auth()
@@ -36,11 +38,30 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === 'WEBHOOK') {
+      // 1. Anti-Replay Timestamp Validation (Task 2.4)
+      const now = Date.now()
+      const reqTimestamp = Number(timestamp)
+
+      if (!timestamp || isNaN(reqTimestamp) || Math.abs(now - reqTimestamp) > WEBHOOK_TOLERANCE_MS) {
+        return NextResponse.json(
+          { error: 'Webhook timestamp expired or out of tolerance window (replay attack prevention).' },
+          { status: 400 }
+        )
+      }
+
+      // 2. Constant-Time HMAC Signature Verification (Task 2.4)
       const secret = process.env.KONNECT_WEBHOOK_KEY || 'asteria_konnect_sandbox_key'
-      const payloadString = `${paymentRef}:${amount}:${orderId || ''}:${userId || ''}`
+      const payloadString = `${paymentRef}:${amount}:${orderId || ''}:${userId || ''}:${timestamp}`
       const expectedSignature = crypto.createHmac('sha256', secret).update(payloadString).digest('hex')
 
-      if (signature && signature !== expectedSignature) {
+      if (!signature || typeof signature !== 'string') {
+        return NextResponse.json({ error: 'Missing Konnect webhook signature' }, { status: 401 })
+      }
+
+      const sigBuf = Buffer.from(signature, 'hex')
+      const expBuf = Buffer.from(expectedSignature, 'hex')
+
+      if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
         return NextResponse.json({ error: 'Invalid Konnect webhook signature' }, { status: 401 })
       }
 

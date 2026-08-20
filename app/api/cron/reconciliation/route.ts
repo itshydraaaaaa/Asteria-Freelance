@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getReconciliationReport } from '@/lib/ledger'
+import { getReconciliationReport, getLedgerHistory } from '@/lib/ledger'
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
 
@@ -13,6 +13,7 @@ export const dynamic = 'force-dynamic'
  * Automatically dispatches high-priority paging alerts if:
  * 1. Balance anomaly or escrow drift is detected.
  * 2. Pending withdrawal requests exceed the SLA review threshold (Task 1.5).
+ * 3. Stripe external balance transactions mismatch against internal ledger (Task 2.3).
  */
 export async function GET(req: NextRequest) {
   try {
@@ -49,19 +50,63 @@ export async function GET(req: NextRequest) {
       })
     }
 
-    if (!report.isBalanced || staleWithdrawals.length > 0) {
+    // 2. Stripe External Ledger Reconciliation (Task 2.3)
+    let stripeReconciliation = { checked: false, stripeGrossUsd: 0, internalGrossUsd: 0, discrepancyUsd: 0 }
+    if (process.env.STRIPE_SECRET_KEY && !process.env.STRIPE_SECRET_KEY.includes('placeholder')) {
+      try {
+        const Stripe = (await import('stripe')).default
+        const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2026-03-25.dahlia' as any })
+        const balanceTxs = await stripe.balanceTransactions.list({ limit: 100 })
+
+        const stripeGrossUsd = balanceTxs.data
+          .filter(t => t.type === 'charge' && t.status === 'available')
+          .reduce((sum, t) => sum + (t.amount / 100), 0)
+
+        const txs = await getLedgerHistory('all', 500)
+        const stripeDeposits = txs.filter(t => t.type === 'DEPOSIT' && t.idempotencyKey && t.idempotencyKey.startsWith('stripe-'))
+
+        const internalGrossUsd = stripeDeposits.reduce((sum, t) => {
+          const appliedRate = t.exchangeRateApplied || 0.32
+          return sum + (t.amount * appliedRate)
+        }, 0)
+
+        const discrepancyUsd = Math.round(Math.abs(stripeGrossUsd - internalGrossUsd) * 100) / 100
+
+        stripeReconciliation = {
+          checked: true,
+          stripeGrossUsd: Math.round(stripeGrossUsd * 100) / 100,
+          internalGrossUsd: Math.round(internalGrossUsd * 100) / 100,
+          discrepancyUsd,
+        }
+
+        if (discrepancyUsd > 10.0) {
+          report.anomalies.push(`Stripe external balance mismatch! Stripe Gross: $${stripeReconciliation.stripeGrossUsd} USD, Internal Ledger Expected: $${stripeReconciliation.internalGrossUsd} USD (Diff: $${discrepancyUsd})`)
+          logger.security('STRIPE_RECONCILIATION_MISMATCH', `Stripe external ledger drift of $${discrepancyUsd} USD detected`, {
+            stripeReconciliation,
+          })
+        }
+      } catch (err: any) {
+        logger.warn('STRIPE_RECONCILIATION_FETCH_ERROR', `Could not fetch Stripe balance transactions: ${err.message}`)
+      }
+    }
+
+    const hasAnomalies = !report.isBalanced || staleWithdrawals.length > 0 || stripeReconciliation.discrepancyUsd > 10.0
+
+    if (hasAnomalies) {
       // Trigger instant incident alert
       logger.security('CRITICAL_RECONCILIATION_ALERT', `Reconciliation audit flagged items! Balanced: ${report.isBalanced}, Stale Withdrawals: ${staleWithdrawals.length}`, {
         report,
         staleWithdrawalsCount: staleWithdrawals.length,
+        stripeReconciliation,
         timestamp: new Date().toISOString(),
       })
 
       return NextResponse.json({
-        status: report.isBalanced ? 'SLA_WARNING' : 'ALERT_MISMATCH',
+        status: report.isBalanced ? 'SLA_OR_STRIPE_WARNING' : 'ALERT_MISMATCH',
         alertSent: true,
         report,
         staleWithdrawals,
+        stripeReconciliation,
       }, { status: report.isBalanced ? 200 : 500 })
     }
 
@@ -69,11 +114,13 @@ export async function GET(req: NextRequest) {
     logger.audit('SCHEDULED_RECONCILIATION_SUCCESS', `Automated reconciliation audit passed. All ${report.activeOrdersCount} active orders verified with 0 SLA breaches.`, {
       totalEscrowLocked: report.totalEscrowLocked,
       currency: 'TND',
+      stripeReconciliation,
     })
 
     return NextResponse.json({
       status: 'HEALTHY',
       report,
+      stripeReconciliation,
       checkedAt: new Date().toISOString(),
     }, { status: 200 })
   } catch (err: any) {

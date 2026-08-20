@@ -36,6 +36,7 @@ export interface LedgerEntry {
   balanceAfter: number
   note?: string
   idempotencyKey?: string
+  exchangeRateApplied?: number
   createdAt: Date
 }
 
@@ -44,6 +45,7 @@ export interface TransactionMeta {
   milestoneId?: string
   note?: string
   idempotencyKey?: string
+  exchangeRateApplied?: number
 }
 
 export interface ReconciliationReport {
@@ -296,6 +298,7 @@ async function _creditWalletInternal(
     balanceAfter: newBal,
     note: meta.note,
     idempotencyKey: meta.idempotencyKey,
+    exchangeRateApplied: meta.exchangeRateApplied,
     createdAt: new Date(),
   }
 
@@ -365,6 +368,7 @@ async function _debitWalletInternal(
     balanceAfter: newBal,
     note: meta.note,
     idempotencyKey: meta.idempotencyKey,
+    exchangeRateApplied: meta.exchangeRateApplied,
     createdAt: new Date(),
   }
 
@@ -555,6 +559,7 @@ function mapEntry(row: any): LedgerEntry {
     balanceAfter:   Number(row.balance_after ?? row.balanceAfter ?? 0),
     note:           row.note ?? undefined,
     idempotencyKey: row.idempotency_key ?? row.idempotencyKey ?? undefined,
+    exchangeRateApplied: row.exchange_rate_applied != null ? Number(row.exchange_rate_applied) : (row.exchangeRateApplied != null ? Number(row.exchangeRateApplied) : undefined),
     createdAt:      new Date(row.created_at ?? row.createdAt ?? Date.now()),
   }
 }
