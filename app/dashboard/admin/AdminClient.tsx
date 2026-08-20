@@ -307,7 +307,7 @@ export function AdminClient({
       {/* TAB 1: OVERVIEW */}
       {activeTab === 'OVERVIEW' && (
         <div className="space-y-8">
-          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             {[
               { label: 'Total Users',     value: String(users.length), sub: `${users.filter(u => u.role === 'FREELANCER').length} freelancers`, color: 'border-l-ast-primary' },
               { label: 'Pending Payouts', value: String(pendingWithdrawalsCount), sub: 'Awaiting transfer', color: 'border-l-emerald-600' },
