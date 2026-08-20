@@ -17,11 +17,13 @@ export async function login(formData: FormData) {
     return { error: 'Email and password are required' }
   }
 
-  // 0. Check Account Lockout Policy
+  // 0. Check Progressive Account Defense (Task 3.2)
   const lockout = checkAccountLockout(email)
-  if (lockout.locked) {
+  if (lockout.backoffSecs > 0) {
     return {
-      error: `Account temporarily locked due to multiple failed login attempts. Please try again in ${Math.ceil((lockout.retryAfterSecs || 900) / 60)} minutes or reset your password.`,
+      error: `Too many attempts. Please wait ${lockout.backoffSecs}s or complete verification before trying again.`,
+      requireCaptcha: lockout.requireCaptcha,
+      backoffSecs: lockout.backoffSecs,
     }
   }
 
@@ -31,10 +33,11 @@ export async function login(formData: FormData) {
     // Verify password if not empty
     if (matchingStatic.password && matchingStatic.password !== password && password !== 'demo123') {
       const lockRes = recordFailedLogin(email)
-      if (lockRes.locked) {
-        return { error: 'Too many failed login attempts. Account temporarily locked for 15 minutes.' }
+      return {
+        error: `Invalid credentials. (${Math.max(1, 5 - lockRes.attemptsCount)} attempt${5 - lockRes.attemptsCount <= 1 ? '' : 's'} before verification delay)`,
+        requireCaptcha: lockRes.requireCaptcha,
+        backoffSecs: lockRes.backoffSecs,
       }
-      return { error: `Invalid password. (${lockRes.attemptsLeft} attempt${lockRes.attemptsLeft === 1 ? '' : 's'} remaining)` }
     }
 
     resetFailedLogins(email)
@@ -51,10 +54,11 @@ export async function login(formData: FormData) {
     if (user) {
       if (user.password && user.password !== password && password !== 'demo123') {
         const lockRes = recordFailedLogin(email)
-        if (lockRes.locked) {
-          return { error: 'Too many failed login attempts. Account temporarily locked for 15 minutes.' }
+        return {
+          error: `Invalid credentials. (${Math.max(1, 5 - lockRes.attemptsCount)} attempt${5 - lockRes.attemptsCount <= 1 ? '' : 's'} before verification delay)`,
+          requireCaptcha: lockRes.requireCaptcha,
+          backoffSecs: lockRes.backoffSecs,
         }
-        return { error: `Invalid password. (${lockRes.attemptsLeft} attempt${lockRes.attemptsLeft === 1 ? '' : 's'} remaining)` }
       }
 
       resetFailedLogins(email)
