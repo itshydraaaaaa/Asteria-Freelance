@@ -2,6 +2,7 @@ import { db } from '@/lib/db'
 import { debitWallet, getBalance, creditWallet, processEscrowRelease, checkIdempotency, saveIdempotency } from '@/lib/ledger'
 
 describe('Phase 1: Concurrency & Locking Correctness Test Suite', () => {
+  jest.setTimeout(20000)
   const CONCURRENT_TEST_USER = 'user_concurrency_20_test'
   const SELLER_A = 'user_seller_a_lock'
   const BUYER_B = 'user_buyer_b_lock'

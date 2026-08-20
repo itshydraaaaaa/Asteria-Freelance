@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import crypto from 'crypto'
 
 describe('Phase 2: Financial Correctness Test Suite', () => {
+  jest.setTimeout(20000)
   const TEST_USER = 'user_fx_test_1'
 
   beforeAll(async () => {

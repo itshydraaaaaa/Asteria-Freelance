@@ -9,6 +9,8 @@ import { sendEmail }      from '@/lib/email'
  * POST /api/admin/verification — Approve, Reject, or Request Resubmission for a KYC application
  */
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(req: NextRequest) {
   try {
     const session = await auth()

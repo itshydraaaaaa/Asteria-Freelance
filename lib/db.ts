@@ -1223,42 +1223,13 @@ export const db = {
 
       let list = (global as any).__AST_VERIFICATIONS__
       if (!list) {
-        list = [
-          {
-            id: 'ver1',
-            userId: 'f1',
-            fullName: 'Yassine Khelifi',
-            dob: '1995-04-12',
-            country: 'Tunisia (Tunis)',
-            documentType: 'National ID (CIN)',
-            documentNumber: '08765432',
-            idFrontPath: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=600&auto=format&fit=crop&q=80',
-            idBackPath: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=600&auto=format&fit=crop&q=80',
-            selfiePath: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80',
-            status: 'APPROVED',
-            submittedAt: new Date(Date.now() - 3600000 * 24),
-          },
-          {
-            id: 'ver2',
-            userId: 'f2',
-            fullName: 'Leila Ben Ali',
-            dob: '1997-09-18',
-            country: 'Tunisia (Ariana)',
-            documentType: 'Passport',
-            documentNumber: 'TN-L7654321',
-            idFrontPath: 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=600&auto=format&fit=crop&q=80',
-            idBackPath: 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=600&auto=format&fit=crop&q=80',
-            selfiePath: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=400&auto=format&fit=crop&q=80',
-            status: 'PENDING',
-            submittedAt: new Date(Date.now() - 3600000 * 6),
-          },
-        ]
+        list = []
         ;(global as any).__AST_VERIFICATIONS__ = list
       }
 
       const merged = [...dbVerifications]
       list.forEach((lv: VerificationRecord) => {
-        if (!merged.some(v => v.id === lv.id || v.userId === lv.userId)) {
+        if (!merged.some(v => v.id === lv.id || (v.userId === lv.userId && v.documentNumber === lv.documentNumber))) {
           const u = users.find(usr => usr.id === lv.userId)
           merged.push({ ...lv, user: u })
         }
@@ -1277,10 +1248,13 @@ export const db = {
     },
 
     create: async ({ data }: { data: Partial<VerificationRecord> }): Promise<VerificationRecord> => {
+      const users = await db.user.findMany()
+      const user = users.find(u => u.id === data.userId)
+
       const newVerif: VerificationRecord = {
         id: data.id ?? `ver_${Date.now()}`,
         userId: data.userId!,
-        fullName: data.fullName ?? 'Applicant',
+        fullName: data.fullName ?? user?.name ?? 'Applicant',
         dob: data.dob ?? '1995-01-01',
         country: data.country ?? 'Tunisia',
         documentType: data.documentType ?? 'National ID',
@@ -1290,6 +1264,7 @@ export const db = {
         selfiePath: data.selfiePath ?? '',
         status: 'PENDING',
         submittedAt: new Date(),
+        user,
       }
 
       // Insert into Supabase

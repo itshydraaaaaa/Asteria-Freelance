@@ -109,10 +109,10 @@ export async function register(formData: FormData) {
     return { error: 'An account with this email already exists. Please sign in.' }
   }
 
-  // 2. Create user in Supabase Auth if cloud credentials exist
-  let authUserId = `u_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
+  // 2. Create user in Supabase Auth
+  const supabase = createClient()
+  let authUserId: string | null = null
   try {
-    const supabase = createClient()
     const { data: authData } = await supabase.auth.signUp({
       email,
       password,
@@ -125,6 +125,11 @@ export async function register(formData: FormData) {
     }
   } catch {}
 
+  if (!authUserId) {
+    const crypto = await import('crypto')
+    authUserId = crypto.randomUUID()
+  }
+
   // 3. Create real user in unified db repository
   const newUser = await db.user.create({
     data: {
@@ -134,7 +139,7 @@ export async function register(formData: FormData) {
       role,
       password,
       walletBalance: role === 'CLIENT' ? 5000 : 0,
-      verifiedStatus: 'APPROVED',
+      verifiedStatus: 'UNSUBMITTED',
       image: role === 'FREELANCER'
         ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'
         : 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
