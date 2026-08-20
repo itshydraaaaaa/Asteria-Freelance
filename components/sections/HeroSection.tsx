@@ -94,7 +94,7 @@ export function HeroSection() {
           {/* Left Column Text & Controls */}
           <div className="flex-1 max-w-2xl">
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 border border-white/15 backdrop-blur-md mb-8">
-              <Sparkles size={14} className="text-ast-light animate-spin" />
+              <Sparkles size={14} className="text-ast-light animate-pulse" />
               <span className="font-mono text-ast-light text-[11px] tracking-[0.2em] uppercase font-semibold">
                 Asteria 3D AI Marketplace — MENA Region
               </span>
