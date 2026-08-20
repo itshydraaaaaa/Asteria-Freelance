@@ -82,7 +82,14 @@ export function Navbar() {
   const handleSignOut = async () => {
     setUserMenuOpen(false)
     setOpen(false)
-    await logout()
+    // Clear cookies client-side immediately
+    if (typeof document !== 'undefined') {
+      document.cookie = 'demo_user_id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT;'
+      document.cookie = 'demo_user_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT;'
+    }
+    try {
+      await logout()
+    } catch {}
     setUser(null)
     router.push('/')
     router.refresh()

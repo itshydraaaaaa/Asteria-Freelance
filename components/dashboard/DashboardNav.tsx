@@ -4,6 +4,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { microHover } from '@/lib/motion'
 import { createClient } from '@/lib/supabase/client'
+import { logout } from '@/app/actions/auth'
 import {
   LayoutDashboard, Package, MessageSquare, Settings, LogOut,
   User, ShieldCheck, Star, Wallet, BarChart2, Briefcase, Globe
@@ -42,7 +43,6 @@ const CLIENT_NAV = [
 export function DashboardNav({ name, email, role, initials, image }: Props) {
   const pathname = usePathname()
   const router = useRouter()
-  const supabase = createClient()
 
   const isActive = (href: string) =>
     href === '/dashboard' ? pathname === '/dashboard' : pathname.startsWith(href)
@@ -52,7 +52,13 @@ export function DashboardNav({ name, email, role, initials, image }: Props) {
     role === 'CLIENT'     ? CLIENT_NAV     : []
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut()
+    if (typeof document !== 'undefined') {
+      document.cookie = 'demo_user_id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT;'
+      document.cookie = 'demo_user_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT;'
+    }
+    try {
+      await logout()
+    } catch {}
     router.push('/login')
     router.refresh()
   }

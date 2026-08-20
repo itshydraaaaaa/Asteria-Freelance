@@ -230,5 +230,6 @@ export async function logout() {
     const supabase = createClient()
     await supabase.auth.signOut()
   } catch (e) {}
-  redirect('/login')
+  revalidatePath('/', 'layout')
+  return { success: true }
 }
