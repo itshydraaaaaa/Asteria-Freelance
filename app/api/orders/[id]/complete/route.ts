@@ -5,6 +5,7 @@ import { requireOrderBuyer }   from '@/lib/authz'
 import { processEscrowRelease } from '@/lib/ledger'
 import { withIdempotency }      from '@/lib/idempotency'
 import { sendEmail }            from '@/lib/email'
+import { logger }               from '@/lib/logger'
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -15,7 +16,14 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     // ── Server-side authorization: only the BUYER can approve and release funds
     const authzError = requireOrderBuyer(session, order)
-    if (authzError) return authzError
+    if (authzError) {
+      logger.security('UNAUTHORIZED_ESCROW_RELEASE_ATTEMPT', `Unauthorized attempt to release order #${params.id}`, {
+        userId: session?.user?.id,
+        orderId: params.id,
+        buyerId: order.buyerId,
+      })
+      return authzError
+    }
 
     if (order.status !== 'PENDING' && order.status !== 'ACTIVE') {
       return NextResponse.json(
@@ -34,23 +42,23 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         data: { status: 'COMPLETED' },
       })
 
-      // 2. Process escrow release via ledger (85/15 split, idempotent)
+      // 2. Process escrow release via ledger (88/12 split, idempotent)
       const { sellerPayout, platformFee } = await processEscrowRelease(
         order.id,
         order.sellerId,
         order.amount
       )
 
-      // 3. Audit log
+      // 3. Structured Audit Log
       const seller = await db.user.findUnique({ where: { id: order.sellerId } })
-      await db.auditLog.create({
-        data: {
-          adminId: 'system',
-          adminName: 'Escrow Engine',
-          action: 'ORDER_FUNDS_RELEASED',
-          targetId: order.id,
-          details: `Released $${sellerPayout} to ${seller?.name ?? order.sellerId} for order ${order.id}. Platform fee: $${platformFee}`,
-        }
+      logger.audit('ESCROW_RELEASED_SUCCESS', `Released ${sellerPayout} TND to seller #${order.sellerId} for order #${order.id}`, {
+        userId: session!.user.id,
+        orderId: order.id,
+        sellerId: order.sellerId,
+        amount: order.amount,
+        sellerPayout,
+        platformFee,
+        currency: 'TND',
       })
 
       // ── Email notifications (non-blocking) ────────────────────────────
@@ -62,13 +70,16 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         order: updatedOrder,
         sellerPayout,
         platformFee,
-        message: 'Order approved. Funds released to seller.',
+        message: 'Order approved. Escrow funds released to seller.',
       }
     })
 
     return NextResponse.json(result)
-  } catch (err) {
-    console.error('POST /api/orders/[id]/complete:', err)
+  } catch (err: any) {
+    logger.error('ORDER_COMPLETION_ERROR', `Failed to complete order #${params.id}: ${err.message}`, {
+      orderId: params.id,
+      error: err,
+    })
     return NextResponse.json({ error: 'Failed to complete order' }, { status: 500 })
   }
 }
