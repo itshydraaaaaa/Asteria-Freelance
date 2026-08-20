@@ -304,13 +304,13 @@ export function Navbar() {
             <>
               <Link
                 href="/login"
-                className="text-sm font-medium text-white/80 hover:text-white px-4 py-2 transition-colors"
+                className="text-sm font-medium text-white/80 hover:text-white px-3.5 py-1.5 rounded-full hover:bg-white/10 transition-all"
               >
                 Sign In
               </Link>
               <Link
-                href="/login"
-                className="text-sm font-semibold text-ast-dark bg-ast-light hover:bg-ast-sky rounded-full px-5 py-2 transition-colors shadow-sm"
+                href="/register"
+                className="text-sm font-semibold text-ast-dark bg-ast-light hover:bg-ast-sky hover:scale-105 active:scale-95 rounded-full px-5 py-2 transition-all shadow-md"
               >
                 Join
               </Link>
@@ -404,15 +404,22 @@ export function Navbar() {
                     </button>
                   </>
                 ) : (
-                  <>
+                  <div className="flex flex-col gap-2.5">
                     <Link
                       href="/login"
                       onClick={() => setOpen(false)}
-                      className="w-full block text-center font-bold text-ast-dark bg-ast-light rounded-xl py-3 text-sm shadow-md"
+                      className="w-full block text-center font-semibold text-white bg-white/10 hover:bg-white/15 border border-white/20 rounded-xl py-3 text-sm transition-all"
                     >
-                      Join / Sign In
+                      Sign In
                     </Link>
-                  </>
+                    <Link
+                      href="/register"
+                      onClick={() => setOpen(false)}
+                      className="w-full block text-center font-bold text-ast-dark bg-ast-light hover:bg-ast-sky rounded-xl py-3 text-sm shadow-md transition-all"
+                    >
+                      Join Asteria
+                    </Link>
+                  </div>
                 )}
               </div>
             </div>
