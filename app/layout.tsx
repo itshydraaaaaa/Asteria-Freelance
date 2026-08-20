@@ -6,6 +6,7 @@ import { Footer } from '@/components/layout/Footer'
 import { Providers } from '@/components/providers/Providers'
 import { CustomCursor } from '@/components/cursor/CustomCursor'
 import { ScrollProgressBar } from '@/components/ui/ScrollProgressBar'
+import { CookieConsentBanner } from '@/components/common/CookieConsentBanner'
 
 const exo2 = Exo_2({
   subsets: ['latin'],
@@ -45,6 +46,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <Navbar />
           <main>{children}</main>
           <Footer />
+          <CookieConsentBanner />
         </Providers>
       </body>
     </html>
