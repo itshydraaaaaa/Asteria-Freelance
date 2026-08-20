@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { requireRole } from '@/lib/authz'
-import { getBalance } from '@/lib/ledger'
+import { getBalance, debitWallet } from '@/lib/ledger'
+import { logger } from '@/lib/logger'
+
+export const dynamic = 'force-dynamic'
 
 export async function POST(req: NextRequest) {
   try {
@@ -37,8 +40,8 @@ export async function POST(req: NextRequest) {
     try {
       currentBalance = await getBalance(userId)
     } catch {
-      const user = await db.user.findUnique({ where: { id: userId } })
-      currentBalance = user?.walletBalance ?? 0
+      const u = await db.user.findUnique({ where: { id: userId } })
+      currentBalance = u?.walletBalance ?? 0
     }
 
     if (currentBalance < numericAmount) {
@@ -48,7 +51,13 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Create withdrawal request in DB
+    // 1. Immediately hold/debit the funds from user balance to prevent duplicate/overdraft exploit
+    await debitWallet(userId, numericAmount, 'WITHDRAWAL', {
+      note: `Payout request initiated via ${method} (${accountDetails})`,
+      idempotencyKey: `with-req-${userId}-${Date.now()}`,
+    })
+
+    // 2. Create withdrawal request in DB
     const withdrawal = await db.withdrawal.create({
       data: {
         userId,
@@ -59,26 +68,23 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    // Log action in audit trail
-    await db.auditLog.create({
-      data: {
-        adminId: 'system',
-        adminName: 'Payout Gateway',
-        action: 'WITHDRAWAL_REQUESTED',
-        targetId: withdrawal.id,
-        details: `Freelancer ${session!.user.name} requested withdrawal of ${numericAmount} TND via ${method} (${accountDetails})`,
-      },
+    // 3. Log action in audit trail
+    logger.audit('WITHDRAWAL_REQUESTED', `Freelancer ${session!.user.name} requested withdrawal of ${numericAmount} TND via ${method}`, {
+      userId,
+      withdrawalId: withdrawal.id,
+      amount: numericAmount,
+      method,
     })
 
     return NextResponse.json(
       {
         withdrawal,
-        message: `Your withdrawal request of ${numericAmount.toFixed(2)} TND has been submitted to the Admin Finance Desk for processing.`,
+        message: `Your withdrawal request of ${numericAmount.toFixed(2)} TND has been submitted and funds held for transfer by the Admin Finance Desk.`,
       },
       { status: 201 }
     )
   } catch (err: any) {
-    console.error('POST /api/wallet/withdraw error:', err)
+    logger.error('WITHDRAWAL_REQUEST_ERROR', `Failed to submit withdrawal request: ${err.message}`, { error: err })
     return NextResponse.json({ error: err.message || 'Failed to submit withdrawal request' }, { status: 500 })
   }
 }

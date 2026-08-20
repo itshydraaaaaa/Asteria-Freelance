@@ -2,8 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { requireAdmin } from '@/lib/authz'
-import { debitWallet } from '@/lib/ledger'
+import { creditWallet } from '@/lib/ledger'
+import { logger } from '@/lib/logger'
 import { sendEmail } from '@/lib/email'
+
+export const dynamic = 'force-dynamic'
 
 /**
  * GET /api/admin/withdrawals — View all freelancer payout requests (ADMIN only)
@@ -56,21 +59,7 @@ export async function POST(req: NextRequest) {
     const freelancer = await db.user.findUnique({ where: { id: withdrawal.userId } })
 
     if (action === 'APPROVE') {
-      // 1. Debit the freelancer's wallet via ledger
-      await debitWallet(withdrawal.userId, withdrawal.amount, 'WITHDRAWAL', {
-        note: `Payout completed via ${withdrawal.method} (${withdrawal.accountDetails}). Transferred by Admin ${session!.user.name}`,
-        idempotencyKey: `payout-${withdrawal.id}`,
-      }).catch(async () => {
-        // Fallback balance update if Postgres function is not reached
-        if (freelancer) {
-          await db.user.update({
-            where: { id: withdrawal.userId },
-            data: { walletBalance: Math.max(0, freelancer.walletBalance - withdrawal.amount) },
-          })
-        }
-      })
-
-      // 2. Update withdrawal record
+      // 1. Update withdrawal record (funds were held upon user request)
       const updated = await db.withdrawal.update({
         where: { id },
         data: {
@@ -80,20 +69,18 @@ export async function POST(req: NextRequest) {
         },
       })
 
-      // 3. Log in audit trail
-      await db.auditLog.create({
-        data: {
-          adminId: session!.user.id,
-          adminName: session!.user.name || 'Admin',
-          action: 'WITHDRAWAL_APPROVED',
-          targetId: id,
-          details: `Approved payout of ${withdrawal.amount} TND to ${freelancer?.name ?? withdrawal.userId} via ${withdrawal.method} (${withdrawal.accountDetails})`,
-        },
+      // 2. Log in audit trail
+      logger.audit('WITHDRAWAL_APPROVED', `Admin #${session!.user.id} approved payout of ${withdrawal.amount} TND to ${freelancer?.name ?? withdrawal.userId}`, {
+        adminId: session!.user.id,
+        withdrawalId: id,
+        userId: withdrawal.userId,
+        amount: withdrawal.amount,
+        method: withdrawal.method,
       })
 
       return NextResponse.json({
         withdrawal: updated,
-        message: `Payout of ${withdrawal.amount} TND has been approved and marked as transferred. Freelancer wallet debited.`,
+        message: `Payout of ${withdrawal.amount} TND has been approved and marked as transferred.`,
       })
     }
 
@@ -102,7 +89,13 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'A rejection reason is required when rejecting a withdrawal request' }, { status: 400 })
       }
 
-      // Update withdrawal record to REJECTED (funds remain in user balance)
+      // 1. Refund the held funds back to the user's available wallet balance
+      await creditWallet(withdrawal.userId, withdrawal.amount, 'REFUND', {
+        note: `Withdrawal #${withdrawal.id} rejected by Admin: ${adminNotes}`,
+        idempotencyKey: `refund-with-${withdrawal.id}`,
+      })
+
+      // 2. Update withdrawal record to REJECTED
       const updated = await db.withdrawal.update({
         where: { id },
         data: {
@@ -112,24 +105,22 @@ export async function POST(req: NextRequest) {
         },
       })
 
-      // Log in audit trail
-      await db.auditLog.create({
-        data: {
-          adminId: session!.user.id,
-          adminName: session!.user.name || 'Admin',
-          action: 'WITHDRAWAL_REJECTED',
-          targetId: id,
-          details: `Rejected payout of ${withdrawal.amount} TND for ${freelancer?.name ?? withdrawal.userId}. Reason: ${adminNotes}`,
-        },
+      // 3. Log in audit trail
+      logger.audit('WITHDRAWAL_REJECTED', `Admin #${session!.user.id} rejected payout of ${withdrawal.amount} TND. Funds refunded to user balance.`, {
+        adminId: session!.user.id,
+        withdrawalId: id,
+        userId: withdrawal.userId,
+        amount: withdrawal.amount,
+        reason: adminNotes,
       })
 
       return NextResponse.json({
         withdrawal: updated,
-        message: `Payout request has been rejected. Reason logged for user.`,
+        message: `Payout request rejected. Funds (${withdrawal.amount} TND) have been refunded to user wallet.`,
       })
     }
   } catch (err: any) {
-    console.error('POST /api/admin/withdrawals error:', err)
+    logger.error('ADMIN_WITHDRAWAL_ACTION_FAILED', `Failed to process withdrawal request: ${err.message}`, { error: err })
     return NextResponse.json({ error: err.message || 'Failed to process withdrawal request' }, { status: 500 })
   }
 }

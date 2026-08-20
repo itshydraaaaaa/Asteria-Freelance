@@ -143,6 +143,17 @@ export interface ReportRecord {
   createdAt: Date
 }
 
+export interface NotificationRecord {
+  id: string
+  userId: string
+  title: string
+  message: string
+  type: string
+  link?: string
+  isRead: boolean
+  createdAt: Date
+}
+
 // ─── INITIAL DATA SEEDING HELPERS ─────────────────────────────────────────────
 function initUsersStore(): UserRecord[] {
   if (!(global as any).__AST_USERS__) {
@@ -1047,6 +1058,89 @@ export const db = {
         return list[idx]
       }
       return null
+    },
+  },
+
+  // ── NOTIFICATION ───────────────────────────────────────────────────────────
+  notification: {
+    findMany: async (query?: { where?: { userId?: string; isRead?: boolean }; orderBy?: any; take?: number }): Promise<NotificationRecord[]> => {
+      let list: NotificationRecord[] = (global as any).__AST_NOTIFICATIONS__
+      if (!list) {
+        list = [
+          {
+            id: 'notif_1',
+            userId: 'c1',
+            title: 'Welcome to Asteria Freelance',
+            message: 'Your account is ready. Complete identity verification to unlock full escrow checkout.',
+            type: 'SYSTEM',
+            link: '/dashboard/verification',
+            isRead: false,
+            createdAt: new Date(Date.now() - 3600000 * 2),
+          },
+          {
+            id: 'notif_2',
+            userId: 'f1',
+            title: 'KYC Verified Successfully',
+            message: 'Your ID documents have been approved by Admin. You are eligible for unlimited payouts.',
+            type: 'KYC_APPROVED',
+            link: '/dashboard/wallet',
+            isRead: true,
+            createdAt: new Date(Date.now() - 3600000 * 24),
+          },
+        ]
+        ;(global as any).__AST_NOTIFICATIONS__ = list
+      }
+
+      let filtered = [...list]
+      if (query?.where?.userId) filtered = filtered.filter(n => n.userId === query.where!.userId)
+      if (typeof query?.where?.isRead === 'boolean') filtered = filtered.filter(n => n.isRead === query.where!.isRead)
+      if (query?.take) filtered = filtered.slice(0, query.take)
+      return filtered
+    },
+
+    create: async ({ data }: { data: Partial<NotificationRecord> }): Promise<NotificationRecord> => {
+      const newNotif: NotificationRecord = {
+        id: data.id ?? `notif_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        userId: data.userId!,
+        title: data.title ?? 'New Notification',
+        message: data.message ?? '',
+        type: data.type ?? 'INFO',
+        link: data.link ?? '/dashboard',
+        isRead: false,
+        createdAt: new Date(),
+      }
+
+      let list: NotificationRecord[] = (global as any).__AST_NOTIFICATIONS__
+      if (!list) {
+        list = await db.notification.findMany()
+      }
+      list.unshift(newNotif)
+      ;(global as any).__AST_NOTIFICATIONS__ = list
+      return newNotif
+    },
+
+    update: async ({ where, data }: { where: { id: string }; data: Partial<NotificationRecord> }): Promise<NotificationRecord | null> => {
+      let list: NotificationRecord[] = (global as any).__AST_NOTIFICATIONS__ || []
+      const idx = list.findIndex(n => n.id === where.id)
+      if (idx !== -1) {
+        list[idx] = { ...list[idx], ...data }
+        ;(global as any).__AST_NOTIFICATIONS__ = list
+        return list[idx]
+      }
+      return null
+    },
+
+    markAllAsRead: async (userId: string): Promise<number> => {
+      let list: NotificationRecord[] = (global as any).__AST_NOTIFICATIONS__ || []
+      let updatedCount = 0
+      list.forEach(n => {
+        if (n.userId === userId && !n.isRead) {
+          n.isRead = true
+          updatedCount++
+        }
+      })
+      ;(global as any).__AST_NOTIFICATIONS__ = list
+      return updatedCount
     },
   },
 }

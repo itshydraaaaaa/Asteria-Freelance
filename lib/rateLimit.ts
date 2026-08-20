@@ -2,7 +2,7 @@
  * lib/rateLimit.ts — Asteria Per-User & Auth Rate Limiting and Account Lockout
  *
  * DB-backed rate limiter using rate_limit_log table with high-performance in-memory
- * sliding window fallback.
+ * sliding window fallback and null-safe guards.
  */
 
 import { createClient } from '@supabase/supabase-js'
@@ -29,6 +29,7 @@ export const RATE_LIMITS: Record<string, RateLimitOptions> = {
   '/api/reviews':             { limit: 3,  windowSecs: 60 },
   '/api/messages/offer':      { limit: 15, windowSecs: 60 },
   '/api/orders':              { limit: 10, windowSecs: 60 },
+  '/api/ai/generate':         { limit: 20, windowSecs: 86400 },
 }
 
 // In-memory tracking for rate limiting & account lockout
@@ -41,7 +42,9 @@ const LOCKOUT_DURATION_SECS = 15 * 60 // 15 minutes
 /**
  * Checks if an account is temporarily locked due to consecutive failed logins.
  */
-export function checkAccountLockout(email: string): { locked: boolean; retryAfterSecs?: number } {
+export function checkAccountLockout(email?: string | null): { locked: boolean; retryAfterSecs?: number } {
+  if (!email || typeof email !== 'string') return { locked: false }
+
   const normalized = email.toLowerCase().trim()
   const record = failedLoginAttempts.get(normalized)
   if (!record) return { locked: false }
@@ -63,7 +66,9 @@ export function checkAccountLockout(email: string): { locked: boolean; retryAfte
 /**
  * Records a failed login attempt for an email and triggers lockout if threshold reached.
  */
-export function recordFailedLogin(email: string): { locked: boolean; attemptsLeft: number; retryAfterSecs?: number } {
+export function recordFailedLogin(email?: string | null): { locked: boolean; attemptsLeft: number; retryAfterSecs?: number } {
+  if (!email || typeof email !== 'string') return { locked: false, attemptsLeft: MAX_FAILED_ATTEMPTS }
+
   const normalized = email.toLowerCase().trim()
   const record = failedLoginAttempts.get(normalized) || { count: 0 }
   record.count += 1
@@ -81,7 +86,8 @@ export function recordFailedLogin(email: string): { locked: boolean; attemptsLef
 /**
  * Resets failed login attempt counter upon successful login.
  */
-export function resetFailedLogins(email: string): void {
+export function resetFailedLogins(email?: string | null): void {
+  if (!email || typeof email !== 'string') return
   failedLoginAttempts.delete(email.toLowerCase().trim())
 }
 
@@ -89,11 +95,14 @@ export function resetFailedLogins(email: string): void {
  * Returns a 429 NextResponse if rate limit exceeded.
  */
 export async function rateLimit(
-  userId: string,
-  endpoint: string,
+  userId?: string | null,
+  endpoint?: string | null,
   opts?: RateLimitOptions
 ): Promise<NextResponse | null> {
-  const options = opts ?? RATE_LIMITS[endpoint]
+  const cleanUserId = userId ? String(userId) : 'anon'
+  const cleanEndpoint = endpoint ? String(endpoint) : 'default'
+
+  const options = opts ?? RATE_LIMITS[cleanEndpoint]
   if (!options) return null
 
   const now = Date.now()
@@ -107,8 +116,8 @@ export async function rateLimit(
       const { count, error } = await supabase
         .from('rate_limit_log')
         .select('id', { count: 'exact', head: true })
-        .eq('user_id', userId)
-        .eq('endpoint', endpoint)
+        .eq('user_id', cleanUserId)
+        .eq('endpoint', cleanEndpoint)
         .gte('created_at', windowStartIso)
 
       if (!error && (count ?? 0) >= options.limit) {
@@ -127,13 +136,13 @@ export async function rateLimit(
         )
       }
 
-      await supabase.from('rate_limit_log').insert({ user_id: userId, endpoint })
+      await supabase.from('rate_limit_log').insert({ user_id: cleanUserId, endpoint: cleanEndpoint })
       return null
     }
   } catch {}
 
   // 2. In-memory sliding window fallback
-  const logKey = `${userId}:${endpoint}`
+  const logKey = `${cleanUserId}:${cleanEndpoint}`
   // Clean old entries
   while (memoryLog.length > 0 && memoryLog[0].timestamp < now - 3600 * 1000) {
     memoryLog.shift()

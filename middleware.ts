@@ -10,24 +10,29 @@ export async function middleware(request: NextRequest) {
   if (!isDashboard) return response
 
   // ── Demo Auth (dev/testing only, gated by env flag) ────────────────────────
-  // NEVER set ENABLE_DEMO_AUTH=true in production.
   if (process.env.ENABLE_DEMO_AUTH === 'true') {
     const demoUserId = request.cookies.get('demo_user_id')?.value
     if (demoUserId) {
-      // Valid demo cookie present — allow through
       return response
     }
-
-    // In demo mode with no cookie, redirect to login rather than auto-setting admin1
-    // (removes the previous security hole where all dev requests became admin)
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
   // ── Production: Validate real Supabase Auth session ───────────────────────
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  if (!supabaseUrl || !supabaseAnonKey || supabaseUrl.includes('placeholder')) {
+    // If Supabase credentials are placeholder in local testing, check demo cookie or redirect
+    const demoUserId = request.cookies.get('demo_user_id')?.value
+    if (demoUserId) return response
+    return NextResponse.redirect(new URL('/login', request.url))
+  }
+
   try {
     const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      supabaseUrl,
+      supabaseAnonKey,
       {
         cookies: {
           get(name: string) {
@@ -35,12 +40,10 @@ export async function middleware(request: NextRequest) {
           },
           set(name: string, value: string, options: CookieOptions) {
             request.cookies.set({ name, value, ...options })
-            response = NextResponse.next({ request: { headers: request.headers } })
             response.cookies.set({ name, value, ...options })
           },
           remove(name: string, options: CookieOptions) {
             request.cookies.set({ name, value: '', ...options })
-            response = NextResponse.next({ request: { headers: request.headers } })
             response.cookies.set({ name, value: '', ...options })
           },
         },
@@ -61,5 +64,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
+  matcher: ['/dashboard/:path*'],
 }
