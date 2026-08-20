@@ -5,6 +5,7 @@
  * Dev-only demo auth: cookie `demo_user_id` when ENABLE_DEMO_AUTH=true
  */
 
+import 'server-only'
 import { cookies } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import { db } from '@/lib/db'

@@ -6,6 +6,8 @@
  * email is a backup channel for events users must not miss.
  */
 
+import 'server-only'
+
 let resendClient: any = null
 
 async function getResendClient() {

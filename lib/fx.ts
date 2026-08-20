@@ -7,6 +7,7 @@
  * 3. Exact applied exchange rate tracking for financial ledger entries.
  */
 
+import 'server-only'
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
 

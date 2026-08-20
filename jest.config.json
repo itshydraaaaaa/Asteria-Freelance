@@ -2,6 +2,7 @@
   "preset": "ts-jest",
   "testEnvironment": "node",
   "moduleNameMapper": {
+    "^server-only$": "<rootDir>/__mocks__/server-only.js",
     "^@/(.*)$": "<rootDir>/$1"
   },
   "transform": {

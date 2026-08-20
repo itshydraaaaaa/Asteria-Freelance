@@ -8,6 +8,7 @@
  * ledger reconciliation engine that guarantees 100% financial integrity.
  */
 
+import 'server-only'
 import { createClient } from '@supabase/supabase-js'
 import { db } from '@/lib/db'
 

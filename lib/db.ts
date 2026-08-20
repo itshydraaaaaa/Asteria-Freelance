@@ -6,6 +6,7 @@
  * a unified, real in-memory data store across sessions, roles, and dev reloads.
  */
 
+import 'server-only'
 import { createClient } from '@supabase/supabase-js'
 import { gigs as staticGigs } from '@/lib/data/gigs'
 import { DEMO_USERS } from '@/lib/data/demoUsers'
