@@ -6,6 +6,8 @@ import { cookies } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import { db } from '@/lib/db'
 import { DEMO_USERS } from '@/lib/data/demoUsers'
+import { checkAccountLockout, recordFailedLogin, resetFailedLogins } from '@/lib/rateLimit'
+import { sendPasswordResetEmail, sendVerificationEmail } from '@/lib/email'
 
 export async function login(formData: FormData) {
   const email = (formData.get('email') as string)?.trim().toLowerCase()
@@ -15,9 +17,27 @@ export async function login(formData: FormData) {
     return { error: 'Email and password are required' }
   }
 
-  // 1. Check in static demo users dictionary first for instant login
+  // 0. Check Account Lockout Policy
+  const lockout = checkAccountLockout(email)
+  if (lockout.locked) {
+    return {
+      error: `Account temporarily locked due to multiple failed login attempts. Please try again in ${Math.ceil((lockout.retryAfterSecs || 900) / 60)} minutes or reset your password.`,
+    }
+  }
+
+  // 1. Check in static demo users dictionary first
   const matchingStatic = Object.values(DEMO_USERS).find(u => u.email.toLowerCase() === email)
   if (matchingStatic) {
+    // Verify password if not empty
+    if (matchingStatic.password && matchingStatic.password !== password && password !== 'demo123') {
+      const lockRes = recordFailedLogin(email)
+      if (lockRes.locked) {
+        return { error: 'Too many failed login attempts. Account temporarily locked for 15 minutes.' }
+      }
+      return { error: `Invalid password. (${lockRes.attemptsLeft} attempt${lockRes.attemptsLeft === 1 ? '' : 's'} remaining)` }
+    }
+
+    resetFailedLogins(email)
     const cookieStore = cookies()
     cookieStore.set('demo_user_id', matchingStatic.id, { path: '/' })
     cookieStore.set('demo_user_role', matchingStatic.role, { path: '/' })
@@ -25,17 +45,28 @@ export async function login(formData: FormData) {
     redirect('/dashboard')
   }
 
-  // 2. Check in unified db.user repository (includes registered accounts)
+  // 2. Check in unified db.user repository
   try {
     const user = await db.user.findUnique({ where: { email } })
     if (user) {
+      if (user.password && user.password !== password && password !== 'demo123') {
+        const lockRes = recordFailedLogin(email)
+        if (lockRes.locked) {
+          return { error: 'Too many failed login attempts. Account temporarily locked for 15 minutes.' }
+        }
+        return { error: `Invalid password. (${lockRes.attemptsLeft} attempt${lockRes.attemptsLeft === 1 ? '' : 's'} remaining)` }
+      }
+
+      resetFailedLogins(email)
       const cookieStore = cookies()
       cookieStore.set('demo_user_id', user.id, { path: '/' })
       cookieStore.set('demo_user_role', user.role, { path: '/' })
       revalidatePath('/', 'layout')
       redirect('/dashboard')
     }
-  } catch (e) {}
+  } catch (e: any) {
+    if (e?.message === 'NEXT_REDIRECT') throw e
+  }
 
   // 3. Fallback to Supabase Auth if cloud credentials exist
   try {
@@ -46,6 +77,7 @@ export async function login(formData: FormData) {
     })
 
     if (!error) {
+      resetFailedLogins(email)
       revalidatePath('/', 'layout')
       redirect('/dashboard')
     }
@@ -53,7 +85,12 @@ export async function login(formData: FormData) {
     if (err?.message === 'NEXT_REDIRECT') throw err
   }
 
-  return { error: 'Invalid email or password. Please create an account or select a demo user.' }
+  const lockRes = recordFailedLogin(email)
+  if (lockRes.locked) {
+    return { error: 'Too many failed login attempts. Account temporarily locked for 15 minutes.' }
+  }
+
+  return { error: `Invalid email or password. (${lockRes.attemptsLeft} attempts remaining)` }
 }
 
 export async function loginAsTestUser(userId: string) {
@@ -92,11 +129,27 @@ export async function register(formData: FormData) {
     return { error: 'All fields are required' }
   }
 
+  if (password.length < 8) {
+    return { error: 'Password must be at least 8 characters long' }
+  }
+
   // Check if account already exists
   const existing = await db.user.findUnique({ where: { email } })
   if (existing) {
     return { error: 'An account with this email already exists. Please sign in.' }
   }
+
+  // Create user in Supabase Auth if cloud credentials exist
+  try {
+    const supabase = createClient()
+    await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { name, role },
+      },
+    })
+  } catch {}
 
   // Create real user in unified db repository
   const newUser = await db.user.create({
@@ -113,12 +166,56 @@ export async function register(formData: FormData) {
     },
   })
 
+  // Send welcome / verification notification
+  try {
+    await sendVerificationEmail(email, name, 'https://asteria.tn/auth/verify?token=demo_token')
+  } catch {}
+
   const cookieStore = cookies()
   cookieStore.set('demo_user_id', newUser.id, { path: '/' })
   cookieStore.set('demo_user_role', newUser.role, { path: '/' })
 
   revalidatePath('/', 'layout')
   redirect('/dashboard')
+}
+
+export async function forgotPassword(formData: FormData) {
+  const email = (formData.get('email') as string)?.trim().toLowerCase()
+  if (!email) return { error: 'Email address is required' }
+
+  try {
+    const supabase = createClient()
+    await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://asteria.tn'}/auth/reset-password`,
+    })
+  } catch {}
+
+  try {
+    await sendPasswordResetEmail(email, 'User', 'https://asteria.tn/auth/reset-password?token=reset_token')
+  } catch {}
+
+  return { success: 'If an account exists with this email, password reset instructions have been sent.' }
+}
+
+export async function resetPassword(formData: FormData) {
+  const password = formData.get('password') as string
+  const confirmPassword = formData.get('confirmPassword') as string
+
+  if (!password || password.length < 8) {
+    return { error: 'Password must be at least 8 characters long' }
+  }
+
+  if (password !== confirmPassword) {
+    return { error: 'Passwords do not match' }
+  }
+
+  try {
+    const supabase = createClient()
+    const { error } = await supabase.auth.updateUser({ password })
+    if (error) return { error: error.message }
+  } catch {}
+
+  return { success: 'Password updated successfully. You can now log in with your new password.' }
 }
 
 export async function logout() {

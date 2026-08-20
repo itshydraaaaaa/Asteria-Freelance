@@ -118,3 +118,25 @@ export function requireOrderSeller(
 export function requireAdmin(session: AuthSession | null): NextResponse | null {
   return requireRole(session, 'ADMIN')
 }
+
+// ─── requireOwnerOrAdmin ──────────────────────────────────────────────────────
+/**
+ * Returns a 403 response if user is neither the owner nor an ADMIN.
+ */
+export function requireOwnerOrAdmin(
+  session: AuthSession | null,
+  ownerId: string
+): NextResponse | null {
+  const authError = requireAuth(session)
+  if (authError) return authError
+
+  const user = session!.user as any
+  if (user.role === 'ADMIN' || user.id === ownerId) {
+    return null
+  }
+
+  return NextResponse.json(
+    { error: 'Forbidden: you do not have permission to modify this resource' },
+    { status: 403 }
+  )
+}

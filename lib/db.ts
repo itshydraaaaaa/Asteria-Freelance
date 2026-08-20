@@ -23,6 +23,7 @@ export interface UserRecord {
   name: string
   email: string
   role: 'CLIENT' | 'FREELANCER' | 'ADMIN'
+  password?: string
   image?: string
   bio?: string
   skills?: string[]

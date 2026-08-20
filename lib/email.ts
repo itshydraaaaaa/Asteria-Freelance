@@ -165,3 +165,52 @@ export async function sendEmail({ to, event, data }: EmailPayload): Promise<void
     console.error(`[email] Failed to send ${event} to ${to}:`, err)
   }
 }
+
+export async function sendPasswordResetEmail(to: string, name: string, resetLink: string): Promise<void> {
+  if (!process.env.RESEND_API_KEY || !to) return
+
+  try {
+    const client = await getResendClient()
+    if (!client) return
+
+    await client.emails.send({
+      from: process.env.RESEND_FROM_EMAIL ?? 'security@asteria.com',
+      to,
+      subject: 'Reset your Asteria password',
+      html: `
+        <div style="font-family:'Plus Jakarta Sans',sans-serif;max-width:600px;margin:0 auto;background:#f4f8f8;padding:32px;border-radius:16px;">
+          <h2 style="color:#0a3a40">Password Reset Request</h2>
+          <p style="color:#374151">Hi ${name}, click below to set a new password for your Asteria account:</p>
+          <a href="${resetLink}" style="background:#11606e;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;display:inline-block;margin:16px 0;">Reset Password →</a>
+          <p style="color:#6b7280;font-size:12px;">If you did not request this, please ignore this email.</p>
+        </div>
+      `,
+    })
+  } catch (err) {
+    console.error(`[email] Failed to send password reset email to ${to}:`, err)
+  }
+}
+
+export async function sendVerificationEmail(to: string, name: string, verifyLink: string): Promise<void> {
+  if (!process.env.RESEND_API_KEY || !to) return
+
+  try {
+    const client = await getResendClient()
+    if (!client) return
+
+    await client.emails.send({
+      from: process.env.RESEND_FROM_EMAIL ?? 'welcome@asteria.com',
+      to,
+      subject: 'Welcome to Asteria — Verify your email',
+      html: `
+        <div style="font-family:'Plus Jakarta Sans',sans-serif;max-width:600px;margin:0 auto;background:#f4f8f8;padding:32px;border-radius:16px;">
+          <h2 style="color:#0a3a40">Welcome to Asteria, ${name}!</h2>
+          <p style="color:#374151">Please confirm your email address to activate all platform features:</p>
+          <a href="${verifyLink}" style="background:#11606e;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;display:inline-block;margin:16px 0;">Verify Email →</a>
+        </div>
+      `,
+    })
+  } catch (err) {
+    console.error(`[email] Failed to send verification email to ${to}:`, err)
+  }
+}
