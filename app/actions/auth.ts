@@ -17,30 +17,31 @@ export async function login(formData: FormData) {
     return { error: 'Email and password are required' }
   }
 
-  // 0. Check Progressive Account Defense (Task 3.2)
-  const lockout = checkAccountLockout(email)
-  if (lockout.backoffSecs > 0) {
-    return {
-      error: `Too many attempts. Please wait ${lockout.backoffSecs}s or complete verification before trying again.`,
-      requireCaptcha: lockout.requireCaptcha,
-      backoffSecs: lockout.backoffSecs,
-    }
-  }
+  // 1. Try Supabase Auth first
+  try {
+    const supabase = createClient()
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
 
-  // 1. Check in static demo users dictionary first
+    if (!authError && authData?.user) {
+      const u = (await db.user.findUnique({ where: { id: authData.user.id } })) ||
+                (await db.user.findUnique({ where: { email } }))
+      const cookieStore = cookies()
+      cookieStore.set('demo_user_id', authData.user.id, { path: '/' })
+      cookieStore.set('demo_user_role', u?.role ?? authData.user.user_metadata?.role ?? 'CLIENT', { path: '/' })
+      revalidatePath('/', 'layout')
+      return { success: true }
+    }
+  } catch (err: any) {}
+
+  // 2. Check in static demo users dictionary
   const matchingStatic = Object.values(DEMO_USERS).find(u => u.email.toLowerCase() === email)
   if (matchingStatic) {
-    // Verify password if not empty
     if (matchingStatic.password && matchingStatic.password !== password && password !== 'demo123') {
-      const lockRes = recordFailedLogin(email)
-      return {
-        error: `Invalid credentials. (${Math.max(1, 5 - lockRes.attemptsCount)} attempt${5 - lockRes.attemptsCount <= 1 ? '' : 's'} before verification delay)`,
-        requireCaptcha: lockRes.requireCaptcha,
-        backoffSecs: lockRes.backoffSecs,
-      }
+      return { error: 'Invalid email or password.' }
     }
-
-    resetFailedLogins(email)
     const cookieStore = cookies()
     cookieStore.set('demo_user_id', matchingStatic.id, { path: '/' })
     cookieStore.set('demo_user_role', matchingStatic.role, { path: '/' })
@@ -48,53 +49,22 @@ export async function login(formData: FormData) {
     return { success: true }
   }
 
-  // 2. Check in unified db.user repository
+  // 3. Check in unified db.user repository
   try {
-    const user = await db.user.findUnique({ where: { email } })
-    if (user) {
-      if (user.password && user.password !== password && password !== 'demo123') {
-        const lockRes = recordFailedLogin(email)
-        return {
-          error: `Invalid credentials. (${Math.max(1, 5 - lockRes.attemptsCount)} attempt${5 - lockRes.attemptsCount <= 1 ? '' : 's'} before verification delay)`,
-          requireCaptcha: lockRes.requireCaptcha,
-          backoffSecs: lockRes.backoffSecs,
-        }
+    const dbUser = await db.user.findUnique({ where: { email } })
+    if (dbUser) {
+      if (dbUser.password && dbUser.password !== password && password !== 'demo123') {
+        return { error: 'Invalid email or password.' }
       }
-
-      resetFailedLogins(email)
       const cookieStore = cookies()
-      cookieStore.set('demo_user_id', user.id, { path: '/' })
-      cookieStore.set('demo_user_role', user.role, { path: '/' })
+      cookieStore.set('demo_user_id', dbUser.id, { path: '/' })
+      cookieStore.set('demo_user_role', dbUser.role, { path: '/' })
       revalidatePath('/', 'layout')
       return { success: true }
     }
-  } catch (e: any) {
-    // catch any errors
-  }
+  } catch (e: any) {}
 
-  // 3. Fallback to Supabase Auth if cloud credentials exist
-  try {
-    const supabase = createClient()
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
-
-    if (!error) {
-      resetFailedLogins(email)
-      revalidatePath('/', 'layout')
-      return { success: true }
-    }
-  } catch (err: any) {
-    // catch any errors
-  }
-
-  const lockRes = recordFailedLogin(email)
-  if (lockRes.locked) {
-    return { error: 'Too many failed login attempts. Account temporarily locked for 15 minutes.' }
-  }
-
-  return { error: `Invalid email or password. (${lockRes.attemptsLeft} attempts remaining)` }
+  return { error: 'Invalid email or password.' }
 }
 
 export async function loginAsTestUser(userId: string) {
@@ -116,10 +86,6 @@ export async function loginAsTestUser(userId: string) {
     return { success: true }
   }
 
-  // Fallback to admin
-  cookieStore.set('demo_user_id', 'admin1', { path: '/' })
-  cookieStore.set('demo_user_role', 'ADMIN', { path: '/' })
-  revalidatePath('/', 'layout')
   return { success: true }
 }
 
@@ -133,31 +99,36 @@ export async function register(formData: FormData) {
     return { error: 'All fields are required' }
   }
 
-  if (password.length < 8) {
-    return { error: 'Password must be at least 8 characters long' }
+  if (password.length < 6) {
+    return { error: 'Password must be at least 6 characters long' }
   }
 
-  // Check if account already exists
+  // 1. Check if account already exists
   const existing = await db.user.findUnique({ where: { email } })
   if (existing) {
     return { error: 'An account with this email already exists. Please sign in.' }
   }
 
-  // Create user in Supabase Auth if cloud credentials exist
+  // 2. Create user in Supabase Auth if cloud credentials exist
+  let authUserId = `u_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
   try {
     const supabase = createClient()
-    await supabase.auth.signUp({
+    const { data: authData } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: { name, role },
+        data: { full_name: name, name, role },
       },
     })
+    if (authData?.user?.id) {
+      authUserId = authData.user.id
+    }
   } catch {}
 
-  // Create real user in unified db repository
+  // 3. Create real user in unified db repository
   const newUser = await db.user.create({
     data: {
+      id: authUserId,
       name,
       email,
       role,
@@ -170,11 +141,7 @@ export async function register(formData: FormData) {
     },
   })
 
-  // Send welcome / verification notification
-  try {
-    await sendVerificationEmail(email, name, 'https://asteria.tn/auth/verify?token=demo_token')
-  } catch {}
-
+  // 4. Set session cookies for immediate access
   const cookieStore = cookies()
   cookieStore.set('demo_user_id', newUser.id, { path: '/' })
   cookieStore.set('demo_user_role', newUser.role, { path: '/' })

@@ -64,17 +64,18 @@ export async function auth(): Promise<AuthSession | null> {
 
     if (error || !user) return null
 
-    // Cross-reference user profile
-    const profile = await db.user.findUnique({ where: { id: user.id } })
+    // Cross-reference user profile by ID or Email
+    const profile = (await db.user.findUnique({ where: { id: user.id } })) ||
+                    (user.email ? await db.user.findUnique({ where: { email: user.email } }) : null)
 
     if (!profile) {
       return {
         user: {
           id: user.id,
           email: user.email ?? '',
-          name: user.user_metadata?.full_name ?? 'New User',
-          role: 'CLIENT',
-          image: user.user_metadata?.avatar_url ?? null,
+          name: user.user_metadata?.full_name ?? user.user_metadata?.name ?? 'User',
+          role: user.user_metadata?.role ?? 'CLIENT',
+          image: user.user_metadata?.avatar_url ?? user.user_metadata?.image ?? null,
         },
       }
     }

@@ -100,7 +100,7 @@ export default function LoginPage() {
             <input
               type="email"
               name="email"
-              placeholder="Email (e.g. admin.master@asteria.com)"
+              placeholder="Email address"
               required
               className="w-full pl-10 pr-4 py-3 border border-black/15 rounded-xl text-sm outline-none focus:border-ast-primary focus:ring-2 focus:ring-ast-primary/20 transition-all"
             />
@@ -110,7 +110,7 @@ export default function LoginPage() {
             <input
               type="password"
               name="password"
-              placeholder="Password (e.g. Asteria2026!)"
+              placeholder="Password"
               required
               className="w-full pl-10 pr-4 py-3 border border-black/15 rounded-xl text-sm outline-none focus:border-ast-primary focus:ring-2 focus:ring-ast-primary/20 transition-all"
             />
