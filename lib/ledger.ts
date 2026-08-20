@@ -112,6 +112,28 @@ function getInMemoryTxs(): LedgerEntry[] {
   return (global as any).__AST_LEDGER_TXS__
 }
 
+// ─── USER TRANSACTION MUTEX ──────────────────────────────────────────────────
+const userLocks = new Map<string, Promise<any>>()
+
+export async function withUserLock<T>(userId: string, task: () => Promise<T>): Promise<T> {
+  const currentLock = userLocks.get(userId) || Promise.resolve()
+  let resolveLock: () => void
+  const nextLock = new Promise<void>(resolve => {
+    resolveLock = resolve
+  })
+  userLocks.set(userId, nextLock)
+
+  try {
+    await currentLock
+    return await task()
+  } finally {
+    resolveLock!()
+    if (userLocks.get(userId) === nextLock) {
+      userLocks.delete(userId)
+    }
+  }
+}
+
 // ─── getBalance ───────────────────────────────────────────────────────────────
 export async function getBalance(userId: string): Promise<number> {
   try {
@@ -140,62 +162,64 @@ export async function creditWallet(
   type: TxType,
   meta: TransactionMeta = {}
 ): Promise<LedgerEntry> {
-  if (amount <= 0) throw new Error('[ledger] creditWallet: amount must be positive')
+  return withUserLock(userId, async () => {
+    if (amount <= 0) throw new Error('[ledger] creditWallet: amount must be positive')
 
-  // Check idempotency if key provided
-  const txs = getInMemoryTxs()
-  if (meta.idempotencyKey) {
-    const existing = txs.find(t => t.idempotencyKey === meta.idempotencyKey)
-    if (existing) return existing
-  }
-
-  try {
-    const supabase = getServiceClient()
-    if (supabase) {
-      const { data, error } = await supabase.rpc('credit_wallet', {
-        p_user_id:         userId,
-        p_amount:          amount,
-        p_type:            type,
-        p_order_id:        meta.orderId ?? null,
-        p_milestone_id:    meta.milestoneId ?? null,
-        p_note:            meta.note ?? null,
-        p_idempotency_key: meta.idempotencyKey ?? null,
-      })
-
-      if (!error && data) {
-        return mapEntry(data)
-      }
+    // Check idempotency if key provided
+    const txs = getInMemoryTxs()
+    if (meta.idempotencyKey) {
+      const existing = txs.find(t => t.idempotencyKey === meta.idempotencyKey)
+      if (existing) return existing
     }
-  } catch {}
 
-  // In-memory fallback
-  const u = await db.user.findUnique({ where: { id: userId } })
-  const curBal = Number(u?.walletBalance ?? 0)
-  const newBal = Math.round((curBal + amount) * 100) / 100
+    try {
+      const supabase = getServiceClient()
+      if (supabase) {
+        const { data, error } = await supabase.rpc('credit_wallet', {
+          p_user_id:         userId,
+          p_amount:          amount,
+          p_type:            type,
+          p_order_id:        meta.orderId ?? null,
+          p_milestone_id:    meta.milestoneId ?? null,
+          p_note:            meta.note ?? null,
+          p_idempotency_key: meta.idempotencyKey ?? null,
+        })
 
-  try {
-    await db.user.update({
-      where: { id: userId },
-      data: { walletBalance: newBal },
-    })
-  } catch {}
+        if (!error && data) {
+          return mapEntry(data)
+        }
+      }
+    } catch {}
 
-  const entry: LedgerEntry = {
-    id: `tx_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-    userId,
-    orderId: meta.orderId,
-    milestoneId: meta.milestoneId,
-    type,
-    amount,
-    balanceAfter: newBal,
-    note: meta.note,
-    idempotencyKey: meta.idempotencyKey,
-    createdAt: new Date(),
-  }
+    // In-memory fallback
+    const u = await db.user.findUnique({ where: { id: userId } })
+    const curBal = Number(u?.walletBalance ?? 0)
+    const newBal = Math.round((curBal + amount) * 100) / 100
 
-  txs.unshift(entry)
-  ;(global as any).__AST_LEDGER_TXS__ = txs
-  return entry
+    try {
+      await db.user.update({
+        where: { id: userId },
+        data: { walletBalance: newBal },
+      })
+    } catch {}
+
+    const entry: LedgerEntry = {
+      id: `tx_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      userId,
+      orderId: meta.orderId,
+      milestoneId: meta.milestoneId,
+      type,
+      amount,
+      balanceAfter: newBal,
+      note: meta.note,
+      idempotencyKey: meta.idempotencyKey,
+      createdAt: new Date(),
+    }
+
+    txs.unshift(entry)
+    ;(global as any).__AST_LEDGER_TXS__ = txs
+    return entry
+  })
 }
 
 // ─── debitWallet ──────────────────────────────────────────────────────────────
@@ -205,67 +229,69 @@ export async function debitWallet(
   type: TxType,
   meta: TransactionMeta = {}
 ): Promise<LedgerEntry> {
-  if (amount <= 0) throw new Error('[ledger] debitWallet: amount must be positive')
+  return withUserLock(userId, async () => {
+    if (amount <= 0) throw new Error('[ledger] debitWallet: amount must be positive')
 
-  // Check idempotency if key provided
-  const txs = getInMemoryTxs()
-  if (meta.idempotencyKey) {
-    const existing = txs.find(t => t.idempotencyKey === meta.idempotencyKey)
-    if (existing) return existing
-  }
-
-  try {
-    const supabase = getServiceClient()
-    if (supabase) {
-      const { data, error } = await supabase.rpc('debit_wallet', {
-        p_user_id:         userId,
-        p_amount:          amount,
-        p_type:            type,
-        p_order_id:        meta.orderId ?? null,
-        p_milestone_id:    meta.milestoneId ?? null,
-        p_note:            meta.note ?? null,
-        p_idempotency_key: meta.idempotencyKey ?? null,
-      })
-
-      if (!error && data) {
-        return mapEntry(data)
-      }
+    // Check idempotency if key provided
+    const txs = getInMemoryTxs()
+    if (meta.idempotencyKey) {
+      const existing = txs.find(t => t.idempotencyKey === meta.idempotencyKey)
+      if (existing) return existing
     }
-  } catch {}
 
-  // In-memory fallback
-  const u = await db.user.findUnique({ where: { id: userId } })
-  const curBal = Number(u?.walletBalance ?? 0)
+    try {
+      const supabase = getServiceClient()
+      if (supabase) {
+        const { data, error } = await supabase.rpc('debit_wallet', {
+          p_user_id:         userId,
+          p_amount:          amount,
+          p_type:            type,
+          p_order_id:        meta.orderId ?? null,
+          p_milestone_id:    meta.milestoneId ?? null,
+          p_note:            meta.note ?? null,
+          p_idempotency_key: meta.idempotencyKey ?? null,
+        })
 
-  if (curBal < amount) {
-    throw new Error(`Insufficient wallet balance. Available: ${curBal} TND, Required: ${amount} TND.`)
-  }
+        if (!error && data) {
+          return mapEntry(data)
+        }
+      }
+    } catch {}
 
-  const newBal = Math.round((curBal - amount) * 100) / 100
+    // In-memory fallback with atomic balance verification
+    const u = await db.user.findUnique({ where: { id: userId } })
+    const curBal = Number(u?.walletBalance ?? 0)
 
-  try {
-    await db.user.update({
-      where: { id: userId },
-      data: { walletBalance: newBal },
-    })
-  } catch {}
+    if (curBal < amount) {
+      throw new Error(`Insufficient wallet balance. Available: ${curBal} TND, Required: ${amount} TND.`)
+    }
 
-  const entry: LedgerEntry = {
-    id: `tx_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-    userId,
-    orderId: meta.orderId,
-    milestoneId: meta.milestoneId,
-    type,
-    amount: -amount,
-    balanceAfter: newBal,
-    note: meta.note,
-    idempotencyKey: meta.idempotencyKey,
-    createdAt: new Date(),
-  }
+    const newBal = Math.round((curBal - amount) * 100) / 100
 
-  txs.unshift(entry)
-  ;(global as any).__AST_LEDGER_TXS__ = txs
-  return entry
+    try {
+      await db.user.update({
+        where: { id: userId },
+        data: { walletBalance: newBal },
+      })
+    } catch {}
+
+    const entry: LedgerEntry = {
+      id: `tx_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      userId,
+      orderId: meta.orderId,
+      milestoneId: meta.milestoneId,
+      type,
+      amount: -amount,
+      balanceAfter: newBal,
+      note: meta.note,
+      idempotencyKey: meta.idempotencyKey,
+      createdAt: new Date(),
+    }
+
+    txs.unshift(entry)
+    ;(global as any).__AST_LEDGER_TXS__ = txs
+    return entry
+  })
 }
 
 // ─── processEscrowRelease ─────────────────────────────────────────────────────

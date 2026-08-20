@@ -64,7 +64,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- ============================================================
 -- FUNCTION: debit_wallet
--- Inserts a negative wallet transaction with balance check
+-- Inserts a negative wallet transaction with atomic row locking
 -- ============================================================
 CREATE OR REPLACE FUNCTION debit_wallet(
   p_user_id         uuid,
@@ -79,14 +79,21 @@ DECLARE
   v_current_balance numeric;
   v_new_balance     numeric;
   v_tx              wallet_transactions;
+  v_user_lock       users;
 BEGIN
-  -- Idempotency check
+  -- 1. Idempotency check
   IF p_idempotency_key IS NOT NULL THEN
     SELECT * INTO v_tx FROM wallet_transactions WHERE idempotency_key = p_idempotency_key;
     IF FOUND THEN RETURN v_tx; END IF;
   END IF;
 
-  -- Check sufficient balance
+  -- 2. EXCLUSIVE ROW LOCK: Prevent concurrent race conditions on parallel withdrawals
+  SELECT * INTO v_user_lock FROM users WHERE id = p_user_id FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'User % not found', p_user_id;
+  END IF;
+
+  -- 3. Calculate verified current balance under transaction lock
   SELECT COALESCE(SUM(amount), 0) INTO v_current_balance
   FROM wallet_transactions WHERE user_id = p_user_id;
 
@@ -96,12 +103,12 @@ BEGIN
 
   v_new_balance := v_current_balance - p_amount;
 
-  -- Insert ledger entry (negative amount)
+  -- 4. Insert ledger entry (negative amount)
   INSERT INTO wallet_transactions (user_id, order_id, milestone_id, type, amount, balance_after, note, idempotency_key)
   VALUES (p_user_id, p_order_id, p_milestone_id, p_type, -p_amount, v_new_balance, p_note, p_idempotency_key)
   RETURNING * INTO v_tx;
 
-  -- Update denormalized balance
+  -- 5. Update denormalized balance
   UPDATE users SET wallet_balance = v_new_balance WHERE id = p_user_id;
 
   RETURN v_tx;

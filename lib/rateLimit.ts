@@ -1,8 +1,10 @@
 /**
- * lib/rateLimit.ts — Asteria Per-User & Auth Rate Limiting and Account Lockout
+ * lib/rateLimit.ts — Asteria Dual-Layer Rate Limiting, IP Protection & Account Lockout
  *
- * DB-backed rate limiter using rate_limit_log table with high-performance in-memory
- * sliding window fallback and null-safe guards.
+ * Provides:
+ * 1. IP-based sliding window rate limiting (defends against credential stuffing).
+ * 2. Account-based failed login tracking with progressive CAPTCHA trigger and lockout.
+ * 3. Null-safe guards across all operations.
  */
 
 import { createClient } from '@supabase/supabase-js'
@@ -34,40 +36,45 @@ export const RATE_LIMITS: Record<string, RateLimitOptions> = {
 
 // In-memory tracking for rate limiting & account lockout
 const memoryLog: { key: string; timestamp: number }[] = []
+const ipMemoryLog: { key: string; timestamp: number }[] = []
 const failedLoginAttempts: Map<string, { count: number; lockedUntil?: number }> = new Map()
 
+const CAPTCHA_TRIGGER_ATTEMPTS = 3
 const MAX_FAILED_ATTEMPTS = 5
 const LOCKOUT_DURATION_SECS = 15 * 60 // 15 minutes
 
 /**
- * Checks if an account is temporarily locked due to consecutive failed logins.
+ * Checks if an account is temporarily locked or requires CAPTCHA verification due to failed logins.
  */
-export function checkAccountLockout(email?: string | null): { locked: boolean; retryAfterSecs?: number } {
-  if (!email || typeof email !== 'string') return { locked: false }
+export function checkAccountLockout(email?: string | null): { locked: boolean; requireCaptcha: boolean; retryAfterSecs?: number; attemptsLeft?: number } {
+  if (!email || typeof email !== 'string') return { locked: false, requireCaptcha: false }
 
   const normalized = email.toLowerCase().trim()
   const record = failedLoginAttempts.get(normalized)
-  if (!record) return { locked: false }
+  if (!record) return { locked: false, requireCaptcha: false }
 
   if (record.lockedUntil && Date.now() < record.lockedUntil) {
     const retryAfterSecs = Math.ceil((record.lockedUntil - Date.now()) / 1000)
-    return { locked: true, retryAfterSecs }
+    return { locked: true, requireCaptcha: true, retryAfterSecs, attemptsLeft: 0 }
   }
 
   // If lockout expired, clear
   if (record.lockedUntil && Date.now() >= record.lockedUntil) {
     failedLoginAttempts.delete(normalized)
-    return { locked: false }
+    return { locked: false, requireCaptcha: false }
   }
 
-  return { locked: false }
+  const requireCaptcha = (record.count ?? 0) >= CAPTCHA_TRIGGER_ATTEMPTS
+  const attemptsLeft = Math.max(0, MAX_FAILED_ATTEMPTS - (record.count ?? 0))
+
+  return { locked: false, requireCaptcha, attemptsLeft }
 }
 
 /**
- * Records a failed login attempt for an email and triggers lockout if threshold reached.
+ * Records a failed login attempt for an email and triggers progressive defense.
  */
-export function recordFailedLogin(email?: string | null): { locked: boolean; attemptsLeft: number; retryAfterSecs?: number } {
-  if (!email || typeof email !== 'string') return { locked: false, attemptsLeft: MAX_FAILED_ATTEMPTS }
+export function recordFailedLogin(email?: string | null): { locked: boolean; requireCaptcha: boolean; attemptsLeft: number; retryAfterSecs?: number } {
+  if (!email || typeof email !== 'string') return { locked: false, requireCaptcha: false, attemptsLeft: MAX_FAILED_ATTEMPTS }
 
   const normalized = email.toLowerCase().trim()
   const record = failedLoginAttempts.get(normalized) || { count: 0 }
@@ -76,11 +83,12 @@ export function recordFailedLogin(email?: string | null): { locked: boolean; att
   if (record.count >= MAX_FAILED_ATTEMPTS) {
     record.lockedUntil = Date.now() + LOCKOUT_DURATION_SECS * 1000
     failedLoginAttempts.set(normalized, record)
-    return { locked: true, attemptsLeft: 0, retryAfterSecs: LOCKOUT_DURATION_SECS }
+    return { locked: true, requireCaptcha: true, attemptsLeft: 0, retryAfterSecs: LOCKOUT_DURATION_SECS }
   }
 
   failedLoginAttempts.set(normalized, record)
-  return { locked: false, attemptsLeft: MAX_FAILED_ATTEMPTS - record.count }
+  const requireCaptcha = record.count >= CAPTCHA_TRIGGER_ATTEMPTS
+  return { locked: false, requireCaptcha, attemptsLeft: MAX_FAILED_ATTEMPTS - record.count }
 }
 
 /**
@@ -92,7 +100,45 @@ export function resetFailedLogins(email?: string | null): void {
 }
 
 /**
- * Returns a 429 NextResponse if rate limit exceeded.
+ * IP-based sliding window rate limiter to defend against distributed credential stuffing.
+ */
+export async function rateLimitByIp(
+  ip: string | null | undefined,
+  endpoint: string,
+  opts: RateLimitOptions = { limit: 20, windowSecs: 60 }
+): Promise<NextResponse | null> {
+  const cleanIp = ip ? String(ip) : '127.0.0.1'
+  const now = Date.now()
+  const windowStart = now - opts.windowSecs * 1000
+  const logKey = `ip:${cleanIp}:${endpoint}`
+
+  while (ipMemoryLog.length > 0 && ipMemoryLog[0].timestamp < now - 3600 * 1000) {
+    ipMemoryLog.shift()
+  }
+
+  const recentCount = ipMemoryLog.filter(e => e.key === logKey && e.timestamp >= windowStart).length
+  if (recentCount >= opts.limit) {
+    return NextResponse.json(
+      {
+        error: 'Too many requests from this network. Please slow down and try again.',
+        retryAfterSecs: opts.windowSecs,
+      },
+      {
+        status: 429,
+        headers: {
+          'Retry-After': String(opts.windowSecs),
+          'X-RateLimit-Limit': String(opts.limit),
+        },
+      }
+    )
+  }
+
+  ipMemoryLog.push({ key: logKey, timestamp: now })
+  return null
+}
+
+/**
+ * Returns a 429 NextResponse if user/endpoint rate limit exceeded.
  */
 export async function rateLimit(
   userId?: string | null,
@@ -143,7 +189,6 @@ export async function rateLimit(
 
   // 2. In-memory sliding window fallback
   const logKey = `${cleanUserId}:${cleanEndpoint}`
-  // Clean old entries
   while (memoryLog.length > 0 && memoryLog[0].timestamp < now - 3600 * 1000) {
     memoryLog.shift()
   }

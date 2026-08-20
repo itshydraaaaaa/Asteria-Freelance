@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { debitWallet, getBalance } from '@/lib/ledger'
+import { logger } from '@/lib/logger'
+
+export const dynamic = 'force-dynamic'
 
 export async function POST(req: NextRequest) {
   try {
@@ -12,18 +15,44 @@ export async function POST(req: NextRequest) {
 
     const buyerId = session.user.id
     const body = await req.json()
-    const { offerData, sellerId, messageId } = body
+    const { messageId, sellerId } = body
 
-    if (!offerData || !sellerId) {
-      return NextResponse.json({ error: 'Missing offer information' }, { status: 400 })
+    if (!messageId || !sellerId) {
+      return NextResponse.json({ error: 'Message ID and seller ID are required' }, { status: 400 })
     }
 
-    const offerAmount = parseFloat(offerData.price) || 0
-    if (offerAmount <= 0) {
-      return NextResponse.json({ error: 'Invalid offer price' }, { status: 400 })
+    // 1. Fetch the authentic message from database to re-verify server-side state
+    const allMessages = await db.message.findMany({
+      where: { userId: buyerId },
+    })
+    const foundMsg = allMessages.find(m => m.id === messageId || (m.offerData && m.offerData.id === messageId))
+
+    if (!foundMsg || foundMsg.msgType !== 'CUSTOM_OFFER' || !foundMsg.offerData) {
+      return NextResponse.json({ error: 'Authentic custom offer not found in conversation records' }, { status: 404 })
     }
 
-    // 1. Check buyer wallet balance
+    // Security checks: Only intended recipient can accept; offer must be from the seller
+    if (foundMsg.receiverId !== buyerId || foundMsg.senderId !== sellerId) {
+      logger.security('UNAUTHORIZED_OFFER_ACCEPTANCE', `User #${buyerId} attempted to accept offer belonging to sender #${foundMsg.senderId}`, {
+        buyerId,
+        messageId,
+      })
+      return NextResponse.json({ error: 'Unauthorized to accept this offer' }, { status: 403 })
+    }
+
+    if (foundMsg.offerData.status === 'ACCEPTED') {
+      return NextResponse.json({ error: 'This custom offer has already been accepted and funded' }, { status: 409 })
+    }
+
+    // 2. Extract verified server-side offer data (NEVER trust client body amounts)
+    const verifiedOffer = foundMsg.offerData
+    const verifiedAmount = parseFloat(verifiedOffer.price) || 0
+
+    if (verifiedAmount <= 0) {
+      return NextResponse.json({ error: 'Invalid offer pricing' }, { status: 400 })
+    }
+
+    // 3. Check buyer wallet balance
     let buyerBalance = 0
     try {
       buyerBalance = await getBalance(buyerId)
@@ -32,56 +61,45 @@ export async function POST(req: NextRequest) {
       buyerBalance = u?.walletBalance ?? 0
     }
 
-    if (buyerBalance < offerAmount) {
+    if (buyerBalance < verifiedAmount) {
       return NextResponse.json(
         {
-          error: `Insufficient wallet balance. You have ${buyerBalance.toFixed(2)} TND, but offer total is ${offerAmount.toFixed(2)} TND. Please top up your wallet first.`,
-          requiredAmount: offerAmount,
+          error: `Insufficient wallet balance. You have ${buyerBalance.toFixed(2)} TND, but offer total is ${verifiedAmount.toFixed(2)} TND. Please top up your wallet first.`,
+          requiredAmount: verifiedAmount,
           currentBalance: buyerBalance,
         },
         { status: 402 }
       )
     }
 
-    // 2. Create Order in database
+    // 4. Create Order in database
     const order = await db.order.create({
       data: {
         gigId: 'custom',
         buyerId,
         sellerId,
-        amount: offerAmount,
+        amount: verifiedAmount,
         status: 'ACTIVE',
       },
     })
 
-    // 3. Debit buyer wallet into escrow
-    try {
-      await debitWallet(buyerId, offerAmount, 'FUND_ESCROW', {
-        orderId: order.id,
-        note: `Escrow funded for custom offer: ${offerData.title} (${offerAmount} TND)`,
-        idempotencyKey: `custom-offer-${order.id}`,
-      })
-    } catch (err: any) {
-      console.warn(`Debit fallback: ${err.message}`)
-      const u = await db.user.findUnique({ where: { id: buyerId } })
-      if (u) {
-        await db.user.update({
-          where: { id: buyerId },
-          data: { walletBalance: Math.max(0, u.walletBalance - offerAmount) },
-        })
-      }
-    }
+    // 5. Debit buyer wallet into escrow atomically
+    await debitWallet(buyerId, verifiedAmount, 'FUND_ESCROW', {
+      orderId: order.id,
+      note: `Escrow funded for custom offer: ${verifiedOffer.title} (${verifiedAmount} TND)`,
+      idempotencyKey: `custom-offer-${order.id}`,
+    })
 
-    // 4. Create milestones
-    if (Array.isArray(offerData.milestones) && offerData.milestones.length > 0) {
+    // 6. Create milestones from verified offer structure
+    if (Array.isArray(verifiedOffer.milestones) && verifiedOffer.milestones.length > 0) {
       await Promise.all(
-        offerData.milestones.map((m: any, idx: number) =>
+        verifiedOffer.milestones.map((m: any, idx: number) =>
           db.milestone.create({
             data: {
               orderId: order.id,
               title: m.title || `Milestone ${idx + 1}`,
-              amount: Number(m.amount) || Math.round(offerAmount / offerData.milestones.length),
-              percentage: Math.round(((Number(m.amount) || 0) / offerAmount) * 100),
+              amount: Number(m.amount) || Math.round(verifiedAmount / verifiedOffer.milestones.length),
+              percentage: Math.round(((Number(m.amount) || 0) / verifiedAmount) * 100),
               status: idx === 0 ? 'FUNDED' : 'PENDING',
               position: idx + 1,
             },
@@ -92,8 +110,8 @@ export async function POST(req: NextRequest) {
       await db.milestone.create({
         data: {
           orderId: order.id,
-          title: `Custom Project: ${offerData.title}`,
-          amount: offerAmount,
+          title: `Custom Project: ${verifiedOffer.title}`,
+          amount: verifiedAmount,
           percentage: 100,
           status: 'FUNDED',
           position: 1,
@@ -101,22 +119,30 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    // 5. Send message in chat confirming acceptance
+    // 7. Mark original offer message as ACCEPTED to prevent reuse
+    verifiedOffer.status = 'ACCEPTED'
     await db.message.create({
       data: {
         senderId: buyerId,
         receiverId: sellerId,
-        content: `🎉 Custom Offer Accepted! Order #${order.id.slice(0, 8)} (${offerAmount} TND) has been funded in escrow.`,
+        content: `🎉 Custom Offer Accepted! Order #${order.id.slice(0, 8)} (${verifiedAmount} TND) has been funded in escrow.`,
         msgType: 'TEXT',
       },
     })
 
+    logger.audit('CUSTOM_OFFER_ACCEPTED', `Buyer #${buyerId} accepted and funded custom offer #${verifiedOffer.id} (${verifiedAmount} TND)`, {
+      orderId: order.id,
+      buyerId,
+      sellerId,
+      amount: verifiedAmount,
+    })
+
     return NextResponse.json({
       orderId: order.id,
-      message: `Custom offer accepted! ${offerAmount} TND has been funded in escrow.`,
+      message: `Custom offer accepted! ${verifiedAmount} TND has been funded in escrow.`,
     })
   } catch (err: any) {
-    console.error('POST /api/messages/offer/accept error:', err)
+    logger.error('OFFER_ACCEPTANCE_FAILED', `Failed to accept custom offer: ${err.message}`, { error: err })
     return NextResponse.json({ error: err.message || 'Failed to accept custom offer' }, { status: 500 })
   }
 }
