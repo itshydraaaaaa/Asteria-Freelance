@@ -70,17 +70,17 @@ export function GigBrowser({ initialGigs, categories }: { initialGigs: any[]; ca
 
         <p className="text-ast-gray text-xs mb-5 font-semibold">{filtered.length} service{filtered.length !== 1 ? 's' : ''} available</p>
 
-        <AnimatePresence mode="wait">
+        <AnimatePresence>
           {filtered.length === 0 ? (
-            <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-24 bg-white rounded-3xl border border-black/8 p-8 shadow-sm">
+            <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-center py-24 bg-white rounded-3xl border border-black/8 p-8 shadow-sm">
               <p className="text-ast-gray text-sm">No services match your search.</p>
             </motion.div>
           ) : (
             <motion.div
-              key={category + query + sort}
-              variants={stagger}
-              initial="hidden"
-              animate="visible"
+              key={category}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.2 }}
               className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5"
             >
               {filtered.map(gig => {

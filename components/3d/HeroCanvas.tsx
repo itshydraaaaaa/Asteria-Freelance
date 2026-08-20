@@ -33,12 +33,12 @@ export default function HeroCanvas() {
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    let width  = (canvas.width = canvas.offsetWidth)
-    let height = (canvas.height = canvas.offsetHeight)
+    let width  = (canvas.width = canvas.offsetWidth || (typeof window !== 'undefined' ? window.innerWidth : 1200))
+    let height = (canvas.height = canvas.offsetHeight || (typeof window !== 'undefined' ? window.innerHeight : 800))
 
     // Mobile performance detection
     const isMobile = width < 768 || (typeof navigator !== 'undefined' && (navigator.hardwareConcurrency || 4) <= 4)
-    const PARTICLE_COUNT = isMobile ? 45 : 180
+    const PARTICLE_COUNT = isMobile ? 35 : 120
     const TARGET_FPS = isMobile ? 30 : 60
     const FRAME_INTERVAL = 1000 / TARGET_FPS
     let lastFrameTime = performance.now()

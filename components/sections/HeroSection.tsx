@@ -25,11 +25,19 @@ function formatCompact(v: number) {
 }
 
 export function HeroSection() {
-  const [loaded, setLoaded] = useState(false)
+  const [showLoader, setShowLoader] = useState(false)
   const [showScroll, setShowScroll] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const wordsRef = useRef<HTMLSpanElement[]>([])
   const statRefs = useRef<HTMLSpanElement[]>([])
+
+  useEffect(() => {
+    try {
+      if (!sessionStorage.getItem('ast-loaded')) {
+        setShowLoader(true)
+      }
+    } catch {}
+  }, [])
 
   useEffect(() => {
     const onScroll = () => setShowScroll(window.scrollY < 200)
@@ -38,18 +46,17 @@ export function HeroSection() {
   }, [])
 
   useEffect(() => {
-    if (!loaded) return
     const mm = gsap.matchMedia()
     mm.add('(prefers-reduced-motion: no-preference)', () => {
       gsap.from(wordsRef.current, {
-        yPercent: 110, opacity: 0, duration: 0.8,
-        stagger: 0.1, ease: 'power4.out', delay: 0.2,
+        yPercent: 110, opacity: 0, duration: 0.7,
+        stagger: 0.08, ease: 'power3.out', delay: 0.1,
       })
       STATS.forEach((s, i) => {
         const el = statRefs.current[i]
         if (!el) return
         gsap.to({ val: 0 }, {
-          val: s.value, duration: 2, delay: 0.8,
+          val: s.value, duration: 1.6, delay: 0.4,
           ease: 'power2.out', snap: { val: 1 },
           onUpdate() {
             const v = (this.targets()[0] as any).val
@@ -59,19 +66,18 @@ export function HeroSection() {
       })
     })
     return () => mm.revert()
-  }, [loaded])
+  }, [])
 
   const WORDS = ['HIRING', 'REDEFINED', 'WITH AI & ESCROW']
 
-  const handleComplete = () => setLoaded(true)
+  const handleComplete = () => setShowLoader(false)
 
   return (
     <>
-      {!loaded && <LoadingScreen onComplete={handleComplete} />}
+      {showLoader && <LoadingScreen onComplete={handleComplete} />}
 
       <section
         className="relative min-h-screen flex items-center overflow-hidden bg-ast-dark"
-        style={{ opacity: loaded ? 1 : 0, transition: 'opacity 0.5s ease-out' }}
       >
         {/* 3D Canvas Background */}
         <div className="absolute inset-0 z-0">

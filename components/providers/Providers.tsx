@@ -16,13 +16,13 @@ export function Providers({ children }: { children: React.ReactNode }) {
     const isTouchDevice = typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0)
 
     const lenis = new Lenis({
-      duration: 1.1,
+      duration: 0.9,
       easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
       orientation: 'vertical',
       gestureOrientation: 'vertical',
       smoothWheel: true,
       wheelMultiplier: 1.0,
-      touchMultiplier: 1.5,
+      touchMultiplier: 1.2,
       syncTouch: isTouchDevice,
       autoResize: true,
     })
@@ -35,7 +35,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
     }
 
     gsap.ticker.add(ticker)
-    gsap.ticker.lagSmoothing(0)
+    // Proper lagSmoothing so frame drops never stutter or jump
+    gsap.ticker.lagSmoothing(500, 33)
 
     return () => {
       gsap.ticker.remove(ticker)

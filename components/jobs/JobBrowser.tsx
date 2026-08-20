@@ -88,15 +88,15 @@ export function JobBrowser({ initialJobs, categories }: { initialJobs: Job[]; ca
 
         <p className="text-ast-gray text-xs mb-5 font-semibold">{filtered.length} open project{filtered.length !== 1 ? 's' : ''}</p>
 
-        <AnimatePresence mode="wait">
+        <AnimatePresence>
           {filtered.length === 0 ? (
-            <div className="text-center py-20 bg-white rounded-3xl border border-black/8 p-8 shadow-sm">
+            <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-center py-20 bg-white rounded-3xl border border-black/8 p-8 shadow-sm">
               <Briefcase size={32} className="text-ast-primary/30 mx-auto mb-3" />
               <h3 className="font-bold text-sm text-black mb-1">No open projects found</h3>
               <p className="text-ast-gray text-xs mb-4">Try clearing search filters or check back shortly.</p>
-            </div>
+            </motion.div>
           ) : (
-            <motion.div key={category + query + sort} variants={stagger} initial="hidden" animate="visible" className="space-y-4">
+            <motion.div key={category} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }} className="space-y-4">
               {filtered.map(job => {
                 const clientName = job.client?.name || 'Verified Client'
 

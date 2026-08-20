@@ -3,13 +3,18 @@
 @tailwind utilities;
 
 @layer base {
-  html { scroll-behavior: auto; }
+  html {
+    scroll-behavior: auto;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
   body {
     @apply bg-ast-surface text-black antialiased;
-    /* Apple system font stack for macOS / iOS + fallbacks */
     --font-heading: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', 'Segoe UI', Roboto, 'Noto Sans', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol';
     --font-body: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', 'Segoe UI', Roboto, 'Noto Sans', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol';
     --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', 'Courier New', monospace;
+    overflow-x: hidden;
   }
   *, *::before, *::after { box-sizing: border-box; }
   input, textarea, select { cursor: auto !important; }
@@ -43,26 +48,23 @@
   }
 }
 
-/* Micro-interaction utilities */
+/* Micro-interaction utilities with GPU acceleration */
 @layer components {
   .btn-ghost {
-    @apply bg-transparent border rounded-lg px-3 py-2 text-sm transition-transform duration-180 ease-out;
+    @apply bg-transparent border rounded-lg px-3 py-2 text-sm transition-transform duration-180 ease-out will-change-transform;
     border-color: rgba(0,0,0,0.08);
   }
-  .btn-ghost:hover { transform: translateY(-3px) scale(1.01); box-shadow: 0 6px 20px rgba(10,58,64,0.06); }
+  .btn-ghost:hover { transform: translate3d(0, -3px, 0) scale(1.01); box-shadow: 0 6px 20px rgba(10,58,64,0.06); }
 
-  .card-hover { @apply rounded-2xl bg-white border p-4 transition-all duration-200; border-color: rgba(0,0,0,0.08); }
-  .card-hover:hover { transform: translateY(-6px); box-shadow: 0 10px 30px rgba(10,58,64,0.08); }
+  .card-hover { @apply rounded-2xl bg-white border p-4 transition-all duration-200 will-change-transform; border-color: rgba(0,0,0,0.08); }
+  .card-hover:hover { transform: translate3d(0, -6px, 0); box-shadow: 0 10px 30px rgba(10,58,64,0.08); }
 
   .focus-ring-primary:focus { outline: none; box-shadow: 0 0 0 6px rgba(96,200,212,0.12); border-color: #60c8d4; }
 }
 
-/* Slightly tighter selection for counters */
 @layer utilities {
   .text-anim-count { animation: count-up 900ms cubic-bezier(0.22,1,0.36,1) both; }
-}
-
-@layer utilities {
   .animate-float   { animation: float 4s ease-in-out infinite; }
   .animate-spin-slow { animation: spin-slow 8s linear infinite; }
+  .will-change-transform { will-change: transform; }
 }

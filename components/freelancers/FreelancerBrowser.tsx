@@ -52,13 +52,13 @@ export function FreelancerBrowser({ freelancers, categories }: { freelancers: an
 
       <p className="text-ast-gray text-sm mb-6">{filtered.length} freelancers found</p>
 
-      <AnimatePresence mode="wait">
+      <AnimatePresence>
         {filtered.length === 0 ? (
-          <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-24 text-ast-gray">
+          <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-center py-24 text-ast-gray">
             No freelancers match your filters.
           </motion.div>
         ) : (
-          <motion.div key={category + badge + query} variants={stagger} initial="hidden" animate="visible" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+          <motion.div key={category + badge} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
             {filtered.map(f => {
               const bc = f.badge ? BADGE_CONFIG[f.badge.toLowerCase()] : null
               const initials = f.name ? f.name[0].toUpperCase() : '?'
