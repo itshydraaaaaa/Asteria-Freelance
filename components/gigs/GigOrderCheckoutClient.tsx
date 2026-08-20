@@ -212,16 +212,24 @@ export function GigOrderCheckoutClient({ gig, freelancer, packages }: Props) {
             </div>
 
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl p-3 flex items-start gap-2">
-                <AlertCircle size={16} className="shrink-0 mt-0.5" />
-                <div className="space-y-1">
-                  <p>{error}</p>
+              <div className="bg-red-50 border border-red-200 text-red-700 text-xs rounded-2xl p-4 flex items-start gap-3">
+                <AlertCircle size={18} className="shrink-0 mt-0.5" />
+                <div className="space-y-1.5 flex-1">
+                  <p className="font-semibold">{error}</p>
                   {error.includes('wallet balance') && (
                     <Link
                       href="/dashboard/wallet"
                       className="inline-block font-bold text-red-800 underline hover:no-underline"
                     >
                       Top Up Wallet via Stripe or Bank RIB →
+                    </Link>
+                  )}
+                  {(error.includes('KYC') || error.includes('verification')) && (
+                    <Link
+                      href="/dashboard/verification"
+                      className="inline-block px-3 py-1.5 bg-red-600 text-white text-xs font-bold rounded-xl hover:bg-red-700 transition-colors shadow-xs"
+                    >
+                      Complete Identity Verification (KYC) →
                     </Link>
                   )}
                 </div>

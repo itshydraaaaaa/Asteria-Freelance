@@ -123,18 +123,28 @@ describe('Phase 3: KYC Identity Verification End-to-End Tests', () => {
     expect(canVerifiedWithdraw).toBe(true)
   })
 
-  it('enforces 1,000 TND order value threshold for unverified clients', () => {
-    const THRESHOLD = 1000
-
-    const checkOrderAllowed = (verifiedStatus: string, orderAmount: number) => {
-      if (verifiedStatus !== 'APPROVED' && orderAmount > THRESHOLD) {
-        return { allowed: false, error: 'KYC required' }
+  it('strictly blocks unverified accounts from ordering while allowing unrestricted exploration based on role', () => {
+    const checkOrderAllowed = (verifiedStatus: string) => {
+      if (verifiedStatus !== 'APPROVED') {
+        return { allowed: false, error: 'Identity verification (KYC) is required before placing an order.' }
       }
       return { allowed: true }
     }
 
-    expect(checkOrderAllowed('UNSUBMITTED', 450).allowed).toBe(true)   // Under threshold -> OK
-    expect(checkOrderAllowed('UNSUBMITTED', 1500).allowed).toBe(false) // Above threshold -> Blocked
-    expect(checkOrderAllowed('APPROVED', 5000).allowed).toBe(true)     // Verified -> OK for any amount
+    const checkExploreAllowed = (role: string, targetSection: 'GIGS' | 'JOBS' | 'FREELANCERS') => {
+      if (role === 'CLIENT' && (targetSection === 'GIGS' || targetSection === 'FREELANCERS')) return true
+      if (role === 'FREELANCER' && targetSection === 'JOBS') return true
+      return true // Exploration is open for marketplace discovery
+    }
+
+    expect(checkOrderAllowed('UNSUBMITTED').allowed).toBe(false)
+    expect(checkOrderAllowed('PENDING').allowed).toBe(false)
+    expect(checkOrderAllowed('REJECTED').allowed).toBe(false)
+    expect(checkOrderAllowed('APPROVED').allowed).toBe(true)
+
+    // Unverified users can still freely explore marketplace based on role
+    expect(checkExploreAllowed('CLIENT', 'GIGS')).toBe(true)
+    expect(checkExploreAllowed('CLIENT', 'FREELANCERS')).toBe(true)
+    expect(checkExploreAllowed('FREELANCER', 'JOBS')).toBe(true)
   })
 })

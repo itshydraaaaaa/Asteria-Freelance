@@ -44,14 +44,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid order amount' }, { status: 400 })
     }
 
-    // 0. Enforce KYC identity verification threshold (1,000 TND)
-    const MAX_UNVERIFIED_ORDER_THRESHOLD = 1000
+    // 0. Enforce strict KYC identity verification for ordering
     const buyer = await db.user.findUnique({ where: { id: buyerId } })
-    if (buyer && buyer.verifiedStatus !== 'APPROVED' && orderAmount > MAX_UNVERIFIED_ORDER_THRESHOLD) {
+    if (buyer && buyer.verifiedStatus !== 'APPROVED') {
       return NextResponse.json({
-        error: `KYC identity verification is required for transactions exceeding ${MAX_UNVERIFIED_ORDER_THRESHOLD} TND. Please verify your identity in Dashboard > Verification.`,
+        error: 'Identity verification (KYC) is required before placing an order. Please complete verification in Dashboard > Verification to unlock ordering.',
         requiresKyc: true,
-        threshold: MAX_UNVERIFIED_ORDER_THRESHOLD,
       }, { status: 403 })
     }
 
