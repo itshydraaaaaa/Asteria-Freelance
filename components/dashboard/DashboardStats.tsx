@@ -24,6 +24,14 @@ function CountUp({ target, prefix, suffix }: { target: number; prefix?: string; 
   return <span ref={ref}>{prefix}{0}{suffix}</span>
 }
 
+function parseMetric(val: string) {
+  const cleanVal = val.replace(/[^0-9]/g, '')
+  const target = Number(cleanVal) || 0
+  const suffix = val.includes('%') ? '%' : val.includes('TND') ? ' TND' : ''
+  const prefix = val.includes('$') ? '$' : ''
+  return { target, prefix, suffix }
+}
+
 export function DashboardStats({ metrics }: { metrics: Metric[] }) {
   return (
     <motion.div
@@ -32,23 +40,28 @@ export function DashboardStats({ metrics }: { metrics: Metric[] }) {
       animate="visible"
       className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4"
     >
-      {metrics.map((m, i) => (
-        <motion.div
-          key={i}
-          variants={fadeUp}
-          whileHover="hover"
-          initial="rest"
-          animate="rest"
-          whileTap={{ scale: 0.995 }}
-          className="rounded-3xl border border-black/8 bg-white p-6 border-l-[3px] border-l-ast-primary shadow-sm"
-        >
-          <motion.div variants={microHover} className="transition-transform">
-            <p className="text-ast-gray text-xs uppercase tracking-wider mb-2">{m.label}</p>
-            <p className="font-heading font-bold text-2xl text-black text-anim-count"><CountUp target={Number(m.value.replace(/[^0-9]/g, '')) || 0} /></p>
-            <p className="text-ast-gray text-xs mt-1">{m.sub}</p>
+      {metrics.map((m, i) => {
+        const { target, prefix, suffix } = parseMetric(m.value)
+        return (
+          <motion.div
+            key={i}
+            variants={fadeUp}
+            whileHover="hover"
+            initial="rest"
+            animate="rest"
+            whileTap={{ scale: 0.995 }}
+            className="rounded-3xl border border-black/8 bg-white p-6 border-l-[3px] border-l-ast-primary shadow-sm"
+          >
+            <motion.div variants={microHover} className="transition-transform">
+              <p className="text-ast-gray text-xs uppercase tracking-wider mb-2">{m.label}</p>
+              <p className="font-heading font-bold text-2xl text-black text-anim-count">
+                <CountUp target={target} prefix={prefix} suffix={suffix} />
+              </p>
+              <p className="text-ast-gray text-xs mt-1">{m.sub}</p>
+            </motion.div>
           </motion.div>
-        </motion.div>
-      ))}
+        )
+      })}
     </motion.div>
   )
 }

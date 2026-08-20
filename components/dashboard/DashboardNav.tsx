@@ -7,8 +7,8 @@ import { createClient } from '@/lib/supabase/client'
 import { logout } from '@/app/actions/auth'
 import {
   LayoutDashboard, Package, MessageSquare, Settings, LogOut,
-  User, ShieldCheck, Star, Wallet, BarChart2, Briefcase, Globe
-} from 'lucide-react' // 👉 Added Globe icon
+  User, ShieldCheck, Star, Wallet, BarChart2, Briefcase, Globe, X
+} from 'lucide-react'
 
 interface Props {
   name: string
@@ -16,6 +16,8 @@ interface Props {
   role: string
   initials: string
   image?: string | null 
+  isMobileDrawer?: boolean
+  onClose?: () => void
 }
 
 const COMMON_NAV = [
@@ -40,7 +42,7 @@ const CLIENT_NAV = [
   { label: 'Wallet',        href: '/dashboard/wallet',     Icon: Wallet },
 ]
 
-export function DashboardNav({ name, email, role, initials, image }: Props) {
+export function DashboardNav({ name, email, role, initials, image, isMobileDrawer, onClose }: Props) {
   const pathname = usePathname()
   const router = useRouter()
 
@@ -52,6 +54,7 @@ export function DashboardNav({ name, email, role, initials, image }: Props) {
     role === 'CLIENT'     ? CLIENT_NAV     : []
 
   const handleSignOut = async () => {
+    if (onClose) onClose()
     if (typeof document !== 'undefined') {
       document.cookie = 'demo_user_id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT;'
       document.cookie = 'demo_user_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT;'
@@ -63,10 +66,14 @@ export function DashboardNav({ name, email, role, initials, image }: Props) {
     router.refresh()
   }
 
+  const asideClasses = isMobileDrawer
+    ? "flex h-full w-full flex-col bg-white px-4 pb-8 pt-6 overflow-y-auto"
+    : "hidden md:flex sticky top-0 z-30 h-screen w-64 shrink-0 flex-col border-r border-black/8 bg-white px-4 pb-8 pt-8 shadow-[0_0_0_1px_rgba(0,0,0,0.02)] overflow-y-auto"
+
   return (
-    <aside className="sticky top-0 z-30 flex h-screen w-64 shrink-0 flex-col border-r border-black/8 bg-white px-4 pb-8 pt-8 shadow-[0_0_0_1px_rgba(0,0,0,0.02)] overflow-y-auto">
-      <div className="mb-8 px-2">
-        <Link href="/" className="flex items-center gap-2 group">
+    <aside className={asideClasses}>
+      <div className="mb-8 px-2 flex items-center justify-between">
+        <Link href="/" onClick={onClose} className="flex items-center gap-2 group">
           <svg width="24" height="24" viewBox="0 0 64 64" fill="none">
             <path d="M32 4 L60 56 L4 56 Z" stroke="#111" strokeWidth="2.5" fill="none" />
             <path d="M32 20 L48 52 L16 52 Z" stroke="#60c8d4" strokeWidth="1.5" fill="none" />
@@ -76,6 +83,11 @@ export function DashboardNav({ name, email, role, initials, image }: Props) {
             A<span className="text-black/80">STERIA</span>
           </span>
         </Link>
+        {isMobileDrawer && (
+          <button onClick={onClose} className="p-1.5 rounded-full hover:bg-black/5 text-ast-gray hover:text-black">
+            <X size={18} />
+          </button>
+        )}
       </div>
 
       <div className="mb-6 px-2">
@@ -100,13 +112,13 @@ export function DashboardNav({ name, email, role, initials, image }: Props) {
 
       <nav className="flex-1 space-y-0.5">
         {COMMON_NAV.map(({ label, href, Icon }) => (
-          <Link key={href} href={href}>
-            <motion.a
+          <Link key={href} href={href} onClick={onClose}>
+            <motion.div
               variants={microHover}
               initial="rest"
               whileHover="hover"
               whileFocus="hover"
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors focus-ring-primary ${
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors focus-ring-primary cursor-pointer ${
                 isActive(href)
                   ? 'bg-ast-primary text-white font-medium'
                   : 'text-ast-gray hover:text-black hover:bg-ast-surface'
@@ -114,7 +126,7 @@ export function DashboardNav({ name, email, role, initials, image }: Props) {
             >
               <Icon size={16} />
               <span className="truncate">{label}</span>
-            </motion.a>
+            </motion.div>
           </Link>
         ))}
 
@@ -129,6 +141,7 @@ export function DashboardNav({ name, email, role, initials, image }: Props) {
               <Link
                 key={href}
                 href={href}
+                onClick={onClose}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors ${
                   isActive(href)
                     ? 'bg-ast-primary text-white font-medium'
@@ -149,6 +162,7 @@ export function DashboardNav({ name, email, role, initials, image }: Props) {
             </div>
             <Link
               href="/dashboard/admin"
+              onClick={onClose}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors ${
                 pathname.startsWith('/dashboard/admin')
                   ? 'bg-ast-dark text-white font-medium'
@@ -162,10 +176,10 @@ export function DashboardNav({ name, email, role, initials, image }: Props) {
         )}
       </nav>
 
-      {/* 👉 Added Home Button & Grouped with Logout */}
       <div className="border-t border-black/8 pt-4 space-y-1">
         <Link
           href="/"
+          onClick={onClose}
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-ast-gray hover:text-black hover:bg-ast-surface text-sm transition-colors"
         >
           <Globe size={16} />

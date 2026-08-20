@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { db } from '@/lib/db'
-import { DashboardNav } from '@/components/dashboard/DashboardNav'
+import { ResponsiveDashboardWrapper } from '@/components/dashboard/ResponsiveDashboardWrapper'
 
 export const dynamic = 'force-dynamic'
 
@@ -69,16 +69,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const initials = name[0]?.toUpperCase() ?? 'A'
 
   return (
-    <div className="min-h-screen bg-ast-surface">
-      <div className="flex min-h-screen overflow-hidden">
-        <DashboardNav name={name} email={email} role={role} image={image} initials={initials} />
-
-        <main className="flex-1 min-h-screen overflow-y-auto px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-          <div className="mx-auto w-full max-w-7xl">
-            {children}
-          </div>
-        </main>
-      </div>
-    </div>
+    <ResponsiveDashboardWrapper name={name} email={email} role={role} initials={initials} image={image}>
+      {children}
+    </ResponsiveDashboardWrapper>
   )
 }
