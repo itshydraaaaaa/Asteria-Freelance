@@ -23,8 +23,8 @@ export interface AuthSession {
 
 export async function auth(): Promise<AuthSession | null> {
   try {
-    // ── 1. Demo Auth (dev/testing only) ─────────────────────────────────────
-    if (process.env.ENABLE_DEMO_AUTH === 'true') {
+    // ── 1. Demo Auth (enabled by default unless explicitly disabled) ────────
+    if (process.env.ENABLE_DEMO_AUTH !== 'false') {
       const cookieStore = cookies()
       const demoUserId = cookieStore.get('demo_user_id')?.value
       if (demoUserId) {
