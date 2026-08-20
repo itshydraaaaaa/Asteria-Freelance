@@ -11,13 +11,6 @@ import { Tilt3DCard } from '@/components/ui/Tilt3DCard'
 const HeroCanvas = dynamic(() => import('@/components/3d/HeroCanvas'), { ssr: false })
 const LogoModel  = dynamic(() => import('@/components/3d/LogoModel'),  { ssr: false })
 
-const STATS = [
-  { value: 12400,   label: 'Verified Freelancers', suffix: '+' },
-  { value: 99.4,    label: 'Escrow Success Rate', suffix: '%' },
-  { value: 24,      label: 'Avg Delivery Hours', suffix: 'h' },
-  { value: 2400000, label: 'Secured Payments', prefix: '$', compact: true },
-]
-
 function formatCompact(v: number) {
   if (v >= 1000000) return (v / 1000000).toFixed(1) + 'M'
   if (v >= 1000)    return (v / 1000).toFixed(0) + 'K'
@@ -30,6 +23,12 @@ export function HeroSection() {
   const [searchQuery, setSearchQuery] = useState('')
   const wordsRef = useRef<HTMLSpanElement[]>([])
   const statRefs = useRef<HTMLSpanElement[]>([])
+  const [statsData, setStatsData] = useState({
+    freelancerCount: 12,
+    successRate: 99.4,
+    avgDeliveryHours: 24,
+    totalPaidOut: 2400,
+  })
 
   useEffect(() => {
     try {
@@ -40,10 +39,35 @@ export function HeroSection() {
   }, [])
 
   useEffect(() => {
+    const loadStats = async () => {
+      try {
+        const res = await fetch('/api/stats')
+        if (res.ok) {
+          const data = await res.json()
+          setStatsData({
+            freelancerCount: data.freelancerCount || 12,
+            successRate: data.successRate || 99.4,
+            avgDeliveryHours: data.avgDeliveryHours || 24,
+            totalPaidOut: data.totalPaidOut || 2400,
+          })
+        }
+      } catch {}
+    }
+    loadStats()
+  }, [])
+
+  useEffect(() => {
     const onScroll = () => setShowScroll(window.scrollY < 200)
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
+
+  const dynamicStats = [
+    { value: statsData.freelancerCount,   label: 'Verified Freelancers', suffix: '+' },
+    { value: statsData.successRate,        label: 'Escrow Success Rate', suffix: '%' },
+    { value: statsData.avgDeliveryHours,   label: 'Avg Delivery Hours', suffix: 'h' },
+    { value: statsData.totalPaidOut,       label: 'Secured Payments', prefix: '$', compact: true },
+  ]
 
   useEffect(() => {
     const mm = gsap.matchMedia()
@@ -52,21 +76,21 @@ export function HeroSection() {
         yPercent: 110, opacity: 0, duration: 0.7,
         stagger: 0.08, ease: 'power3.out', delay: 0.1,
       })
-      STATS.forEach((s, i) => {
+      dynamicStats.forEach((s, i) => {
         const el = statRefs.current[i]
         if (!el) return
         gsap.to({ val: 0 }, {
           val: s.value, duration: 1.6, delay: 0.4,
-          ease: 'power2.out', snap: { val: 1 },
+          ease: 'power2.out', snap: { val: 0.1 },
           onUpdate() {
             const v = (this.targets()[0] as any).val
-            el.textContent = s.compact ? formatCompact(v) : String(Math.round(v))
+            el.textContent = s.compact ? formatCompact(v) : String(Number(v).toFixed(s.value % 1 === 0 ? 0 : 1))
           },
         })
       })
     })
     return () => mm.revert()
-  }, [])
+  }, [statsData])
 
   const WORDS = ['HIRING', 'REDEFINED', 'WITH AI & ESCROW']
 
@@ -169,7 +193,7 @@ export function HeroSection() {
 
             {/* Live Platform Stats */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              {STATS.map((s, i) => (
+              {dynamicStats.map((s, i) => (
                 <Tilt3DCard key={i} className="rounded-2xl border border-white/12 bg-white/8 px-4 py-4 backdrop-blur-md shadow-lg">
                   <p className="font-heading font-extrabold text-2xl text-ast-light">
                     {s.prefix}
