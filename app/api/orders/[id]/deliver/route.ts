@@ -31,14 +31,24 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       return NextResponse.json({ error: urlError }, { status: 400 })
     }
 
+    const deliveredAt = new Date()
+    const autoReleaseAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7-day auto-release timer
+
     const updatedOrder = await db.order.update({
       where: { id: params.id },
-      data: { status: 'PENDING' }, // PENDING = awaiting buyer approval
+      data: {
+        status: 'PENDING',
+        deliveredAt,
+        autoReleaseAt,
+        deliverableUrl,
+        notes,
+      } as any,
     })
 
     return NextResponse.json({
       order: updatedOrder,
-      message: 'Work deliverable submitted for buyer approval.',
+      autoReleaseAt,
+      message: 'Work deliverable submitted for buyer approval. Funds will auto-release in 7 days if no dispute is opened.',
     })
   } catch (err) {
     console.error('POST /api/orders/[id]/deliver:', err)

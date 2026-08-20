@@ -133,12 +133,13 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         let netPayout: number | undefined
         if (action === 'RELEASE') {
           // Process ledger payout for this milestone (88% net)
-          netPayout = await processMilestoneRelease(
+          const result = await processMilestoneRelease(
             order.id,
             milestoneId,
             order.sellerId,
             milestoneAmount
           )
+          netPayout = result.sellerPayout
 
           await db.auditLog.create({
             data: {
