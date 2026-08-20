@@ -39,7 +39,7 @@ export default async function WalletPage() {
     ledgerTx = await getTransactionHistory(userId).catch(() => [])
   } catch {}
 
-  const balance         = Number(dbUser?.walletBalance ?? (role === 'FREELANCER' ? 1450 : 3200))
+  const balance         = Number(dbUser?.walletBalance ?? (role === 'CLIENT' ? 5000 : 0))
   const totalEarned     = orders.filter(o => o.status === 'COMPLETED').reduce((s, o) => s + (role === 'FREELANCER' ? o.amount * 0.88 : o.amount), 0)
   const pendingEarnings = orders.filter(o => o.status === 'ACTIVE' || o.status === 'PENDING').reduce((s, o) => s + (role === 'FREELANCER' ? o.amount * 0.88 : o.amount), 0)
   const totalOrders     = orders.length

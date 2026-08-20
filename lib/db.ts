@@ -8,16 +8,25 @@
 
 import 'server-only'
 import { createClient } from '@supabase/supabase-js'
+import { createClient as createServerSupabaseClient } from '@/lib/supabase/server'
 import { gigs as staticGigs } from '@/lib/data/gigs'
 import { DEMO_USERS } from '@/lib/data/demoUsers'
 
-// ─── Supabase client with smart key fallback ──────────────────────────────────
+// ─── Supabase clients ─────────────────────────────────────────────────────────
 function getServiceClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://tvuktwtartbqmggndinu.supabase.co'
   const key = (process.env.SUPABASE_SERVICE_ROLE_KEY && process.env.SUPABASE_SERVICE_ROLE_KEY !== 'your-service-role-key-here')
     ? process.env.SUPABASE_SERVICE_ROLE_KEY
     : (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder')
   return createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } })
+}
+
+async function getDbClient() {
+  try {
+    return createServerSupabaseClient()
+  } catch {
+    return getServiceClient()
+  }
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -248,7 +257,7 @@ export const db = {
     findMany: async (query?: { where?: any; orderBy?: any; include?: any; select?: any }): Promise<UserRecord[]> => {
       const localUsers = initUsersStore()
       try {
-        const supabase = getServiceClient()
+        const supabase = await getDbClient()
         const { data, error } = await supabase.from('User').select('*')
         if (!error && data && data.length > 0) {
           const dbUsers: UserRecord[] = data.map(u => ({
@@ -292,7 +301,7 @@ export const db = {
       )
 
       try {
-        const supabase = getServiceClient()
+        const supabase = await getDbClient()
         let query = supabase.from('User').select('*')
         if (where.id) query = query.eq('id', where.id)
         if (where.email) query = query.eq('email', where.email.toLowerCase())
@@ -337,7 +346,7 @@ export const db = {
 
       // Try persisting to Supabase
       try {
-        const supabase = getServiceClient()
+        const supabase = await getDbClient()
         await supabase.from('User').upsert({
           id: newUser.id,
           name: newUser.name,
@@ -370,7 +379,7 @@ export const db = {
       }
 
       try {
-        const supabase = getServiceClient()
+        const supabase = await getDbClient()
         await supabase.from('User').update(data).eq('id', where.id)
       } catch (e) {}
 
@@ -391,7 +400,7 @@ export const db = {
 
       let dbGigs: any[] = []
       try {
-        const supabase = getServiceClient()
+        const supabase = await getDbClient()
         const { data, error } = await supabase.from('Gig').select('*').order('createdAt', { ascending: false })
         if (!error && data) {
           dbGigs = data.map(g => {
@@ -418,7 +427,7 @@ export const db = {
       if (query?.where?.freelancerId) {
         list = list.filter(g => g.freelancerId === query.where.freelancerId)
       }
-      if (query?.where?.category) {
+      if (query?.where?.category && query.where.category !== 'All Categories') {
         list = list.filter(g => g.category?.toLowerCase() === query.where.category.toLowerCase())
       }
       if (query?.where?.featured) {
@@ -436,7 +445,7 @@ export const db = {
       if (found) return found
 
       try {
-        const supabase = getServiceClient()
+        const supabase = await getDbClient()
         const { data, error } = await supabase.from('Gig').select('*').eq('id', where.id).maybeSingle()
         if (!error && data) {
           const users = await db.user.findMany()
@@ -474,11 +483,10 @@ export const db = {
         createdAt: new Date(),
       }
 
-      // Try inserting into Supabase
+      // Insert into Supabase
       try {
-        const supabase = getServiceClient()
+        const supabase = await getDbClient()
         const { data: dbCreated, error } = await supabase.from('Gig').insert({
-          id: newGig.id,
           title: newGig.title,
           description: newGig.description,
           category: newGig.category,
@@ -509,7 +517,7 @@ export const db = {
       }
 
       try {
-        const supabase = getServiceClient()
+        const supabase = await getDbClient()
         await supabase.from('Gig').update(data).eq('id', where.id)
       } catch (e) {}
 
@@ -523,7 +531,7 @@ export const db = {
       ;(global as any).__AST_GIGS__ = gigs
 
       try {
-        const supabase = getServiceClient()
+        const supabase = await getDbClient()
         await supabase.from('Gig').delete().eq('id', where.id)
       } catch (e) {}
 
@@ -540,7 +548,7 @@ export const db = {
 
       let dbJobs: JobRecord[] = []
       try {
-        const supabase = getServiceClient()
+        const supabase = await getDbClient()
         const { data, error } = await supabase.from('Job').select('*').order('createdAt', { ascending: false })
         if (!error && data) {
           dbJobs = data.map(j => {
@@ -594,7 +602,7 @@ export const db = {
       if (found) return found
 
       try {
-        const supabase = getServiceClient()
+        const supabase = await getDbClient()
         const { data, error } = await supabase.from('Job').select('*').eq('id', where.id).maybeSingle()
         if (!error && data) {
           const users = await db.user.findMany()
@@ -640,11 +648,10 @@ export const db = {
         createdAt: new Date(),
       }
 
-      // Try inserting into Supabase
+      // Insert into Supabase
       try {
-        const supabase = getServiceClient()
+        const supabase = await getDbClient()
         const { data: dbCreated, error } = await supabase.from('Job').insert({
-          id: newJob.id,
           title: newJob.title,
           description: newJob.description,
           category: newJob.category,
@@ -674,7 +681,7 @@ export const db = {
       }
 
       try {
-        const supabase = getServiceClient()
+        const supabase = await getDbClient()
         await supabase.from('Job').update(data).eq('id', where.id)
       } catch (e) {}
 
@@ -716,7 +723,7 @@ export const db = {
 
       let dbProps: ProposalRecord[] = []
       try {
-        const supabase = getServiceClient()
+        const supabase = await getDbClient()
         const { data, error } = await supabase.from('Proposal').select('*').order('createdAt', { ascending: false })
         if (!error && data) {
           dbProps = data.map(p => ({
@@ -771,11 +778,10 @@ export const db = {
         createdAt: new Date(),
       }
 
-      // Try inserting into Supabase
+      // Insert into Supabase
       try {
-        const supabase = getServiceClient()
+        const supabase = await getDbClient()
         const { data: dbCreated, error } = await supabase.from('Proposal').insert({
-          id: newProposal.id,
           jobId: newProposal.jobId,
           freelancerId: newProposal.freelancerId,
           coverLetter: newProposal.coverLetter,
@@ -830,7 +836,7 @@ export const db = {
 
       let dbOrders: OrderRecord[] = []
       try {
-        const supabase = getServiceClient()
+        const supabase = await getDbClient()
         const { data, error } = await supabase.from('Order').select('*').order('createdAt', { ascending: false })
         if (!error && data) {
           dbOrders = data.map(o => ({
@@ -903,11 +909,10 @@ export const db = {
         seller,
       }
 
-      // Try inserting into Supabase
+      // Insert into Supabase
       try {
-        const supabase = getServiceClient()
+        const supabase = await getDbClient()
         const { data: dbCreated, error } = await supabase.from('Order').insert({
-          id: newOrder.id,
           gigId: newOrder.gigId,
           buyerId: newOrder.buyerId,
           sellerId: newOrder.sellerId,
@@ -935,7 +940,7 @@ export const db = {
       }
 
       try {
-        const supabase = getServiceClient()
+        const supabase = await getDbClient()
         await supabase.from('Order').update(data).eq('id', where.id)
       } catch (e) {}
 
@@ -1044,7 +1049,7 @@ export const db = {
 
       let dbMessages: MessageRecord[] = []
       try {
-        const supabase = getServiceClient()
+        const supabase = await getDbClient()
         const { data, error } = await supabase.from('Message').select('*').order('createdAt', { ascending: true })
         if (!error && data) {
           dbMessages = data.map(m => ({
@@ -1092,11 +1097,10 @@ export const db = {
         createdAt: new Date(),
       }
 
-      // Try inserting into Supabase
+      // Insert into Supabase
       try {
-        const supabase = getServiceClient()
+        const supabase = await getDbClient()
         await supabase.from('Message').insert({
-          id: newMsg.id,
           senderId: newMsg.senderId,
           receiverId: newMsg.receiverId,
           content: newMsg.content,
@@ -1137,8 +1141,38 @@ export const db = {
 
   // ── VERIFICATION ───────────────────────────────────────────────────────────
   verification: {
-    findMany: async (query?: { where?: { status?: string }; orderBy?: any }): Promise<VerificationRecord[]> => {
-      let list: VerificationRecord[] = (global as any).__AST_VERIFICATIONS__
+    findMany: async (query?: { where?: { status?: string; userId?: string }; orderBy?: any }): Promise<VerificationRecord[]> => {
+      const users = await db.user.findMany()
+      let dbVerifications: VerificationRecord[] = []
+
+      try {
+        const supabase = await getDbClient()
+        const { data, error } = await supabase.from('Verification').select('*').order('submittedAt', { ascending: false })
+        if (!error && data) {
+          dbVerifications = data.map(v => {
+            const u = users.find(usr => usr.id === v.userId)
+            return {
+              id: v.id,
+              userId: v.userId,
+              fullName: v.fullName || u?.name || 'Applicant',
+              dob: v.dob || '1995-01-01',
+              country: v.country || 'Tunisia',
+              documentType: v.documentType || 'National ID',
+              documentNumber: v.documentNumber || '12345678',
+              idFrontPath: v.idFrontUrl || v.idFrontPath || 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=600',
+              idBackPath: v.idBackUrl || v.idBackPath || 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=600',
+              selfiePath: v.selfieUrl || v.selfiePath || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400',
+              status: v.status || 'PENDING',
+              rejectionReason: v.rejectionReason,
+              submittedAt: new Date(v.submittedAt || Date.now()),
+              reviewedAt: v.reviewedAt ? new Date(v.reviewedAt) : undefined,
+              user: u,
+            }
+          })
+        }
+      } catch (e) {}
+
+      let list = (global as any).__AST_VERIFICATIONS__
       if (!list) {
         list = [
           {
@@ -1173,8 +1207,18 @@ export const db = {
         ;(global as any).__AST_VERIFICATIONS__ = list
       }
 
-      if (query?.where?.status) list = list.filter(v => v.status === query.where!.status)
-      return list
+      const merged = [...dbVerifications]
+      list.forEach((lv: VerificationRecord) => {
+        if (!merged.some(v => v.id === lv.id || v.userId === lv.userId)) {
+          const u = users.find(usr => usr.id === lv.userId)
+          merged.push({ ...lv, user: u })
+        }
+      })
+
+      let result = merged
+      if (query?.where?.status) result = result.filter(v => v.status === query.where!.status)
+      if (query?.where?.userId) result = result.filter(v => v.userId === query.where!.userId)
+      return result
     },
 
     findUnique: async ({ where }: { where: { id?: string; userId?: string }; include?: any }): Promise<VerificationRecord | null> => {
@@ -1185,7 +1229,7 @@ export const db = {
 
     create: async ({ data }: { data: Partial<VerificationRecord> }): Promise<VerificationRecord> => {
       const newVerif: VerificationRecord = {
-        id: `ver_${Date.now()}`,
+        id: data.id ?? `ver_${Date.now()}`,
         userId: data.userId!,
         fullName: data.fullName ?? 'Applicant',
         dob: data.dob ?? '1995-01-01',
@@ -1198,6 +1242,27 @@ export const db = {
         status: 'PENDING',
         submittedAt: new Date(),
       }
+
+      // Insert into Supabase
+      try {
+        const supabase = await getDbClient()
+        const { data: dbCreated, error } = await supabase.from('Verification').insert({
+          userId: newVerif.userId,
+          fullName: newVerif.fullName,
+          dob: newVerif.dob,
+          country: newVerif.country,
+          documentType: newVerif.documentType,
+          documentNumber: newVerif.documentNumber,
+          idFrontUrl: newVerif.idFrontPath || 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=600',
+          idBackUrl: newVerif.idBackPath || 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=600',
+          selfieUrl: newVerif.selfiePath || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400',
+          status: 'PENDING',
+        }).select('*').single()
+
+        if (!error && dbCreated) {
+          newVerif.id = dbCreated.id
+        }
+      } catch (e) {}
 
       let list = await db.verification.findMany()
       list.unshift(newVerif)
@@ -1218,9 +1283,18 @@ export const db = {
             data: { verifiedStatus: data.status },
           })
         }
-        return list[idx]
       }
-      return null
+
+      try {
+        const supabase = await getDbClient()
+        await supabase.from('Verification').update({
+          status: data.status,
+          rejectionReason: data.rejectionReason,
+          reviewedAt: new Date(),
+        }).eq('id', where.id)
+      } catch (e) {}
+
+      return list[idx] ?? null
     },
   },
 

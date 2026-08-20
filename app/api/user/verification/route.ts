@@ -66,6 +66,13 @@ export async function POST(req: NextRequest) {
       }
     })
 
+    try {
+      const { revalidatePath } = await import('next/cache')
+      revalidatePath('/dashboard/verification')
+      revalidatePath('/dashboard/admin')
+      revalidatePath('/dashboard')
+    } catch (e) {}
+
     return NextResponse.json(
       { verification, message: 'Identity verification submitted successfully for review.' },
       { status: 201 }

@@ -2,11 +2,12 @@ import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { DashboardStats } from '@/components/dashboard/DashboardStats'
 import { DashboardChart } from '@/components/dashboard/DashboardChart'
-import { dashboardData }  from '@/lib/data/dashboard'
 import Link from 'next/link'
 import { Briefcase, Star, Plus, ArrowRight } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
+
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 export default async function DashboardPage() {
   const session = await auth()
@@ -15,6 +16,8 @@ export default async function DashboardPage() {
   const name = session?.user?.name ?? 'User'
 
   let orders: any[] = []
+  let gigs: any[] = []
+  let jobs: any[] = []
   let earnings = 0
 
   if (userId) {
@@ -22,26 +25,63 @@ export default async function DashboardPage() {
       orders = await db.order.findMany({
         where: role === 'FREELANCER' ? { sellerId: userId } : { buyerId: userId },
       })
-      earnings = orders.filter(o => o.status === 'COMPLETED').reduce((sum, o) => sum + o.amount, 0)
+      earnings = orders.filter(o => o.status === 'COMPLETED').reduce((sum, o) => sum + Number(o.amount || 0), 0)
+
+      if (role === 'FREELANCER') {
+        gigs = await db.gig.findMany({ where: { freelancerId: userId } })
+      } else {
+        jobs = await db.job.findMany({ where: { clientId: userId } })
+      }
     } catch {
       orders = []
     }
   }
 
-  const activeOrders    = orders.filter(o => o.status === 'ACTIVE').length
+  const activeOrders    = orders.filter(o => o.status === 'ACTIVE' || o.status === 'PENDING').length
   const completedOrders = orders.filter(o => o.status === 'COMPLETED').length
-  const completionRate  = orders.length > 0 ? Math.round((completedOrders / orders.length) * 100) : 100
+  const completionRate  = orders.length > 0 ? Math.round((completedOrders / orders.length) * 100) : (completedOrders > 0 ? 100 : 0)
+
+  // Compute real monthly chart series based on authentic orders
+  const now = new Date()
+  const monthlyChartData = []
+  const monthlyVolumeData = []
+
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    const monthKey = d.getMonth()
+    const yearKey = d.getFullYear()
+    const monthLabel = MONTH_NAMES[monthKey]
+
+    const monthOrders = orders.filter(o => {
+      const od = new Date(o.createdAt)
+      return od.getMonth() === monthKey && od.getFullYear() === yearKey
+    })
+
+    const monthRevenue = monthOrders
+      .filter(o => o.status === 'COMPLETED')
+      .reduce((sum, o) => sum + Number(o.amount || 0), 0)
+
+    monthlyChartData.push({
+      month: monthLabel,
+      value: monthRevenue,
+    })
+
+    monthlyVolumeData.push({
+      month: monthLabel,
+      value: monthOrders.length,
+    })
+  }
 
   const metrics = role === 'FREELANCER' ? [
-    { label: 'Total Earnings',   value: `${earnings.toLocaleString()} TND`, sub: 'All time payouts' },
+    { label: 'Total Earnings',   value: `${earnings.toLocaleString()} TND`, sub: 'Completed contracts' },
     { label: 'Active Orders',    value: String(activeOrders),            sub: 'In progress' },
     { label: 'Completion Rate',  value: `${completionRate}%`,            sub: 'Order fulfillment' },
-    { label: 'Profile Views',    value: '1,284',                         sub: 'This month' },
+    { label: 'Published Gigs',   value: String(gigs.length),             sub: 'Active marketplace services' },
   ] : [
-    { label: 'Total Spent',      value: `${earnings.toLocaleString()} TND`, sub: 'Escrow funded' },
-    { label: 'Active Orders',    value: String(activeOrders),            sub: 'In progress' },
+    { label: 'Total Escrow Spent', value: `${earnings.toLocaleString()} TND`, sub: 'Completed deliveries' },
+    { label: 'Active Contracts', value: String(activeOrders),            sub: 'In progress' },
     { label: 'Completed Jobs',   value: String(completedOrders),         sub: 'Delivered services' },
-    { label: 'Platform Protection',value: '100%',                        sub: 'Escrow secured' },
+    { label: 'Posted Projects',  value: String(jobs.length),             sub: 'Client briefs open' },
   ]
 
   const STATUS_BADGE: Record<string, string> = {
@@ -109,10 +149,18 @@ export default async function DashboardPage() {
       <DashboardStats metrics={metrics} />
 
       <div className="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <DashboardChart data={dashboardData.monthlyEarnings} />
         <div className="rounded-3xl border border-black/8 bg-white p-6 shadow-sm">
-          <h3 className="font-semibold text-black mb-4">Platform Activity Trends</h3>
-          <DashboardChart data={dashboardData.profileViews} color="#4CB4E7" label="Activity" />
+          <h3 className="font-semibold text-black mb-1">
+            {role === 'FREELANCER' ? 'Monthly Revenue (TND)' : 'Monthly Escrow Spend (TND)'}
+          </h3>
+          <p className="text-ast-gray text-xs mb-4">Actual value of completed milestones</p>
+          <DashboardChart data={monthlyChartData} color="#11606e" label="Revenue (TND)" />
+        </div>
+
+        <div className="rounded-3xl border border-black/8 bg-white p-6 shadow-sm">
+          <h3 className="font-semibold text-black mb-1">Order Volume Trend</h3>
+          <p className="text-ast-gray text-xs mb-4">Total contracts placed per month</p>
+          <DashboardChart data={monthlyVolumeData} color="#4CB4E7" label="Orders" />
         </div>
       </div>
 
