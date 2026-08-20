@@ -45,7 +45,7 @@ export async function login(formData: FormData) {
     cookieStore.set('demo_user_id', matchingStatic.id, { path: '/' })
     cookieStore.set('demo_user_role', matchingStatic.role, { path: '/' })
     revalidatePath('/', 'layout')
-    redirect('/dashboard')
+    return { success: true }
   }
 
   // 2. Check in unified db.user repository
@@ -66,10 +66,10 @@ export async function login(formData: FormData) {
       cookieStore.set('demo_user_id', user.id, { path: '/' })
       cookieStore.set('demo_user_role', user.role, { path: '/' })
       revalidatePath('/', 'layout')
-      redirect('/dashboard')
+      return { success: true }
     }
   } catch (e: any) {
-    if (e?.message === 'NEXT_REDIRECT') throw e
+    // catch any errors
   }
 
   // 3. Fallback to Supabase Auth if cloud credentials exist
@@ -83,10 +83,10 @@ export async function login(formData: FormData) {
     if (!error) {
       resetFailedLogins(email)
       revalidatePath('/', 'layout')
-      redirect('/dashboard')
+      return { success: true }
     }
   } catch (err: any) {
-    if (err?.message === 'NEXT_REDIRECT') throw err
+    // catch any errors
   }
 
   const lockRes = recordFailedLogin(email)
@@ -105,7 +105,7 @@ export async function loginAsTestUser(userId: string) {
     cookieStore.set('demo_user_id', staticDemo.id, { path: '/' })
     cookieStore.set('demo_user_role', staticDemo.role, { path: '/' })
     revalidatePath('/', 'layout')
-    redirect('/dashboard')
+    return { success: true }
   }
 
   const user = await db.user.findUnique({ where: { id: userId } })
@@ -113,14 +113,14 @@ export async function loginAsTestUser(userId: string) {
     cookieStore.set('demo_user_id', user.id, { path: '/' })
     cookieStore.set('demo_user_role', user.role, { path: '/' })
     revalidatePath('/', 'layout')
-    redirect('/dashboard')
+    return { success: true }
   }
 
   // Fallback to admin
   cookieStore.set('demo_user_id', 'admin1', { path: '/' })
   cookieStore.set('demo_user_role', 'ADMIN', { path: '/' })
   revalidatePath('/', 'layout')
-  redirect('/dashboard')
+  return { success: true }
 }
 
 export async function register(formData: FormData) {
@@ -180,7 +180,7 @@ export async function register(formData: FormData) {
   cookieStore.set('demo_user_role', newUser.role, { path: '/' })
 
   revalidatePath('/', 'layout')
-  redirect('/dashboard')
+  return { success: true }
 }
 
 export async function forgotPassword(formData: FormData) {

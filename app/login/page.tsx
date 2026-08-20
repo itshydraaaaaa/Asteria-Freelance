@@ -18,12 +18,19 @@ export default function LoginPage() {
     if (res?.error) {
       setError(res.error)
       setLoading(false)
+    } else if (res?.success) {
+      window.location.href = '/dashboard'
     }
   }
 
   const handleTestLogin = async (userId: string) => {
     setLoading(true)
-    await loginAsTestUser(userId)
+    const res = await loginAsTestUser(userId)
+    if (res?.success) {
+      window.location.href = '/dashboard'
+    } else {
+      setLoading(false)
+    }
   }
 
   return (

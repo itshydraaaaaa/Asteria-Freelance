@@ -13,7 +13,6 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  // 👉 Updated handler to use Next.js Server Actions with FormData
   const clientAction = async (formData: FormData) => {
     setLoading(true)
     setError('')
@@ -21,10 +20,11 @@ export default function RegisterPage() {
     // Call the Supabase auth action
     const res = await register(formData)
     
-    // If there is an error, display it. (If successful, the action redirects automatically to /dashboard)
     if (res?.error) {
       setError(res.error)
       setLoading(false)
+    } else if (res?.success) {
+      window.location.href = '/dashboard'
     }
   }
 
