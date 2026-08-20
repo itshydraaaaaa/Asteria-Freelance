@@ -1,46 +1,45 @@
-# 🌟 Asteria Freelance
+# 🌟 Asteria Freelance: Master Architecture & Security Guide
 
 [![Next.js 14](https://img.shields.io/badge/Next.js-14.2-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
-[![Supabase](https://img.shields.io/badge/Supabase-Database%20%26%20Auth-emerald?style=for-the-badge&logo=supabase)](https://supabase.com/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.8-blue?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
+[![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL%20%26%20Auth-emerald?style=for-the-badge&logo=supabase)](https://supabase.com/)
 [![Stripe](https://img.shields.io/badge/Stripe-Escrow%20%26%20Payments-635bff?style=for-the-badge&logo=stripe)](https://stripe.com/)
-[![Tests](https://img.shields.io/badge/Tests-80%2F80%20Passing-brightgreen?style=for-the-badge&logo=jest)](https://jestjs.io/)
+[![Tests](https://img.shields.io/badge/Tests-104%2F104%20Passing-brightgreen?style=for-the-badge&logo=jest)](https://jestjs.io/)
+[![CI](https://img.shields.io/badge/CI-GitHub%20Actions-blue?style=for-the-badge&logo=githubactions)](https://github.com/itshydraaaaaa/Asteria-Freelance/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](LICENSE)
 
-> **Asteria Freelance** is a production-ready, high-performance microjob and freelance marketplace engineered for the **MENA digital economy**, featuring double-entry escrow protections, native **Tunisian Dinar (TND)** currency handling with international **USD** settlement, institutional KYC verification, private proposal security, and AI-assisted workflows.
+> **Asteria Freelance** is an enterprise-grade digital marketplace and escrow platform engineered for the **Tunisian and global freelance economy**. It features a mathematical double-entry append-only ledger, PostgreSQL row-level locking, deadlock-free canonical lock ordering, live foreign exchange rate conversion, institutional KYC verification, progressive brute-force defense, high-value Maker-Checker dual control, and automated scheduled financial reconciliation.
 
 ---
 
 ## 📑 Table of Contents
-- [✨ Key Features](#-key-features)
-- [🏗️ System Architecture](#️-system-architecture)
-- [🔄 How the Platform Works](#-how-the-platform-works)
-  - [1. Escrow & Milestone Payment Lifecycle](#1-escrow--milestone-payment-lifecycle)
-  - [2. KYC Identity Verification](#2-kyc-identity-verification)
-  - [3. Real-Time Chat & Custom Escrow Offers](#3-real-time-chat--custom-escrow-offers)
-  - [4. Private Job Proposals](#4-private-job-proposals)
-  - [5. AI Writing Assistant & Safety Guardrails](#5-ai-writing-assistant--safety-guardrails)
-- [🛡️ Security & Concurrency Defenses](#️-security--concurrency-defenses)
-- [💻 Tech Stack](#-tech-stack)
-- [📁 Project Structure](#-project-structure)
-- [⚙️ Environment Variables](#️-environment-variables)
-- [🚀 Quick Start & Local Setup](#-quick-start--local-setup)
-- [📡 API Route Reference](#-api-route-reference)
-- [🧪 Testing & Quality Assurance](#-testing--quality-assurance)
+1. [✨ Key Features](#-key-features)
+2. [🏗️ System Architecture](#️-system-architecture)
+3. [💰 Financial Ledger, Escrow & Concurrency Core](#-financial-ledger-escrow--concurrency-core)
+4. [💱 Foreign Exchange (FX) & Payment Gateways](#-foreign-exchange-fx--payment-gateways)
+5. [🔒 Progressive Authentication & Access Control](#-progressive-authentication--access-control)
+6. [🪪 KYC Identity Verification & User Safeguards](#-kyc-identity-verification--user-safeguards)
+7. [🛡️ Platform Security & Defense-in-Depth](#️-platform-security--defense-in-depth)
+8. [📁 Project Structure](#-project-structure)
+9. [⚙️ Environment Variables](#️-environment-variables)
+10. [🚀 Quick Start & Local Setup](#-quick-start--local-setup)
+11. [📡 API Route Reference](#-api-route-reference)
+12. [🧪 Automated Testing & CI/CD](#-automated-testing--cicd)
 
 ---
 
 ## ✨ Key Features
 
-- **🔒 100% Escrow Protection**: Multi-milestone contracts where client funds are locked securely before work begins and released upon deliverable approval.
-- **⏱️ 7-Day Auto-Release Guarantee**: Protects freelancers by automatically releasing escrow funds 7 days after deliverable submission if no client dispute is raised.
-- **💱 Multi-Currency Engine**: Base currency in Tunisian Dinar (`TND`) with automatic Stripe currency exchange conversion (`1 TND ≈ 0.32 USD`) and MENA sandbox gateway support (Flouci, Konnect).
-- **🪪 Strict Institutional KYC**: Tiered access allowing unrestricted marketplace exploration while strictly requiring approved government ID verification (CIN / Passport) before placing orders or requesting payouts.
-- **💬 Real-Time Messaging & Custom Offers**: Direct buyer-seller chat with server-revalidated custom contract negotiation and 1-click escrow acceptance.
+- **🔒 Mathematical Escrow Protection**: Multi-milestone contracts where client funds are locked securely before work begins and released upon deliverable approval.
+- **⚡ Zero-Overdraft Concurrency Safety**: PostgreSQL transaction-scoped advisory locks (`pg_advisory_xact_lock`) and `FOR UPDATE` row locks guarantee zero overdrafts under heavy concurrent withdrawal requests.
+- **🔄 Deadlock-Free Multi-User Settlements**: Canonical ascending user ID sorting ensures multi-party settlements (`withSortedMultiUserLock`) never deadlock.
+- **💱 Live FX & Applied Rate Immutability**: Real-time TND/USD exchange rate service with 1-hour cache TTL and immutable rate storage on historical ledger records.
+- **👥 High-Value Maker-Checker Dual Control**: Large payouts ($\ge 1,000\text{ TND}$) require two distinct administrators (Maker Step + Checker Step) to prevent rogue transfers.
+- **🛡️ Progressive Anti-Brute-Force Defense**: Replaced weaponizable 15-minute account lockouts with progressive CAPTCHAs and short exponential backoff delays (5s–30s).
+- **🪪 Strict Institutional KYC**: Tiered access allowing unrestricted marketplace exploration while requiring approved government ID verification (CIN / Passport) before placing orders or withdrawing payouts.
 - **🙈 Private Job Proposals**: Client and Admins view all submitted bids, while freelancers are strictly restricted to seeing only their own proposal.
 - **🤖 Native AI Writing Assistant**: Integrated drafting for gigs, job descriptions, and proposals with daily rate caps (20 calls/day), safety moderation filters, and AI disclosure tags.
-- **📊 Admin Control Center & Automated Reconciliation**: Live user moderation, dispute arbitration dossiers, payout authorization, and automated cron reconciliation auditing with incident paging.
-- **🎨 Fluid UI & Smooth Scrolling**: Powered by GSAP ScrollTrigger and Lenis smooth scrolling with an interactive Three.js 3D canvas hero and dynamic notification engine.
+- **📊 Automated Cron Reconciliation**: Continuous verification of balance equilibrium with automated incident paging on discrepancies or 24-hour withdrawal SLA breaches.
 
 ---
 
@@ -48,280 +47,197 @@
 
 ```mermaid
 graph TD
-    Client[Next.js 14 App Router + React 18] --> UI[Tailwind CSS + GSAP + Lenis + Three.js]
-    Client --> API[Next.js Server API Routes]
-    API --> Auth[Supabase Auth SSR]
-    API --> DB[(Supabase Postgres Database)]
-    API --> Ledger[Double-Entry Escrow Ledger]
-    API --> Gateways[Stripe / Flouci / Konnect]
-    API --> AI[AI Moderation & Generation Engine]
-    API --> Logger[Structured JSON Logger & Alerting Webhooks]
+    User([User / Browser]) -->|HTTPS / Next.js 14| Frontend[App Router UI & 3D Canvas]
+    Frontend -->|Server Actions / API| Middleware[Security Middleware: CSP & Headers]
+    
+    Middleware --> AuthGuard{RBAC & Rate Limit}
+    AuthGuard -->|Pass| RouteHandler[Dynamic API Handlers]
+    
+    RouteHandler --> FxService[lib/fx.ts: Live FX Engine]
+    RouteHandler --> PureMath[lib/ledgerCore.ts: Math Invariant Core]
+    RouteHandler --> LedgerService[lib/ledger.ts: Append-Only Ledger]
+    
+    LedgerService -->|FOR UPDATE + pg_advisory_xact_lock| Postgres[(Supabase / PostgreSQL)]
+    RouteHandler --> Gateways{Payment Gateways}
+    
+    Gateways -->|USD Card| Stripe[Stripe API & Webhooks]
+    Gateways -->|TND Sandbox| Flouci[Flouci Gateway HMAC]
+    Gateways -->|TND Sandbox| Konnect[Konnect Gateway HMAC]
 ```
 
 ---
 
-## 🔄 How the Platform Works
+## 💰 Financial Ledger, Escrow & Concurrency Core
 
-### 1. Escrow & Milestone Payment Lifecycle
+The platform implements an **append-only, double-entry mathematical ledger**. Direct mutations to `users.wallet_balance` from application code are strictly forbidden. All monetary operations must pass through [`lib/ledger.ts`](file:///c:/Users/MSI/Downloads/Asteria-freelance-main/Asteria-freelance/lib/ledger.ts) and [`lib/ledgerCore.ts`](file:///c:/Users/MSI/Downloads/Asteria-freelance-main/Asteria-freelance/lib/ledgerCore.ts).
 
-All transactions use an append-only double-entry financial ledger (`lib/ledger.ts`) with mathematical precision:
-$$\text{Platform Commission} = \text{round}(\text{Order Total} \times 0.12, 2)$$
-$$\text{Net Freelancer Payout} = \text{round}(\text{Order Total} - \text{Platform Commission}, 2)$$
+### Concurrency Safety (Zero-Overdraft Guarantee)
+1. **Transaction-Scoped Advisory Locking**: In PostgreSQL, every balance modification executes `PERFORM pg_advisory_xact_lock(hashtext(p_user_id::text))` combined with `SELECT * FROM users WHERE id = p_user_id FOR UPDATE`.
+2. **Canonical Lock Ordering (Deadlock-Free)**: When settling multi-party transactions, user IDs are sorted ascending (`withSortedMultiUserLock`) before locks are acquired:
+   $$\text{User}_1 < \text{User}_2 < \text{User}_3$$
+3. **20-Parallel Request Test**: Verified in [`__tests__/concurrency_lock.test.ts`](file:///c:/Users/MSI/Downloads/Asteria-freelance-main/Asteria-freelance/__tests__/concurrency_lock.test.ts). Firing 20 parallel withdrawal requests against a balance sufficient for only 1 results in **exactly 1 success, 19 failures, and a 0.00 TND final balance**.
 
-```mermaid
-sequenceDiagram
-    autonumber
-    actor Buyer as Client (Buyer)
-    participant API as Asteria API
-    participant Ledger as Escrow Ledger
-    participant DB as Postgres DB
-    actor Seller as Freelancer (Seller)
-
-    Buyer->>API: Place Order (e.g. 500 TND)
-    API->>Ledger: debitWallet(Buyer, 500, 'FUND_ESCROW')
-    Ledger->>DB: Lock 500 TND in Escrow (ACTIVE)
-    Seller->>API: Submit Milestone Deliverables (/api/orders/[id]/deliver)
-    API->>DB: Start 7-Day AutoRelease Timer
-    Buyer->>API: Approve & Complete (/api/orders/[id]/complete)
-    API->>Ledger: processEscrowRelease(Order, Seller, 500)
-    Ledger->>DB: Credit 440 TND to Freelancer (88%)
-    Ledger->>DB: Credit 60 TND to Platform (12%)
-    API->>DB: Mark Order COMPLETED
-```
-
-### 2. KYC Identity Verification
-
-- **Exploration**: Unverified users can freely browse gigs, explore job listings, and view freelancer portfolios.
-- **Financial Commitment Gate**: Order placement and withdrawal payouts are locked until identity documents are reviewed and approved.
-
-```mermaid
-stateDiagram-v2
-    [*] --> UNSUBMITTED: User Registers
-    UNSUBMITTED --> PENDING: Submits ID Front, Back, & Selfie
-    PENDING --> APPROVED: Verified by Admin / Webhook
-    PENDING --> REJECTED: Resubmission Required
-    APPROVED --> [*]: Full Order & Withdrawal Capabilities Active
-```
-
-### 3. Real-Time Chat & Custom Escrow Offers
-
-1. Freelancers and clients discuss project requirements in `/dashboard/messages`.
-2. Freelancers build and send a **Custom Escrow Offer** specifying title, scope, milestones, and price.
-3. The client clicks **Accept & Fund**. The server re-validates the offer against stored database records to prevent client payload tampering and funds the escrow workspace immediately.
-
-### 4. Private Job Proposals
-
-Clients post open job listings at `/post-job`. Competing freelancers submit custom bids and cover letters.
-- **Job Owner & Admin**: Review all candidate proposals and portfolios.
-- **Freelancers**: Can only view their own submitted proposal.
-
-### 5. AI Writing Assistant & Safety Guardrails
-
-- Accessible via `/api/ai/generate` for gig descriptions, project briefs, and proposals.
-- **Rate Limit**: 20 AI generations per user per day.
-- **Proactive Filter**: Automatically detects and blocks off-platform payment solicitations (e.g. WhatsApp, direct bank wires) or prohibited content.
+### Escrow Split Formula
+When an order or milestone is released:
+- **Seller Net Payout (88%)**: $\text{Amount} \times (1 - 0.12) = \text{Amount} \times 0.88$
+- **Platform Fee (12%)**: $\text{Amount} \times 0.12$
+- **Rounding Invariant**: $\text{sellerPayout} + \text{platformFee} \equiv \text{totalAmount}$
 
 ---
 
-## 🛡️ Security & Concurrency Defenses
+## 💱 Foreign Exchange (FX) & Payment Gateways
 
-| Protection | Implementation | Defense Capability |
-| :--- | :--- | :--- |
-| **Race Condition Defense** | PostgreSQL `SELECT ... FOR UPDATE` row locks + Node.js mutex (`withUserLock`) | Prevents concurrent parallel withdrawal requests from double-spending or draining wallet balances. |
-| **Content Security Policy** | Strict CSP header in `next.config.mjs` | Restricts script, style, frame, and connect origins to block stored XSS across chat and user content. |
-| **Credential Stuffing Defense** | IP-based sliding window rate limiter (`rateLimitByIp`) | Caps requests to 20/min per IP address across all authentication endpoints. |
-| **Progressive Brute-Force Defense** | Account failure tracker (`checkAccountLockout`) | Triggers progressive CAPTCHA challenge after 3 failed attempts; temporary 15-min lockout at 5 failures. |
-| **Scheduled Reconciliation** | `/api/cron/reconciliation` with `CRON_SECRET` | Automatically audits active escrow locks against user wallet balances and platform reserves with incident alert dispatch. |
+- **Live FX Service (`lib/fx.ts`)**: Queries live market rates with a **1-hour cache TTL (`CACHE_TTL_MS = 3600 * 1000`)** and audit-logged admin overrides.
+- **Applied Rate Immutability**: The exact exchange rate applied at checkout (`exchangeRateApplied`) is permanently stored on the `wallet_transactions` row, preventing historical recomputation drift.
+- **Constant-Time HMAC Verification**: Flouci and Konnect webhooks use `crypto.timingSafeEqual(sigBuf, expBuf)` to eliminate timing side-channels.
+- **Anti-Replay Timestamp Tolerance**: Webhook payloads older than 5 minutes ($\pm 300\text{s}$) are rejected with `400 Bad Request`.
 
 ---
 
-## 💻 Tech Stack
+## 🔒 Progressive Authentication & Access Control
 
-- **Framework**: [Next.js 14](https://nextjs.org/) (App Router, Server Actions, API Routes)
-- **Language**: [TypeScript](https://www.typescriptlang.org/) (Strict mode)
-- **Database & Auth**: [Supabase](https://supabase.com/) (`@supabase/ssr`, Postgres, Row Level Security)
-- **Styling**: [Tailwind CSS](https://tailwindcss.com/), [Framer Motion](https://www.framer.com/motion/)
-- **Animations & 3D**: [GSAP](https://greensock.com/gsap/) (ScrollTrigger), [Lenis](https://lenis.darkroom.engineering/) (Smooth Scroll), [Three.js](https://threejs.org/)
-- **Payments**: [Stripe](https://stripe.com/), Flouci Sandbox, Konnect Sandbox
-- **Testing**: [Jest](https://jestjs.io/), `@testing-library/react`, ts-jest
+- **Progressive Anti-Brute-Force Defense**:
+  - **Attempts 1–2**: Normal feedback (`requireCaptcha: false`).
+  - **Attempts 3–4**: CAPTCHA challenge required (`requireCaptcha: true`).
+  - **Attempts 5+**: Exponential backoff delay enforced (5s to 30s max).
+  - **Zero DoS Lockouts**: A legitimate user providing the correct password/solving CAPTCHA has their failure counter immediately cleared via `resetFailedLogins()`.
+- **Role-Based Access Control (RBAC)**: Strict separation of `CLIENT`, `FREELANCER`, and `ADMIN` privileges enforced via [`lib/authz.ts`](file:///c:/Users/MSI/Downloads/Asteria-freelance-main/Asteria-freelance/lib/authz.ts).
+
+---
+
+## 🪪 KYC Identity Verification & User Safeguards
+
+- **Unverified Order Guard**: Unverified users (`UNSUBMITTED`, `PENDING`, `REJECTED`) are prevented from placing orders or creating escrow agreements until their KYC profile is approved by Admin.
+- **Exploration Allowed**: Unverified users can freely browse gigs, explore freelancer portfolios, and read platform documentation.
+- **Withdrawal Guard**: Only `APPROVED` freelancer accounts can initiate withdrawal requests (`/api/wallet/withdraw`).
+
+---
+
+## 🛡️ Platform Security & Defense-in-Depth
+
+- **Content-Security-Policy (CSP)**: Strict domain allowlists configured in [`next.config.mjs`](file:///c:/Users/MSI/Downloads/Asteria-freelance-main/Asteria-freelance/next.config.mjs) covering Stripe, Supabase, and payment gateways.
+- **`server-only` Package Protection**: Backend database, secret keys, and ledger modules are protected with `import 'server-only'`.
+- **Shared-Store Rate Limiter**: Shared sliding window rate limits backed by PostgreSQL `rate_limit_log` across all abuse targets (Auth, KYC, AI, Withdrawals, Proposals).
+- **Immutable Audit Logging**: Every critical financial, administrative, and security action is logged to `db.auditLog`.
 
 ---
 
 ## 📁 Project Structure
 
-```text
-asteria-freelance/
-├── app/                        # Next.js 14 App Router
-│   ├── api/                    # Serverless API routes
-│   │   ├── admin/              # User moderation, logs, reconciliation, withdrawals
-│   │   ├── ai/                 # AI assistant generation & safety filtering
-│   │   ├── auth/               # Login, register, session endpoints
-│   │   ├── cron/               # Automated scheduled reconciliation cron
-│   │   ├── gigs/               # Marketplace service gigs CRUD
-│   │   ├── jobs/               # Job postings & private proposals
-│   │   ├── kyc/                # KYC submission & webhook receiver
-│   │   ├── messages/           # Direct chat & custom escrow offer acceptance
-│   │   ├── notifications/      # Live dynamic notifications engine
-│   │   ├── orders/             # Escrow orders, deliverables & milestone releases
-│   │   ├── stripe/             # Stripe checkout & webhook reconciliation
-│   │   └── wallet/             # Payout withdrawals & ledger history
-│   ├── dashboard/              # Authenticated user & admin dashboard pages
-│   ├── explore/                # Public gig & marketplace catalog
-│   ├── freelancers/            # Talent discovery directory
-│   ├── jobs/                   # Public job listings board
-│   ├── globals.css             # Global styles & font definitions
-│   └── layout.tsx              # Root layout with smooth scroll & providers
-├── components/                 # Reusable React components
-│   ├── cursor/                 # Custom interactive lerped cursor
-│   ├── gigs/                   # Service cards & checkout client
-│   ├── hero/                   # Three.js 3D interactive hero canvas
-│   ├── layout/                 # Navbar, footer, and navigation
-│   ├── providers/              # GSAP, Lenis smooth scroll, and theme providers
-│   └── ui/                     # Notification dropdown, buttons, modals
-├── lib/                        # Core backend utilities
-│   ├── auth.ts                 # Supabase server authentication helper
-│   ├── authz.ts                # Server-side role authorization guards
-│   ├── db.ts                   # Unified Supabase repository layer
-│   ├── ledger.ts               # Double-entry escrow ledger & mutex
-│   ├── logger.ts               # Structured JSON logger & alert dispatcher
-│   └── rateLimit.ts            # IP rate limiting & progressive CAPTCHA
+```
+Asteria-freelance/
+├── .github/workflows/ci.yml       # GitHub Actions automated CI pipeline
+├── app/
+│   ├── (auth)/                    # Login, Register, Password Reset
+│   ├── actions/                   # Server Actions (Auth, Gigs, Jobs, Orders)
+│   ├── api/                       # Dynamic API route handlers
+│   │   ├── admin/                 # Admin management & reconciliation
+│   │   ├── ai/                    # AI writing assistant
+│   │   ├── cron/reconciliation/   # Scheduled ledger reconciliation & SLA
+│   │   ├── payments/              # Flouci & Konnect sandbox gateways
+│   │   ├── stripe/                # Stripe checkout & webhooks
+│   │   └── wallet/withdraw/       # Idempotent payout requests
+│   └── dashboard/                 # Client, Freelancer & Admin Dashboards
+├── components/
+│   ├── 3d/                        # Three.js 3D Canvas (Lazy-loaded)
+│   ├── layout/                    # Navbar, Footer
+│   ├── orders/                    # Workspace & Milestone Tracker
+│   └── ui/                        # Radix UI, Buttons, Modals, Escrow Badges
+├── lib/
+│   ├── auth.ts                    # Session & Supabase auth helper
+│   ├── authz.ts                   # Role-Based Access Control guards
+│   ├── db.ts                      # Unified Data Access Layer
+│   ├── email.ts                   # Transactional Email Notification Service
+│   ├── fx.ts                      # Live FX Rate Service & Admin Override
+│   ├── ledger.ts                  # Append-Only Ledger, Locks & Idempotency
+│   ├── ledgerCore.ts              # Pure Mathematical Ledger Core
+│   ├── logger.ts                  # Security, Audit & Error Logger
+│   └── rateLimit.ts               # Shared-Store Rate Limiter & Progressive Auth
 ├── supabase/
-│   └── migrations/             # SQL database schemas & RPC functions
-│       ├── 001_initial_schema.sql
-│       ├── 002_wallet_ledger.sql
-│       └── 003_kyc_system.sql
-├── __tests__/                  # Comprehensive Jest test suites (80 tests)
-├── next.config.mjs             # Next.js configuration & CSP security headers
-└── package.json                # Dependencies & scripts
+│   └── migrations/                # PostgreSQL SQL Schema & Stored Procedures
+└── __tests__/                     # 16 Automated Test Suites (104 Tests)
 ```
 
 ---
 
 ## ⚙️ Environment Variables
 
-Create a `.env.local` file in the project root:
+Create a `.env.local` file in the root directory:
 
 ```env
-# Platform Configuration
-NEXT_PUBLIC_APP_URL=http://localhost:5000
-NODE_ENV=development
-CURRENCY=tnd
+# Application URL
+NEXT_PUBLIC_APP_URL="http://localhost:5000"
 
-# Supabase Credentials
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+# Supabase Database & Auth
+NEXT_PUBLIC_SUPABASE_URL="https://your-project.supabase.co"
+NEXT_PUBLIC_SUPABASE_ANON_KEY="your-anon-key"
+SUPABASE_SERVICE_ROLE_KEY="your-service-role-key"
 
-# Stripe Payment Configuration
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
-STRIPE_SECRET_KEY=sk_test_...
-STRIPE_WEBHOOK_SECRET=whsec_...
+# Financial Configuration
+CURRENCY="TND"
+TND_TO_USD_RATE="0.32"
+HIGH_VALUE_WITHDRAWAL_THRESHOLD="1000"
+WITHDRAWAL_SLA_HOURS="24"
+CRON_SECRET="your-secure-cron-secret"
 
-# Automated Cron & Incident Alerting
-CRON_SECRET=your-secure-cron-secret
-ALERT_WEBHOOK_URL=https://discord.com/api/webhooks/... # or Slack webhook URL
+# Stripe Gateway
+STRIPE_SECRET_KEY="sk_test_..."
+STRIPE_WEBHOOK_SECRET="whsec_..."
 
-# AI Assistant Configuration
-OPENAI_API_KEY=sk-...
+# Flouci Sandbox Gateway
+FLOUCI_APP_TOKEN="your-flouci-app-token"
+FLOUCI_APP_SECRET="asteria_flouci_sandbox_secret"
+
+# Konnect Sandbox Gateway
+KONNECT_API_KEY="your-konnect-api-key"
+KONNECT_WALLET_ID="your-wallet-id"
+KONNECT_WEBHOOK_KEY="asteria_konnect_sandbox_key"
+
+# Transactional Emails (Resend)
+RESEND_API_KEY="re_..."
 ```
 
 ---
 
 ## 🚀 Quick Start & Local Setup
 
-### 1. Clone the repository:
 ```bash
+# 1. Clone the repository
 git clone https://github.com/itshydraaaaaa/Asteria-Freelance.git
 cd Asteria-Freelance
-```
 
-### 2. Install dependencies:
-```bash
+# 2. Install dependencies
 npm install
-```
 
-### 3. Apply database migrations:
-Run the SQL migration scripts in your Supabase SQL editor in order:
-1. `supabase/migrations/001_initial_schema.sql`
-2. `supabase/migrations/002_wallet_ledger.sql`
-3. `supabase/migrations/003_kyc_system.sql`
+# 3. Run type check and test suites
+npm test
 
-### 4. Start the development server:
-```bash
+# 4. Start local development server
 npm run dev
 ```
-Open [http://localhost:5000](http://localhost:5000) in your browser.
+
+Visit `http://localhost:5000` to interact with the platform.
 
 ---
 
-## 📡 API Route Reference
+## 🧪 Automated Testing & CI/CD
 
-| Route | Methods | Description |
-| :--- | :--- | :--- |
-| `/api/auth/session` | `GET` | Get current user session & profile |
-| `/api/auth/login` | `POST` | Authenticate credentials with lockout defense |
-| `/api/auth/register` | `POST` | Register client or freelancer account |
-| `/api/gigs` | `GET`, `POST` | List marketplace gigs or create a new gig |
-| `/api/jobs` | `GET`, `POST` | List open job postings or post a new job |
-| `/api/jobs/[id]/proposals` | `GET`, `POST` | Submit proposal or view proposals (role-guarded) |
-| `/api/orders` | `GET`, `POST` | Place escrow order (KYC required) or list orders |
-| `/api/orders/[id]/deliver` | `POST` | Submit milestone deliverables (starts 7-day timer) |
-| `/api/orders/[id]/complete` | `POST` | Buyer approves deliverable & releases escrow |
-| `/api/messages` | `GET`, `POST` | Direct chat messaging & conversation threads |
-| `/api/messages/offer/accept` | `POST` | Server-revalidated custom escrow offer acceptance |
-| `/api/notifications` | `GET`, `POST` | List unread notifications and mark as read |
-| `/api/wallet/withdraw` | `GET`, `POST` | Request payout (immediate balance hold; KYC required) |
-| `/api/stripe/checkout` | `POST` | Create Stripe Checkout session with TND/USD conversion |
-| `/api/stripe/webhook` | `POST` | Stripe cryptographic webhook receiver |
-| `/api/kyc/webhook` | `POST` | Automated identity provider callback adapter |
-| `/api/admin/users/[id]` | `POST` | Admin user moderation (suspend, ban, role change) |
-| `/api/admin/reconciliation` | `GET` | 1-click balance reconciliation audit report |
-| `/api/cron/reconciliation` | `GET` | Automated cron reconciliation with incident paging |
-| `/api/admin/withdrawals` | `GET`, `POST` | Payout authorization queue & rejection refunds |
-| `/api/ai/generate` | `POST` | AI drafting with rate caps & safety moderation |
-| `/api/health` | `GET` | System health check (DB latency, ledger integrity) |
+Asteria features **16 Jest test suites containing 104 passing unit and integration tests**:
 
----
-
-## 🧪 Testing & Quality Assurance
-
-Run the automated test suite:
 ```bash
+# Execute all automated tests
 npm test
-```
 
-### Test Results:
-```text
- PASS  __tests__/security_resilience.test.ts
- PASS  __tests__/production_fixes.test.ts
- PASS  __tests__/kyc.test.ts
- PASS  __tests__/phase6_compliance_ai.test.ts
- PASS  __tests__/admin.test.ts
- PASS  __tests__/logger.test.ts
- PASS  __tests__/rls_auth.test.ts
- PASS  __tests__/reconciliation.test.ts
- PASS  __tests__/ledger.test.ts
- PASS  __tests__/auth.test.ts
-
-Test Suites: 10 passed, 10 total
-Tests:       80 passed, 80 total
-Snapshots:   0 total
-Time:        1.444 s
-Ran all test suites.
-```
-
-Check TypeScript type validity:
-```bash
+# Run strict TypeScript validation
 npx tsc --noEmit
-```
 
-Build for production:
-```bash
+# Run Next.js production build
 npm run build
 ```
+
+Every push and pull request to `main` is validated automatically via [`.github/workflows/ci.yml`](file:///.github/workflows/ci.yml).
 
 ---
 
 ## 📄 License
-
-This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
