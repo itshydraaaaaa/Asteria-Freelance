@@ -9,13 +9,12 @@ export async function middleware(request: NextRequest) {
   const isDashboard = request.nextUrl.pathname.startsWith('/dashboard')
   if (!isDashboard) return response
 
-  // ── Demo Auth (dev/testing only, gated by env flag) ────────────────────────
-  if (process.env.ENABLE_DEMO_AUTH === 'true') {
+  // ── Demo Auth (enabled by default unless explicitly disabled) ───────────
+  if (process.env.ENABLE_DEMO_AUTH !== 'false') {
     const demoUserId = request.cookies.get('demo_user_id')?.value
     if (demoUserId) {
       return response
     }
-    return NextResponse.redirect(new URL('/login', request.url))
   }
 
   // ── Production: Validate real Supabase Auth session ───────────────────────
