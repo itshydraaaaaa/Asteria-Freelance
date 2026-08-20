@@ -4,13 +4,14 @@ import { db } from '@/lib/db'
 import { requireAdmin } from '@/lib/authz'
 import { creditWallet } from '@/lib/ledger'
 import { logger } from '@/lib/logger'
-import { sendEmail } from '@/lib/email'
 
 export const dynamic = 'force-dynamic'
 
+const HIGH_VALUE_WITHDRAWAL_THRESHOLD = Number(process.env.HIGH_VALUE_WITHDRAWAL_THRESHOLD) || 1000
+
 /**
  * GET /api/admin/withdrawals — View all freelancer payout requests (ADMIN only)
- * POST /api/admin/withdrawals — Approve or Reject a payout request (ADMIN only)
+ * POST /api/admin/withdrawals — Approve or Reject a payout request with High-Value Maker-Checker Dual Control (Task 6.2)
  */
 
 export async function GET() {
@@ -36,6 +37,9 @@ export async function POST(req: NextRequest) {
     const authError = requireAdmin(session)
     if (authError) return authError
 
+    const currentAdminId = session!.user.id
+    const currentAdminName = session!.user.name || 'Administrator'
+
     const body = await req.json()
     const { id, action, adminNotes } = body as {
       id: string
@@ -52,26 +56,91 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Withdrawal request not found' }, { status: 404 })
     }
 
-    if (withdrawal.status !== 'PENDING') {
+    if (withdrawal.status === 'APPROVED' || withdrawal.status === 'REJECTED') {
       return NextResponse.json({ error: `Withdrawal has already been marked as ${withdrawal.status}` }, { status: 409 })
     }
 
     const freelancer = await db.user.findUnique({ where: { id: withdrawal.userId } })
+    const isHighValue = withdrawal.amount >= HIGH_VALUE_WITHDRAWAL_THRESHOLD
 
     if (action === 'APPROVE') {
-      // 1. Update withdrawal record (funds were held upon user request)
+      // ─── HIGH-VALUE MAKER-CHECKER WORKFLOW (Task 6.2) ──────────────────────
+      if (isHighValue) {
+        if (withdrawal.status === 'PENDING') {
+          // STEP 1: Maker Approval
+          const updated = await db.withdrawal.update({
+            where: { id },
+            data: {
+              status: 'PENDING_SECOND_APPROVAL',
+              makerAdminId: currentAdminId,
+              makerAdminName: currentAdminName,
+              adminNotes: adminNotes || `Maker approval by ${currentAdminName}. Pending second checker.`,
+            },
+          })
+
+          logger.security('WITHDRAWAL_MAKER_APPROVAL', `High-value withdrawal #${id} (${withdrawal.amount} TND) approved by Maker Admin #${currentAdminId}`, {
+            adminId: currentAdminId,
+            withdrawalId: id,
+            amount: withdrawal.amount,
+            status: 'PENDING_SECOND_APPROVAL',
+          })
+
+          return NextResponse.json({
+            withdrawal: updated,
+            isMakerStep: true,
+            message: `High-value withdrawal of ${withdrawal.amount.toFixed(2)} TND recorded (Step 1/2: Maker). A second distinct administrator must approve to complete payout transfer.`,
+          })
+        }
+
+        if (withdrawal.status === 'PENDING_SECOND_APPROVAL') {
+          // STEP 2: Checker Approval — Must be a DIFFERENT admin
+          if (withdrawal.makerAdminId === currentAdminId) {
+            return NextResponse.json(
+              {
+                error: 'Maker-Checker policy violation: The same administrator who performed the initial Maker approval cannot provide the second Checker approval. A different administrator is required.',
+              },
+              { status: 403 }
+            )
+          }
+
+          // Complete final approval
+          const updated = await db.withdrawal.update({
+            where: { id },
+            data: {
+              status: 'APPROVED',
+              checkerAdminId: currentAdminId,
+              checkerAdminName: currentAdminName,
+              processedBy: currentAdminId,
+              adminNotes: adminNotes || `Dual-approved by Maker (${withdrawal.makerAdminName || withdrawal.makerAdminId}) and Checker (${currentAdminName})`,
+            },
+          })
+
+          logger.security('WITHDRAWAL_CHECKER_FINAL_APPROVAL', `High-value withdrawal #${id} (${withdrawal.amount} TND) finalized by Checker Admin #${currentAdminId}`, {
+            makerAdminId: withdrawal.makerAdminId,
+            checkerAdminId: currentAdminId,
+            withdrawalId: id,
+            amount: withdrawal.amount,
+          })
+
+          return NextResponse.json({
+            withdrawal: updated,
+            message: `High-value payout of ${withdrawal.amount.toFixed(2)} TND dual-approved and completed successfully.`,
+          })
+        }
+      }
+
+      // ─── STANDARD VALUE APPROVAL (< 1000 TND) ──────────────────────────────
       const updated = await db.withdrawal.update({
         where: { id },
         data: {
           status: 'APPROVED',
           adminNotes: adminNotes || `Approved and transferred via ${withdrawal.method}`,
-          processedBy: session!.user.id,
+          processedBy: currentAdminId,
         },
       })
 
-      // 2. Log in audit trail
-      logger.audit('WITHDRAWAL_APPROVED', `Admin #${session!.user.id} approved payout of ${withdrawal.amount} TND to ${freelancer?.name ?? withdrawal.userId}`, {
-        adminId: session!.user.id,
+      logger.audit('WITHDRAWAL_APPROVED', `Admin #${currentAdminId} approved payout of ${withdrawal.amount} TND to ${freelancer?.name ?? withdrawal.userId}`, {
+        adminId: currentAdminId,
         withdrawalId: id,
         userId: withdrawal.userId,
         amount: withdrawal.amount,
@@ -80,7 +149,7 @@ export async function POST(req: NextRequest) {
 
       return NextResponse.json({
         withdrawal: updated,
-        message: `Payout of ${withdrawal.amount} TND has been approved and marked as transferred.`,
+        message: `Payout of ${withdrawal.amount.toFixed(2)} TND has been approved and marked as transferred.`,
       })
     }
 
@@ -101,13 +170,13 @@ export async function POST(req: NextRequest) {
         data: {
           status: 'REJECTED',
           adminNotes,
-          processedBy: session!.user.id,
+          processedBy: currentAdminId,
         },
       })
 
       // 3. Log in audit trail
-      logger.audit('WITHDRAWAL_REJECTED', `Admin #${session!.user.id} rejected payout of ${withdrawal.amount} TND. Funds refunded to user balance.`, {
-        adminId: session!.user.id,
+      logger.audit('WITHDRAWAL_REJECTED', `Admin #${currentAdminId} rejected payout of ${withdrawal.amount} TND. Funds refunded to user balance.`, {
+        adminId: currentAdminId,
         withdrawalId: id,
         userId: withdrawal.userId,
         amount: withdrawal.amount,
@@ -116,7 +185,7 @@ export async function POST(req: NextRequest) {
 
       return NextResponse.json({
         withdrawal: updated,
-        message: `Payout request rejected. Funds (${withdrawal.amount} TND) have been refunded to user wallet.`,
+        message: `Payout request rejected. Funds (${withdrawal.amount.toFixed(2)} TND) have been refunded to user wallet.`,
       })
     }
   } catch (err: any) {
