@@ -469,7 +469,32 @@ export const db = {
   // ── PROPOSAL ────────────────────────────────────────────────────────────────
   proposal: {
     findMany: async (query?: { where?: { jobId?: string; freelancerId?: string }; orderBy?: any; include?: any }): Promise<ProposalRecord[]> => {
-      let list: ProposalRecord[] = (global as any).__AST_PROPOSALS__ || []
+      let list: ProposalRecord[] = (global as any).__AST_PROPOSALS__
+      if (!list) {
+        list = [
+          {
+            id: 'prop1',
+            jobId: 'job_1',
+            freelancerId: 'f1',
+            coverLetter: 'Hello Sami! I have 7+ years of experience architecting Next.js 14 and SaaS platforms with Stripe and Prisma.',
+            price: 1100,
+            deliveryDays: 12,
+            status: 'PENDING',
+            createdAt: new Date('2025-02-13'),
+          },
+          {
+            id: 'prop2',
+            jobId: 'job_2',
+            freelancerId: 'f2',
+            coverLetter: 'Hi Nour! I specialize in fintech UI/UX design and Figma design systems with interactive components.',
+            price: 700,
+            deliveryDays: 6,
+            status: 'PENDING',
+            createdAt: new Date('2025-02-15'),
+          },
+        ]
+        ;(global as any).__AST_PROPOSALS__ = list
+      }
       const users = initUsersStore()
 
       if (query?.where?.jobId) list = list.filter(p => p.jobId === query.where!.jobId)
@@ -907,7 +932,38 @@ export const db = {
   // ── REVIEW ──────────────────────────────────────────────────────────────────
   review: {
     findMany: async (query?: { where?: { freelancerId?: string; gigId?: string }; orderBy?: any }): Promise<any[]> => {
-      let list: any[] = (global as any).__AST_REVIEWS__ || []
+      let list: any[] = (global as any).__AST_REVIEWS__
+      if (!list) {
+        list = [
+          {
+            id: 'rev1',
+            orderId: 'ord1',
+            gigId: 'g1',
+            freelancerId: 'f1',
+            clientId: 'c1',
+            name: 'Sami Mansour',
+            initials: 'SM',
+            rating: 5,
+            comment: 'Exceptional delivery quality and excellent technical communication. Delivered ahead of schedule with clean documentation.',
+            date: 'Verified Client',
+            createdAt: new Date('2025-02-03'),
+          },
+          {
+            id: 'rev2',
+            orderId: 'ord2',
+            gigId: 'g2',
+            freelancerId: 'f2',
+            clientId: 'c2',
+            name: 'Nour El Houda',
+            initials: 'NH',
+            rating: 5,
+            comment: 'Great work! The attention to detail and milestone updates were seamless. Escrow payout was completely smooth.',
+            date: 'Verified Client',
+            createdAt: new Date('2025-02-07'),
+          },
+        ]
+        ;(global as any).__AST_REVIEWS__ = list
+      }
       if (query?.where?.freelancerId) list = list.filter(r => r.freelancerId === query.where!.freelancerId)
       if (query?.where?.gigId) list = list.filter(r => r.gigId === query.where!.gigId)
       return list

@@ -107,7 +107,7 @@ export function FreelancerBrowser({ freelancers, categories }: { freelancers: an
 
                       <div className="flex items-center justify-between text-xs border-t border-black/5 pt-3">
                         <span className="flex items-center gap-1 text-ast-gray"><Star size={11} className={rating > 0 ? "text-yellow-400 fill-yellow-400" : ""} />{rating} ({reviewCount})</span>
-                        <span className="font-semibold text-black">From ${hourlyRate}/hr</span>
+                        <span className="font-bold text-ast-primary">{hourlyRate} TND/hr</span>
                       </div>
                     </motion.div>
                   </Link>
