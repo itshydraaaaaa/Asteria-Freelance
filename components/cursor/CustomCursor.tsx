@@ -30,10 +30,21 @@ export function CustomCursor() {
 
     let rx = 0, ry = 0
     let mx = 0, my = 0
+    let hasMoved = false
 
     const onMouseMove = (e: MouseEvent) => {
-      mx = e.clientX
-      my = e.clientY
+      if (!hasMoved) {
+        hasMoved = true
+        mx = e.clientX
+        my = e.clientY
+        rx = mx
+        ry = my
+        if (dotRef.current) dotRef.current.style.opacity = '1'
+        if (ringRef.current) ringRef.current.style.opacity = '1'
+      } else {
+        mx = e.clientX
+        my = e.clientY
+      }
       if (dotRef.current) {
         dotRef.current.style.transform = `translate3d(${mx - 4}px, ${my - 4}px, 0)`
       }
@@ -43,10 +54,12 @@ export function CustomCursor() {
 
     let rafId: number
     const tick = () => {
-      rx = lerp(rx, mx, 0.2)
-      ry = lerp(ry, my, 0.2)
-      if (ringRef.current) {
-        ringRef.current.style.transform = `translate3d(${rx - 18}px, ${ry - 18}px, 0)`
+      if (hasMoved) {
+        rx = lerp(rx, mx, 0.2)
+        ry = lerp(ry, my, 0.2)
+        if (ringRef.current) {
+          ringRef.current.style.transform = `translate3d(${rx - 18}px, ${ry - 18}px, 0)`
+        }
       }
       rafId = requestAnimationFrame(tick)
     }
@@ -54,7 +67,7 @@ export function CustomCursor() {
 
     const onMouseOver = (e: MouseEvent) => {
       const target = e.target as HTMLElement | null
-      if (!target || !ringRef.current) return
+      if (!target || !ringRef.current || !hasMoved) return
       const interactive = target.closest('a, button, [data-cursor="hover"]')
       if (interactive) {
         ringRef.current.style.width  = '48px'
@@ -96,13 +109,13 @@ export function CustomCursor() {
       <div
         ref={dotRef}
         aria-hidden="true"
-        className="pointer-events-none fixed top-0 left-0 z-[9999] w-2 h-2 rounded-full bg-ast-light will-change-transform"
+        className="pointer-events-none fixed top-0 left-0 z-[9999] w-2 h-2 rounded-full bg-ast-light will-change-transform opacity-0 transition-opacity duration-300"
         style={{ transform: 'translate3d(-100px, -100px, 0)' }}
       />
       <div
         ref={ringRef}
         aria-hidden="true"
-        className="pointer-events-none fixed top-0 left-0 z-[9998] w-9 h-9 rounded-full border-[1.5px] border-ast-light will-change-transform"
+        className="pointer-events-none fixed top-0 left-0 z-[9998] w-9 h-9 rounded-full border-[1.5px] border-ast-light will-change-transform opacity-0 transition-opacity duration-300"
         style={{
           transform: 'translate3d(-100px, -100px, 0)',
           transition: 'width 0.15s ease-out, height 0.15s ease-out, opacity 0.15s ease-out',
