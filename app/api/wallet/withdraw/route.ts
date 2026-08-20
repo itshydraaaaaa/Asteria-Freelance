@@ -23,6 +23,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Payout method and destination account details are required' }, { status: 400 })
     }
 
+    // Check KYC status: only APPROVED accounts can withdraw funds
+    const user = await db.user.findUnique({ where: { id: userId } })
+    if (user && user.verifiedStatus !== 'APPROVED') {
+      return NextResponse.json(
+        { error: 'Identity verification (KYC) is required before initiating payouts and withdrawals. Please verify your profile in Dashboard > Verification.' },
+        { status: 403 }
+      )
+    }
+
     // Check available balance
     let currentBalance = 0
     try {
