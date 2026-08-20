@@ -104,16 +104,19 @@ export function Navbar() {
   const role        = user?.role ?? 'CLIENT'
   const walletBalance = Number(user?.walletBalance ?? 0)
 
+  const isHome = pathname === '/'
+  const showSolidNav = scrolled || !isHome
+
   return (
     <>
       <motion.header
         className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 lg:px-12"
-        animate={{ height: scrolled ? 64 : 80 }}
+        animate={{ height: showSolidNav ? 64 : 80 }}
         transition={{ duration: 0.3, ease: 'easeOut' }}
         style={{
-          background:     scrolled ? 'rgba(10,58,64,0.95)' : 'transparent',
-          backdropFilter: scrolled ? 'blur(20px)' : 'none',
-          borderBottom:   scrolled ? '1px solid rgba(96,200,212,0.15)' : 'none',
+          background:     showSolidNav ? 'rgba(10,58,64,0.96)' : 'transparent',
+          backdropFilter: showSolidNav ? 'blur(20px)' : 'none',
+          borderBottom:   showSolidNav ? '1px solid rgba(96,200,212,0.15)' : 'none',
         }}
       >
         {/* Brand Logo */}
