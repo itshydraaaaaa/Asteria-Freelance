@@ -116,7 +116,11 @@ export default function NewGigPage() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed to create gig')
       setSuccess(true)
-      setTimeout(() => router.push('/dashboard/gigs'), 1500)
+      router.refresh()
+      setTimeout(() => {
+        router.push('/dashboard/gigs')
+        router.refresh()
+      }, 1500)
     } catch (err: any) {
       setError(err.message)
     } finally {

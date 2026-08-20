@@ -4,6 +4,8 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { OrderWorkspaceClient } from '@/components/orders/OrderWorkspaceClient'
 
+export const dynamic = 'force-dynamic'
+
 export default async function OrderWorkspacePage({ params }: { params: { id: string } }) {
   const session = await auth()
   const userId = session?.user?.id

@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth }          from '@/lib/auth'
-import { db }            from '@/lib/db'
-import { requireRole }   from '@/lib/authz'
-import { rateLimit }     from '@/lib/rateLimit'
+import { auth } from '@/lib/auth'
+import { db } from '@/lib/db'
+import { revalidatePath } from 'next/cache'
+
+export const dynamic = 'force-dynamic'
 
 export async function GET(req: NextRequest) {
   try {
@@ -14,8 +15,16 @@ export async function GET(req: NextRequest) {
     const jobs = await db.job.findMany({ where: { status } })
 
     let result = jobs
-    if (category) result = result.filter((j) => j.category?.toLowerCase() === category.toLowerCase())
-    if (search)   result = result.filter((j) => j.title?.toLowerCase().includes(search.toLowerCase()))
+    if (category && category !== 'All Categories') {
+      result = result.filter((j) => j.category?.toLowerCase() === category.toLowerCase())
+    }
+    if (search) {
+      result = result.filter((j) =>
+        j.title?.toLowerCase().includes(search.toLowerCase()) ||
+        j.description?.toLowerCase().includes(search.toLowerCase()) ||
+        (Array.isArray(j.skills) && j.skills.some((s: string) => s.toLowerCase().includes(search.toLowerCase())))
+      )
+    }
 
     return NextResponse.json({ jobs: result, total: result.length, page: 1, totalPages: 1 })
   } catch (err) {
@@ -27,14 +36,9 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const session = await auth()
-
-    // ── Server-side authorization: CLIENT role required ──────────────────────
-    const authzError = requireRole(session, 'CLIENT')
-    if (authzError) return authzError
-
-    // ── Rate limiting: 3 job posts per minute per user ───────────────────────
-    const rateLimited = await rateLimit(session!.user.id, '/api/jobs')
-    if (rateLimited) return rateLimited
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'You must be logged in to post a job' }, { status: 401 })
+    }
 
     const body = await req.json()
     const { title, description, category, budget, deliveryDays, skills } = body
@@ -60,14 +64,23 @@ export async function POST(req: NextRequest) {
         budget: numericBudget,
         deliveryDays: parseInt(deliveryDays ?? 7, 10),
         skills: formattedSkills,
-        clientId: session!.user.id,
+        clientId: session.user.id,
         status: 'OPEN',
       }
     })
 
+    // Revalidate paths so the new job immediately appears on the job board
+    try {
+      revalidatePath('/jobs')
+      revalidatePath('/post-job')
+      revalidatePath('/dashboard')
+      revalidatePath('/')
+      revalidatePath('/api/jobs')
+    } catch (e) {}
+
     return NextResponse.json(job, { status: 201 })
-  } catch (err) {
+  } catch (err: any) {
     console.error('POST /api/jobs:', err)
-    return NextResponse.json({ error: 'Failed to create job' }, { status: 500 })
+    return NextResponse.json({ error: err.message || 'Failed to create job' }, { status: 500 })
   }
 }

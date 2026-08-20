@@ -119,9 +119,9 @@ export default async function JobDetailPage({ params }: { params: { id: string }
                 <Link href="/login" className="block w-full text-center bg-ast-primary text-white rounded-2xl py-3 font-bold text-xs hover:bg-ast-dark transition-colors shadow-sm">
                   Sign in to Submit Proposal
                 </Link>
-              ) : role !== 'FREELANCER' ? (
+              ) : (userId === clientId) ? (
                 <div className="p-3.5 bg-ast-surface rounded-2xl text-center text-xs text-ast-gray">
-                  You are logged in as a Client. Only Freelancers can submit bids.
+                  You are the owner of this job posting.
                 </div>
               ) : existingProposal ? (
                 <div className="text-center py-4 bg-emerald-50/50 rounded-2xl border border-emerald-200">

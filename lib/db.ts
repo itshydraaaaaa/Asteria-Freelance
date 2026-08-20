@@ -2,8 +2,8 @@
  * lib/db.ts — Asteria Unified Real Data Layer
  *
  * All data reads and writes across Asteria go through this layer.
- * Works seamlessly with Supabase in cloud environments and maintains
- * a unified, real in-memory data store across sessions, roles, and dev reloads.
+ * Queries Supabase database tables directly in cloud/hosted environments,
+ * synchronizes with user profiles, and maintains resilient seed fallbacks.
  */
 
 import 'server-only'
@@ -11,10 +11,12 @@ import { createClient } from '@supabase/supabase-js'
 import { gigs as staticGigs } from '@/lib/data/gigs'
 import { DEMO_USERS } from '@/lib/data/demoUsers'
 
-// ─── Supabase service-role client ─────────────────────────────────────────────
+// ─── Supabase client with smart key fallback ──────────────────────────────────
 function getServiceClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder'
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://tvuktwtartbqmggndinu.supabase.co'
+  const key = (process.env.SUPABASE_SERVICE_ROLE_KEY && process.env.SUPABASE_SERVICE_ROLE_KEY !== 'your-service-role-key-here')
+    ? process.env.SUPABASE_SERVICE_ROLE_KEY
+    : (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder')
   return createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } })
 }
 
@@ -155,7 +157,7 @@ export interface NotificationRecord {
   createdAt: Date
 }
 
-// ─── INITIAL DATA SEEDING HELPERS ─────────────────────────────────────────────
+// ─── INITIAL MEMORY FALLBACK CACHE ────────────────────────────────────────────
 function initUsersStore(): UserRecord[] {
   if (!(global as any).__AST_USERS__) {
     (global as any).__AST_USERS__ = Object.values(DEMO_USERS)
@@ -244,21 +246,76 @@ export const db = {
   // ── USER ───────────────────────────────────────────────────────────────────
   user: {
     findMany: async (query?: { where?: any; orderBy?: any; include?: any; select?: any }): Promise<UserRecord[]> => {
-      const users = initUsersStore()
-      let list = [...users]
-      if (query?.where?.role) {
-        list = list.filter(u => u.role === query.where.role)
-      }
+      const localUsers = initUsersStore()
+      try {
+        const supabase = getServiceClient()
+        const { data, error } = await supabase.from('User').select('*')
+        if (!error && data && data.length > 0) {
+          const dbUsers: UserRecord[] = data.map(u => ({
+            id: u.id,
+            name: u.name || 'User',
+            email: u.email || '',
+            role: u.role || 'CLIENT',
+            image: u.image || null,
+            bio: u.bio || '',
+            skills: u.skills || [],
+            walletBalance: u.walletBalance ?? 0,
+            verifiedStatus: u.verifiedStatus || 'APPROVED',
+            rating: 5.0,
+            reviewCount: 0,
+            createdAt: new Date(u.createdAt || Date.now()),
+          }))
+          
+          // Merge avoiding duplicates
+          const merged = [...dbUsers]
+          localUsers.forEach(lu => {
+            if (!merged.some(u => u.id === lu.id || u.email === lu.email)) {
+              merged.push(lu)
+            }
+          })
+          let list = merged
+          if (query?.where?.role) list = list.filter(u => u.role === query.where.role)
+          return list
+        }
+      } catch (e) {}
+
+      let list = [...localUsers]
+      if (query?.where?.role) list = list.filter(u => u.role === query.where.role)
       return list
     },
 
     findUnique: async ({ where }: { where: { id?: string; email?: string }; select?: any; include?: any }): Promise<UserRecord | null> => {
-      const users = initUsersStore()
-      const found = users.find(u =>
+      const localUsers = initUsersStore()
+      const localFound = localUsers.find(u =>
         (where.id && u.id === where.id) ||
         (where.email && u.email.toLowerCase() === where.email.toLowerCase())
       )
-      return found ? { ...found } : null
+
+      try {
+        const supabase = getServiceClient()
+        let query = supabase.from('User').select('*')
+        if (where.id) query = query.eq('id', where.id)
+        if (where.email) query = query.eq('email', where.email.toLowerCase())
+        const { data, error } = await query.maybeSingle()
+        if (!error && data) {
+          return {
+            id: data.id,
+            name: data.name || localFound?.name || 'User',
+            email: data.email || localFound?.email || '',
+            role: data.role || localFound?.role || 'CLIENT',
+            image: data.image || localFound?.image,
+            bio: data.bio || localFound?.bio,
+            skills: data.skills || localFound?.skills || [],
+            walletBalance: data.walletBalance ?? localFound?.walletBalance ?? 0,
+            verifiedStatus: data.verifiedStatus || localFound?.verifiedStatus || 'APPROVED',
+            rating: 5.0,
+            reviewCount: 0,
+            createdAt: new Date(data.createdAt || Date.now()),
+          }
+        }
+      } catch (e) {}
+
+      return localFound ? { ...localFound } : null
     },
 
     create: async ({ data }: { data: Partial<UserRecord> & { password?: string } }): Promise<UserRecord> => {
@@ -278,6 +335,21 @@ export const db = {
         createdAt: new Date(),
       }
 
+      // Try persisting to Supabase
+      try {
+        const supabase = getServiceClient()
+        await supabase.from('User').upsert({
+          id: newUser.id,
+          name: newUser.name,
+          email: newUser.email,
+          role: newUser.role,
+          image: newUser.image,
+          bio: newUser.bio,
+          skills: newUser.skills,
+          walletBalance: newUser.walletBalance,
+        })
+      } catch (e) {}
+
       const existingIdx = users.findIndex(u => u.id === newUser.id || u.email === newUser.email)
       if (existingIdx !== -1) {
         users[existingIdx] = { ...users[existingIdx], ...newUser }
@@ -295,33 +367,54 @@ export const db = {
       if (idx !== -1) {
         users[idx] = { ...users[idx], ...data }
         ;(global as any).__AST_USERS__ = users
-        return users[idx]
       }
-      return null
+
+      try {
+        const supabase = getServiceClient()
+        await supabase.from('User').update(data).eq('id', where.id)
+      } catch (e) {}
+
+      return users[idx] ?? null
     },
   },
 
   // ── GIG ─────────────────────────────────────────────────────────────────────
   gig: {
     count: async (query?: { where?: any }): Promise<number> => {
-      const gigs = initGigsStore()
-      let list = [...gigs]
-      if (query?.where?.freelancerId) list = list.filter(g => g.freelancerId === query.where.freelancerId)
+      const list = await db.gig.findMany(query)
       return list.length
     },
 
     findMany: async (query?: { where?: any; orderBy?: any; take?: number; limit?: number; include?: any }): Promise<any[]> => {
-      const gigs = initGigsStore()
-      const users = initUsersStore()
+      const localGigs = initGigsStore()
+      const users = await db.user.findMany()
 
-      let list = gigs.map(g => {
-        const fl = users.find(u => u.id === g.freelancerId) || g.freelancer || { name: 'Freelancer' }
-        return {
-          ...g,
-          freelancer: fl,
+      let dbGigs: any[] = []
+      try {
+        const supabase = getServiceClient()
+        const { data, error } = await supabase.from('Gig').select('*').order('createdAt', { ascending: false })
+        if (!error && data) {
+          dbGigs = data.map(g => {
+            const fl = users.find(u => u.id === g.freelancerId) || { name: 'Freelancer' }
+            return {
+              ...g,
+              tags: Array.isArray(g.tags) ? g.tags : (g.tags ? g.tags.split(',') : []),
+              freelancer: fl,
+            }
+          })
+        }
+      } catch (e) {}
+
+      // Combine Supabase DB gigs with local seeded gigs
+      const merged = [...dbGigs]
+      localGigs.forEach(lg => {
+        if (!merged.some(g => g.id === lg.id || (g.title === lg.title && g.freelancerId === lg.freelancerId))) {
+          const fl = users.find(u => u.id === lg.freelancerId) || lg.freelancer || { name: 'Freelancer' }
+          merged.push({ ...lg, freelancer: fl })
         }
       })
 
+      let list = merged
       if (query?.where?.freelancerId) {
         list = list.filter(g => g.freelancerId === query.where.freelancerId)
       }
@@ -338,25 +431,34 @@ export const db = {
     },
 
     findUnique: async ({ where }: { where: { id: string }; include?: any }): Promise<any | null> => {
-      const gigs = initGigsStore()
-      const users = initUsersStore()
-      const found = gigs.find(g => g.id === where.id)
-      if (!found) return null
+      const all = await db.gig.findMany()
+      const found = all.find(g => g.id === where.id)
+      if (found) return found
 
-      const fl = users.find(u => u.id === found.freelancerId) || found.freelancer || { id: found.freelancerId, name: 'Freelancer' }
-      return {
-        ...found,
-        freelancer: fl,
-      }
+      try {
+        const supabase = getServiceClient()
+        const { data, error } = await supabase.from('Gig').select('*').eq('id', where.id).maybeSingle()
+        if (!error && data) {
+          const users = await db.user.findMany()
+          const fl = users.find(u => u.id === data.freelancerId) || { id: data.freelancerId, name: 'Freelancer' }
+          return {
+            ...data,
+            tags: Array.isArray(data.tags) ? data.tags : (data.tags ? data.tags.split(',') : []),
+            freelancer: fl,
+          }
+        }
+      } catch (e) {}
+
+      return null
     },
 
     create: async ({ data }: { data: any }): Promise<any> => {
       const gigs = initGigsStore()
-      const users = initUsersStore()
+      const users = await db.user.findMany()
       const fl = users.find(u => u.id === data.freelancerId) || { id: data.freelancerId, name: 'Freelancer' }
 
       const newGig = {
-        id: data.id ?? `gig_${Date.now()}`,
+        id: data.id ?? `gig_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
         title: data.title,
         description: data.description,
         category: data.category,
@@ -372,6 +474,27 @@ export const db = {
         createdAt: new Date(),
       }
 
+      // Try inserting into Supabase
+      try {
+        const supabase = getServiceClient()
+        const { data: dbCreated, error } = await supabase.from('Gig').insert({
+          id: newGig.id,
+          title: newGig.title,
+          description: newGig.description,
+          category: newGig.category,
+          price: newGig.price,
+          deliveryDays: newGig.deliveryDays,
+          tags: newGig.tags,
+          image: newGig.image,
+          freelancerId: newGig.freelancerId,
+          featured: false,
+        }).select('*').single()
+
+        if (!error && dbCreated) {
+          newGig.id = dbCreated.id
+        }
+      } catch (e) {}
+
       gigs.unshift(newGig)
       ;(global as any).__AST_GIGS__ = gigs
       return newGig
@@ -383,9 +506,14 @@ export const db = {
       if (idx !== -1) {
         gigs[idx] = { ...gigs[idx], ...data }
         ;(global as any).__AST_GIGS__ = gigs
-        return gigs[idx]
       }
-      return null
+
+      try {
+        const supabase = getServiceClient()
+        await supabase.from('Gig').update(data).eq('id', where.id)
+      } catch (e) {}
+
+      return gigs[idx] ?? null
     },
 
     delete: async ({ where }: { where: { id: string } }): Promise<any> => {
@@ -393,6 +521,12 @@ export const db = {
       const target = gigs.find(g => g.id === where.id)
       gigs = gigs.filter(g => g.id !== where.id)
       ;(global as any).__AST_GIGS__ = gigs
+
+      try {
+        const supabase = getServiceClient()
+        await supabase.from('Gig').delete().eq('id', where.id)
+      } catch (e) {}
+
       return target
     },
   },
@@ -400,20 +534,50 @@ export const db = {
   // ── JOB ─────────────────────────────────────────────────────────────────────
   job: {
     findMany: async (query?: { where?: { status?: string; clientId?: string }; orderBy?: any; include?: any }): Promise<JobRecord[]> => {
-      const jobs = initJobsStore()
-      const users = initUsersStore()
-      const proposals: ProposalRecord[] = (global as any).__AST_PROPOSALS__ || []
+      const localJobs = initJobsStore()
+      const users = await db.user.findMany()
+      const proposals = await db.proposal.findMany()
 
-      let list = jobs.map(j => {
-        const cl = users.find(u => u.id === j.clientId) || j.client || { name: 'Client' }
-        const jobProps = proposals.filter(p => p.jobId === j.id)
-        return {
-          ...j,
-          client: cl,
-          _count: { proposals: jobProps.length || j._count?.proposals || 0 },
+      let dbJobs: JobRecord[] = []
+      try {
+        const supabase = getServiceClient()
+        const { data, error } = await supabase.from('Job').select('*').order('createdAt', { ascending: false })
+        if (!error && data) {
+          dbJobs = data.map(j => {
+            const cl = users.find(u => u.id === j.clientId) || { name: 'Client' }
+            const jobProps = proposals.filter(p => p.jobId === j.id)
+            return {
+              id: j.id,
+              title: j.title,
+              description: j.description,
+              category: j.category,
+              budget: Number(j.budget),
+              deliveryDays: Number(j.deliveryDays),
+              skills: Array.isArray(j.skills) ? j.skills : (j.skills ? j.skills.split(',') : []),
+              status: j.status || 'OPEN',
+              clientId: j.clientId,
+              client: cl,
+              _count: { proposals: jobProps.length },
+              createdAt: new Date(j.createdAt || Date.now()),
+            }
+          })
+        }
+      } catch (e) {}
+
+      const merged = [...dbJobs]
+      localJobs.forEach(lj => {
+        if (!merged.some(j => j.id === lj.id || (j.title === lj.title && j.clientId === lj.clientId))) {
+          const cl = users.find(u => u.id === lj.clientId) || lj.client || { name: 'Client' }
+          const jobProps = proposals.filter(p => p.jobId === lj.id)
+          merged.push({
+            ...lj,
+            client: cl,
+            _count: { proposals: jobProps.length || lj._count?.proposals || 0 },
+          })
         }
       })
 
+      let list = merged
       if (query?.where?.status) {
         list = list.filter(j => j.status === query.where!.status)
       }
@@ -425,31 +589,45 @@ export const db = {
     },
 
     findUnique: async ({ where }: { where: { id: string }; include?: any }): Promise<JobRecord | null> => {
-      const jobs = initJobsStore()
-      const users = initUsersStore()
-      const proposals: ProposalRecord[] = (global as any).__AST_PROPOSALS__ || []
+      const all = await db.job.findMany()
+      const found = all.find(j => j.id === where.id)
+      if (found) return found
 
-      const found = jobs.find(j => j.id === where.id)
-      if (!found) return null
+      try {
+        const supabase = getServiceClient()
+        const { data, error } = await supabase.from('Job').select('*').eq('id', where.id).maybeSingle()
+        if (!error && data) {
+          const users = await db.user.findMany()
+          const proposals = await db.proposal.findMany({ where: { jobId: data.id } })
+          const cl = users.find(u => u.id === data.clientId) || { id: data.clientId, name: 'Client' }
+          return {
+            id: data.id,
+            title: data.title,
+            description: data.description,
+            category: data.category,
+            budget: Number(data.budget),
+            deliveryDays: Number(data.deliveryDays),
+            skills: Array.isArray(data.skills) ? data.skills : (data.skills ? data.skills.split(',') : []),
+            status: data.status || 'OPEN',
+            clientId: data.clientId,
+            client: cl,
+            _count: { proposals: proposals.length },
+            createdAt: new Date(data.createdAt || Date.now()),
+          }
+        }
+      } catch (e) {}
 
-      const cl = users.find(u => u.id === found.clientId) || found.client || { id: found.clientId, name: 'Client' }
-      const jobProps = proposals.filter(p => p.jobId === found.id)
-
-      return {
-        ...found,
-        client: cl,
-        _count: { proposals: jobProps.length || found._count?.proposals || 0 },
-      }
+      return null
     },
 
     create: async ({ data }: { data: Partial<JobRecord> }): Promise<JobRecord> => {
       const jobs = initJobsStore()
-      const users = initUsersStore()
+      const users = await db.user.findMany()
       const cl = users.find(u => u.id === data.clientId) || { id: data.clientId, name: 'Client' }
 
       const newJob: JobRecord = {
-        id: data.id ?? `job_${Date.now()}`,
-        title: data.title ?? 'Custom Job',
+        id: data.id ?? `job_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        title: data.title ?? 'Custom Job Brief',
         description: data.description ?? '',
         category: data.category ?? 'Web Development',
         budget: Number(data.budget) || 100,
@@ -462,6 +640,26 @@ export const db = {
         createdAt: new Date(),
       }
 
+      // Try inserting into Supabase
+      try {
+        const supabase = getServiceClient()
+        const { data: dbCreated, error } = await supabase.from('Job').insert({
+          id: newJob.id,
+          title: newJob.title,
+          description: newJob.description,
+          category: newJob.category,
+          budget: newJob.budget,
+          deliveryDays: newJob.deliveryDays,
+          skills: newJob.skills,
+          status: 'OPEN',
+          clientId: newJob.clientId,
+        }).select('*').single()
+
+        if (!error && dbCreated) {
+          newJob.id = dbCreated.id
+        }
+      } catch (e) {}
+
       jobs.unshift(newJob)
       ;(global as any).__AST_JOBS__ = jobs
       return newJob
@@ -473,23 +671,28 @@ export const db = {
       if (idx !== -1) {
         jobs[idx] = { ...jobs[idx], ...data }
         ;(global as any).__AST_JOBS__ = jobs
-        return jobs[idx]
       }
-      return null
+
+      try {
+        const supabase = getServiceClient()
+        await supabase.from('Job').update(data).eq('id', where.id)
+      } catch (e) {}
+
+      return jobs[idx] ?? null
     },
   },
 
   // ── PROPOSAL ────────────────────────────────────────────────────────────────
   proposal: {
     findMany: async (query?: { where?: { jobId?: string; freelancerId?: string }; orderBy?: any; include?: any }): Promise<ProposalRecord[]> => {
-      let list: ProposalRecord[] = (global as any).__AST_PROPOSALS__
-      if (!list) {
-        list = [
+      let localProps: ProposalRecord[] = (global as any).__AST_PROPOSALS__
+      if (!localProps) {
+        localProps = [
           {
             id: 'prop1',
             jobId: 'job_1',
             freelancerId: 'f1',
-            coverLetter: 'Hello Sami! I have 7+ years of experience architecting Next.js 14 and SaaS platforms with Stripe and Prisma.',
+            coverLetter: 'Hello! I have 7+ years of experience architecting Next.js 14 SaaS platforms with Stripe and Prisma.',
             price: 1100,
             deliveryDays: 12,
             status: 'PENDING',
@@ -499,24 +702,52 @@ export const db = {
             id: 'prop2',
             jobId: 'job_2',
             freelancerId: 'f2',
-            coverLetter: 'Hi Nour! I specialize in fintech UI/UX design and Figma design systems with interactive components.',
+            coverLetter: 'Hi! I specialize in fintech UI/UX design and Figma design systems with interactive components.',
             price: 700,
             deliveryDays: 6,
             status: 'PENDING',
             createdAt: new Date('2025-02-15'),
           },
         ]
-        ;(global as any).__AST_PROPOSALS__ = list
+        ;(global as any).__AST_PROPOSALS__ = localProps
       }
-      const users = initUsersStore()
+
+      const users = await db.user.findMany()
+
+      let dbProps: ProposalRecord[] = []
+      try {
+        const supabase = getServiceClient()
+        const { data, error } = await supabase.from('Proposal').select('*').order('createdAt', { ascending: false })
+        if (!error && data) {
+          dbProps = data.map(p => ({
+            id: p.id,
+            jobId: p.jobId,
+            freelancerId: p.freelancerId,
+            coverLetter: p.coverLetter,
+            price: Number(p.price),
+            deliveryDays: Number(p.deliveryDays),
+            status: p.status || 'PENDING',
+            createdAt: new Date(p.createdAt || Date.now()),
+          }))
+        }
+      } catch (e) {}
+
+      const merged = [...dbProps]
+      localProps.forEach(lp => {
+        if (!merged.some(p => p.id === lp.id || (p.jobId === lp.jobId && p.freelancerId === lp.freelancerId))) {
+          merged.push(lp)
+        }
+      })
+
+      let list = merged.map(p => {
+        const fl = users.find(u => u.id === p.freelancerId) || p.freelancer || { name: 'Freelancer' }
+        return { ...p, freelancer: fl }
+      })
 
       if (query?.where?.jobId) list = list.filter(p => p.jobId === query.where!.jobId)
       if (query?.where?.freelancerId) list = list.filter(p => p.freelancerId === query.where!.freelancerId)
 
-      return list.map(p => {
-        const fl = users.find(u => u.id === p.freelancerId) || p.freelancer || { name: 'Freelancer' }
-        return { ...p, freelancer: fl }
-      })
+      return list
     },
 
     findFirst: async (query?: { where?: { jobId?: string; freelancerId?: string } }): Promise<ProposalRecord | null> => {
@@ -525,11 +756,11 @@ export const db = {
     },
 
     create: async ({ data }: { data: Partial<ProposalRecord> }): Promise<ProposalRecord> => {
-      const users = initUsersStore()
+      const users = await db.user.findMany()
       const fl = users.find(u => u.id === data.freelancerId) || { id: data.freelancerId, name: 'Freelancer' }
 
       const newProposal: ProposalRecord = {
-        id: data.id ?? `prop_${Date.now()}`,
+        id: data.id ?? `prop_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
         jobId: data.jobId!,
         freelancerId: data.freelancerId!,
         coverLetter: data.coverLetter ?? '',
@@ -540,17 +771,27 @@ export const db = {
         createdAt: new Date(),
       }
 
+      // Try inserting into Supabase
+      try {
+        const supabase = getServiceClient()
+        const { data: dbCreated, error } = await supabase.from('Proposal').insert({
+          id: newProposal.id,
+          jobId: newProposal.jobId,
+          freelancerId: newProposal.freelancerId,
+          coverLetter: newProposal.coverLetter,
+          price: newProposal.price,
+          deliveryDays: newProposal.deliveryDays,
+          status: 'PENDING',
+        }).select('*').single()
+
+        if (!error && dbCreated) {
+          newProposal.id = dbCreated.id
+        }
+      } catch (e) {}
+
       let list: ProposalRecord[] = (global as any).__AST_PROPOSALS__ || []
       list.unshift(newProposal)
       ;(global as any).__AST_PROPOSALS__ = list
-
-      // Update proposal count in jobs store
-      const jobs = initJobsStore()
-      const jobIdx = jobs.findIndex(j => j.id === data.jobId)
-      if (jobIdx !== -1) {
-        jobs[jobIdx]._count = { proposals: (jobs[jobIdx]._count?.proposals || 0) + 1 }
-        ;(global as any).__AST_JOBS__ = jobs
-      }
 
       return newProposal
     },
@@ -584,10 +825,34 @@ export const db = {
         ;(global as any).__AST_ORDERS__ = ordersList
       }
 
-      const users = initUsersStore()
-      const gigs = initGigsStore()
+      const users = await db.user.findMany()
+      const gigs = await db.gig.findMany()
 
-      let list = ordersList.map(o => {
+      let dbOrders: OrderRecord[] = []
+      try {
+        const supabase = getServiceClient()
+        const { data, error } = await supabase.from('Order').select('*').order('createdAt', { ascending: false })
+        if (!error && data) {
+          dbOrders = data.map(o => ({
+            id: o.id,
+            gigId: o.gigId,
+            buyerId: o.buyerId,
+            sellerId: o.sellerId,
+            amount: Number(o.amount),
+            status: o.status || 'ACTIVE',
+            createdAt: new Date(o.createdAt || Date.now()),
+          }))
+        }
+      } catch (e) {}
+
+      const merged = [...dbOrders]
+      ordersList.forEach(lo => {
+        if (!merged.some(o => o.id === lo.id)) {
+          merged.push(lo)
+        }
+      })
+
+      let list = merged.map(o => {
         const gig = gigs.find(g => g.id === o.gigId) || o.gig || { title: 'Custom Escrow Project' }
         const buyer = users.find(u => u.id === o.buyerId) || o.buyer || { name: 'Client' }
         const seller = users.find(u => u.id === o.sellerId) || o.seller || { name: 'Freelancer' }
@@ -619,14 +884,14 @@ export const db = {
     },
 
     create: async ({ data }: { data: Partial<OrderRecord> }): Promise<OrderRecord> => {
-      const users = initUsersStore()
-      const gigs = initGigsStore()
+      const users = await db.user.findMany()
+      const gigs = await db.gig.findMany()
       const buyer = users.find(u => u.id === data.buyerId) || { id: data.buyerId, name: 'Client' }
       const seller = users.find(u => u.id === data.sellerId) || { id: data.sellerId, name: 'Freelancer' }
       const gig = gigs.find(g => g.id === data.gigId) || { id: data.gigId, title: 'Custom Service' }
 
       const newOrder: OrderRecord = {
-        id: data.id ?? `ord_${Date.now()}`,
+        id: data.id ?? `ord_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
         gigId: data.gigId ?? 'custom',
         buyerId: data.buyerId!,
         sellerId: data.sellerId!,
@@ -637,6 +902,23 @@ export const db = {
         buyer,
         seller,
       }
+
+      // Try inserting into Supabase
+      try {
+        const supabase = getServiceClient()
+        const { data: dbCreated, error } = await supabase.from('Order').insert({
+          id: newOrder.id,
+          gigId: newOrder.gigId,
+          buyerId: newOrder.buyerId,
+          sellerId: newOrder.sellerId,
+          amount: newOrder.amount,
+          status: newOrder.status,
+        }).select('*').single()
+
+        if (!error && dbCreated) {
+          newOrder.id = dbCreated.id
+        }
+      } catch (e) {}
 
       let ordersList: OrderRecord[] = (global as any).__AST_ORDERS__ || []
       ordersList.unshift(newOrder)
@@ -650,9 +932,14 @@ export const db = {
       if (idx !== -1) {
         ordersList[idx] = { ...ordersList[idx], ...data }
         ;(global as any).__AST_ORDERS__ = ordersList
-        return ordersList[idx]
       }
-      return null
+
+      try {
+        const supabase = getServiceClient()
+        await supabase.from('Order').update(data).eq('id', where.id)
+      } catch (e) {}
+
+      return ordersList[idx] ?? null
     },
   },
 
@@ -663,9 +950,30 @@ export const db = {
       const orderMilestones = list.filter(m => m.orderId === where.orderId)
       if (orderMilestones.length > 0) return orderMilestones
 
+      // If milestones haven't been stored yet, dynamically generate matching the actual order amount
+      const orders = await db.order.findMany()
+      const order = orders.find(o => o.id === where.orderId)
+      const orderAmount = order?.amount ?? 200
+
       return [
-        { id: `ms_${where.orderId}_1`, orderId: where.orderId, title: 'Milestone 1: Design Specs & Architecture', percentage: 40, amount: 80, status: 'FUNDED', position: 1 },
-        { id: `ms_${where.orderId}_2`, orderId: where.orderId, title: 'Milestone 2: Final Implementation & Handoff', percentage: 60, amount: 120, status: 'PENDING', position: 2 },
+        {
+          id: `ms_${where.orderId}_1`,
+          orderId: where.orderId,
+          title: `Initial Deliverable & Phase 1`,
+          percentage: 50,
+          amount: Math.round(orderAmount * 0.5),
+          status: 'FUNDED',
+          position: 1,
+        },
+        {
+          id: `ms_${where.orderId}_2`,
+          orderId: where.orderId,
+          title: `Final Project Completion & Handoff`,
+          percentage: 50,
+          amount: Math.round(orderAmount * 0.5),
+          status: 'PENDING',
+          position: 2,
+        },
       ]
     },
 
@@ -707,9 +1015,9 @@ export const db = {
   // ── MESSAGE ─────────────────────────────────────────────────────────────────
   message: {
     findMany: async (query?: { where?: { senderId?: string; receiverId?: string; userId?: string }; orderBy?: any }): Promise<MessageRecord[]> => {
-      let list: MessageRecord[] = (global as any).__AST_MESSAGES__
-      if (!list) {
-        list = [
+      let localMessages: MessageRecord[] = (global as any).__AST_MESSAGES__
+      if (!localMessages) {
+        localMessages = [
           {
             id: 'm1',
             senderId: 'f1',
@@ -731,24 +1039,50 @@ export const db = {
             createdAt: new Date(Date.now() - 3600000),
           },
         ]
-        ;(global as any).__AST_MESSAGES__ = list
+        ;(global as any).__AST_MESSAGES__ = localMessages
       }
 
+      let dbMessages: MessageRecord[] = []
+      try {
+        const supabase = getServiceClient()
+        const { data, error } = await supabase.from('Message').select('*').order('createdAt', { ascending: true })
+        if (!error && data) {
+          dbMessages = data.map(m => ({
+            id: m.id,
+            senderId: m.senderId || m.sender_id,
+            receiverId: m.receiverId || m.receiver_id || m.recipientId,
+            content: m.content || '',
+            msgType: m.msgType || m.msg_type || 'TEXT',
+            offerData: m.offerData || m.offer_data || null,
+            isRead: m.isRead ?? m.is_read ?? false,
+            createdAt: new Date(m.createdAt || m.created_at || Date.now()),
+          }))
+        }
+      } catch (e) {}
+
+      const merged = [...dbMessages]
+      localMessages.forEach(lm => {
+        if (!merged.some(m => m.id === lm.id)) {
+          merged.push(lm)
+        }
+      })
+
+      let list = merged
       if (query?.where?.userId) {
         const uid = query.where.userId
-        return list.filter(m => m.senderId === uid || m.receiverId === uid)
+        list = list.filter(m => m.senderId === uid || m.receiverId === uid)
       }
       if (query?.where?.senderId && query?.where?.receiverId) {
         const s = query.where.senderId
         const r = query.where.receiverId
-        return list.filter(m => (m.senderId === s && m.receiverId === r) || (m.senderId === r && m.receiverId === s))
+        list = list.filter(m => (m.senderId === s && m.receiverId === r) || (m.senderId === r && m.receiverId === s))
       }
       return list
     },
 
     create: async ({ data }: { data: Partial<MessageRecord> }): Promise<MessageRecord> => {
       const newMsg: MessageRecord = {
-        id: `msg_${Date.now()}`,
+        id: `msg_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
         senderId: data.senderId!,
         receiverId: data.receiverId!,
         content: data.content ?? '',
@@ -757,6 +1091,19 @@ export const db = {
         isRead: false,
         createdAt: new Date(),
       }
+
+      // Try inserting into Supabase
+      try {
+        const supabase = getServiceClient()
+        await supabase.from('Message').insert({
+          id: newMsg.id,
+          senderId: newMsg.senderId,
+          receiverId: newMsg.receiverId,
+          content: newMsg.content,
+          msgType: newMsg.msgType,
+          offerData: newMsg.offerData,
+        })
+      } catch (e) {}
 
       let list: MessageRecord[] = (global as any).__AST_MESSAGES__ || []
       list.push(newMsg)
@@ -1016,7 +1363,7 @@ export const db = {
         ;(global as any).__AST_WITHDRAWALS__ = list
       }
 
-      const users = initUsersStore()
+      const users = await db.user.findMany()
       let mapped = list.map(w => ({
         ...w,
         user: users.find(u => u.id === w.userId) || w.user || { name: 'Freelancer' },
@@ -1033,7 +1380,7 @@ export const db = {
     },
 
     create: async ({ data }: { data: any }): Promise<any> => {
-      const users = initUsersStore()
+      const users = await db.user.findMany()
       const user = users.find(u => u.id === data.userId) || { name: 'Freelancer' }
 
       const newW = {
