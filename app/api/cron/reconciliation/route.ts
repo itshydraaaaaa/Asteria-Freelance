@@ -1,15 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getReconciliationReport } from '@/lib/ledger'
+import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
 /**
- * GET /api/cron/reconciliation — Automated Scheduled Ledger Reconciliation
+ * GET /api/cron/reconciliation — Automated Scheduled Ledger Reconciliation & SLA Auditing
  *
  * Runs automatically via Vercel Cron or scheduled HTTP job.
  * Enforces CRON_SECRET authorization header in production.
- * Automatically dispatches high-priority paging alerts if balance anomaly is detected.
+ * Automatically dispatches high-priority paging alerts if:
+ * 1. Balance anomaly or escrow drift is detected.
+ * 2. Pending withdrawal requests exceed the SLA review threshold (Task 1.5).
  */
 export async function GET(req: NextRequest) {
   try {
@@ -22,22 +25,48 @@ export async function GET(req: NextRequest) {
 
     const report = await getReconciliationReport()
 
-    if (!report.isBalanced) {
+    // 1. Withdrawal Hold SLA Audit (Task 1.5)
+    const slaHours = Number(process.env.WITHDRAWAL_SLA_HOURS) || 24
+    const slaThresholdMs = slaHours * 3600 * 1000
+    const now = Date.now()
+
+    const pendingWithdrawals = await db.withdrawal.findMany({ where: { status: 'PENDING' } })
+    const staleWithdrawals = pendingWithdrawals.filter(w => {
+      const ageMs = now - new Date(w.createdAt).getTime()
+      return ageMs > slaThresholdMs
+    })
+
+    if (staleWithdrawals.length > 0) {
+      staleWithdrawals.forEach(w => {
+        const hoursPending = Math.round((now - new Date(w.createdAt).getTime()) / 3600000)
+        report.anomalies.push(`Withdrawal #${w.id} (${w.amount} TND for user #${w.userId}) pending for ${hoursPending}h exceeding SLA threshold (${slaHours}h)`)
+        logger.security('WITHDRAWAL_SLA_BREACH', `Pending withdrawal #${w.id} (${w.amount} TND) has breached the ${slaHours}h SLA threshold`, {
+          withdrawalId: w.id,
+          userId: w.userId,
+          amount: w.amount,
+          hoursPending,
+        })
+      })
+    }
+
+    if (!report.isBalanced || staleWithdrawals.length > 0) {
       // Trigger instant incident alert
-      logger.security('CRITICAL_RECONCILIATION_MISMATCH', `Financial ledger balance mismatch detected! Active Escrow: ${report.totalEscrowLocked} TND, User Balances: ${report.totalUserBalances} TND`, {
+      logger.security('CRITICAL_RECONCILIATION_ALERT', `Reconciliation audit flagged items! Balanced: ${report.isBalanced}, Stale Withdrawals: ${staleWithdrawals.length}`, {
         report,
+        staleWithdrawalsCount: staleWithdrawals.length,
         timestamp: new Date().toISOString(),
       })
 
       return NextResponse.json({
-        status: 'ALERT_MISMATCH',
+        status: report.isBalanced ? 'SLA_WARNING' : 'ALERT_MISMATCH',
         alertSent: true,
         report,
-      }, { status: 500 })
+        staleWithdrawals,
+      }, { status: report.isBalanced ? 200 : 500 })
     }
 
     // Ledger is healthy
-    logger.audit('SCHEDULED_RECONCILIATION_SUCCESS', `Automated reconciliation audit passed. All ${report.activeOrdersCount} active orders verified.`, {
+    logger.audit('SCHEDULED_RECONCILIATION_SUCCESS', `Automated reconciliation audit passed. All ${report.activeOrdersCount} active orders verified with 0 SLA breaches.`, {
       totalEscrowLocked: report.totalEscrowLocked,
       currency: 'TND',
     })

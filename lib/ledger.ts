@@ -112,26 +112,110 @@ function getInMemoryTxs(): LedgerEntry[] {
   return (global as any).__AST_LEDGER_TXS__
 }
 
-// ─── USER TRANSACTION MUTEX ──────────────────────────────────────────────────
+// ─── USER TRANSACTION MUTEX & DEADLOCK PREVENTION ───────────────────────────
+/**
+ * Concurrency & Locking Architecture (Phase 1):
+ * - In multi-instance serverless environments, cross-instance concurrency is guaranteed
+ *   by PostgreSQL row-level locks (`SELECT ... FOR UPDATE` on `users`) and transaction
+ *   advisory locks (`pg_advisory_xact_lock`).
+ * - `withUserLock` provides in-process scheduling and serializes async tasks on the same user.
+ * - `withSortedMultiUserLock` enforces canonical ascending lock ordering (`id_1 < id_2`)
+ *   to eliminate all deadlock risks across multi-party transactions (e.g. escrow releases).
+ */
 const userLocks = new Map<string, Promise<any>>()
 
 export async function withUserLock<T>(userId: string, task: () => Promise<T>): Promise<T> {
-  const currentLock = userLocks.get(userId) || Promise.resolve()
-  let resolveLock: () => void
-  const nextLock = new Promise<void>(resolve => {
-    resolveLock = resolve
+  const previousLock = userLocks.get(userId) || Promise.resolve()
+
+  let release: () => void
+  const currentLock = new Promise<void>(resolve => {
+    release = resolve
   })
-  userLocks.set(userId, nextLock)
+  userLocks.set(userId, currentLock)
 
   try {
-    await currentLock
+    await previousLock.catch(() => {})
     return await task()
   } finally {
-    resolveLock!()
-    if (userLocks.get(userId) === nextLock) {
+    release!()
+    if (userLocks.get(userId) === currentLock) {
       userLocks.delete(userId)
     }
   }
+}
+
+/**
+ * Enforces canonical ascending user ID lock ordering across multi-party transactions.
+ */
+export async function withSortedMultiUserLock<T>(userIds: string[], task: () => Promise<T>): Promise<T> {
+  const sortedIds = Array.from(new Set(userIds.filter(Boolean))).sort()
+
+  const acquireRecursive = async (index: number): Promise<T> => {
+    if (index >= sortedIds.length) {
+      return await task()
+    }
+    return withUserLock(sortedIds[index], async () => {
+      return acquireRecursive(index + 1)
+    })
+  }
+
+  return acquireRecursive(0)
+}
+
+// ─── IDEMPOTENCY STORE (24-Hour Expiry) ───────────────────────────────────────
+const inMemoryProcessedRequests = new Map<string, { result: any; statusCode: number; createdAt: number }>()
+
+export async function checkIdempotency(key: string, endpoint: string): Promise<{ cached: boolean; result?: any; statusCode?: number }> {
+  if (!key) return { cached: false }
+
+  try {
+    const supabase = getServiceClient()
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('processed_requests')
+        .select('*')
+        .eq('idempotency_key', key)
+        .eq('endpoint', endpoint)
+        .single()
+
+      if (!error && data) {
+        return { cached: true, result: data.result, statusCode: 200 }
+      }
+    }
+  } catch {}
+
+  const cached = inMemoryProcessedRequests.get(`${endpoint}:${key}`)
+  if (cached) {
+    if (Date.now() - cached.createdAt < 24 * 3600 * 1000) {
+      return { cached: true, result: cached.result, statusCode: cached.statusCode }
+    } else {
+      inMemoryProcessedRequests.delete(`${endpoint}:${key}`)
+    }
+  }
+
+  return { cached: false }
+}
+
+export async function saveIdempotency(key: string, endpoint: string, userId: string | undefined, result: any, statusCode: number = 200): Promise<void> {
+  if (!key) return
+
+  try {
+    const supabase = getServiceClient()
+    if (supabase) {
+      await supabase.from('processed_requests').insert({
+        idempotency_key: key,
+        endpoint,
+        user_id: userId ?? null,
+        result,
+      })
+    }
+  } catch {}
+
+  inMemoryProcessedRequests.set(`${endpoint}:${key}`, {
+    result,
+    statusCode,
+    createdAt: Date.now(),
+  })
 }
 
 // ─── getBalance ───────────────────────────────────────────────────────────────
@@ -155,7 +239,141 @@ export async function getBalance(userId: string): Promise<number> {
   return Number(u?.walletBalance ?? 0)
 }
 
-// ─── creditWallet ─────────────────────────────────────────────────────────────
+// ─── INTERNAL ATOMIC MUTATIONS (Lock-Free Primitives) ─────────────────────────
+async function _creditWalletInternal(
+  userId: string,
+  amount: number,
+  type: TxType,
+  meta: TransactionMeta = {}
+): Promise<LedgerEntry> {
+  if (amount <= 0) throw new Error('[ledger] creditWallet: amount must be positive')
+
+  // Check idempotency if key provided
+  const txs = getInMemoryTxs()
+  if (meta.idempotencyKey) {
+    const existing = txs.find(t => t.idempotencyKey === meta.idempotencyKey)
+    if (existing) return existing
+  }
+
+  try {
+    const supabase = getServiceClient()
+    if (supabase) {
+      const { data, error } = await supabase.rpc('credit_wallet', {
+        p_user_id:         userId,
+        p_amount:          amount,
+        p_type:            type,
+        p_order_id:        meta.orderId ?? null,
+        p_milestone_id:    meta.milestoneId ?? null,
+        p_note:            meta.note ?? null,
+        p_idempotency_key: meta.idempotencyKey ?? null,
+      })
+
+      if (!error && data) {
+        return mapEntry(data)
+      }
+    }
+  } catch {}
+
+  // In-memory fallback
+  const u = await db.user.findUnique({ where: { id: userId } })
+  const curBal = Number(u?.walletBalance ?? 0)
+  const newBal = Math.round((curBal + amount) * 100) / 100
+
+  try {
+    await db.user.update({
+      where: { id: userId },
+      data: { walletBalance: newBal },
+    })
+  } catch {}
+
+  const entry: LedgerEntry = {
+    id: `tx_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+    userId,
+    orderId: meta.orderId,
+    milestoneId: meta.milestoneId,
+    type,
+    amount,
+    balanceAfter: newBal,
+    note: meta.note,
+    idempotencyKey: meta.idempotencyKey,
+    createdAt: new Date(),
+  }
+
+  txs.unshift(entry)
+  ;(global as any).__AST_LEDGER_TXS__ = txs
+  return entry
+}
+
+async function _debitWalletInternal(
+  userId: string,
+  amount: number,
+  type: TxType,
+  meta: TransactionMeta = {}
+): Promise<LedgerEntry> {
+  if (amount <= 0) throw new Error('[ledger] debitWallet: amount must be positive')
+
+  // Check idempotency if key provided
+  const txs = getInMemoryTxs()
+  if (meta.idempotencyKey) {
+    const existing = txs.find(t => t.idempotencyKey === meta.idempotencyKey)
+    if (existing) return existing
+  }
+
+  try {
+    const supabase = getServiceClient()
+    if (supabase) {
+      const { data, error } = await supabase.rpc('debit_wallet', {
+        p_user_id:         userId,
+        p_amount:          amount,
+        p_type:            type,
+        p_order_id:        meta.orderId ?? null,
+        p_milestone_id:    meta.milestoneId ?? null,
+        p_note:            meta.note ?? null,
+        p_idempotency_key: meta.idempotencyKey ?? null,
+      })
+
+      if (!error && data) {
+        return mapEntry(data)
+      }
+    }
+  } catch {}
+
+  // In-memory fallback with atomic balance verification
+  const u = await db.user.findUnique({ where: { id: userId } })
+  const curBal = Number(u?.walletBalance ?? 0)
+
+  if (curBal < amount) {
+    throw new Error(`Insufficient wallet balance. Available: ${curBal} TND, Required: ${amount} TND.`)
+  }
+
+  const newBal = Math.round((curBal - amount) * 100) / 100
+
+  try {
+    await db.user.update({
+      where: { id: userId },
+      data: { walletBalance: newBal },
+    })
+  } catch {}
+
+  const entry: LedgerEntry = {
+    id: `tx_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+    userId,
+    orderId: meta.orderId,
+    milestoneId: meta.milestoneId,
+    type,
+    amount: -amount,
+    balanceAfter: newBal,
+    note: meta.note,
+    idempotencyKey: meta.idempotencyKey,
+    createdAt: new Date(),
+  }
+
+  txs.unshift(entry)
+  ;(global as any).__AST_LEDGER_TXS__ = txs
+  return entry
+}
+
+// ─── creditWallet (Public Mutex Wrapper) ──────────────────────────────────────
 export async function creditWallet(
   userId: string,
   amount: number,
@@ -163,66 +381,11 @@ export async function creditWallet(
   meta: TransactionMeta = {}
 ): Promise<LedgerEntry> {
   return withUserLock(userId, async () => {
-    if (amount <= 0) throw new Error('[ledger] creditWallet: amount must be positive')
-
-    // Check idempotency if key provided
-    const txs = getInMemoryTxs()
-    if (meta.idempotencyKey) {
-      const existing = txs.find(t => t.idempotencyKey === meta.idempotencyKey)
-      if (existing) return existing
-    }
-
-    try {
-      const supabase = getServiceClient()
-      if (supabase) {
-        const { data, error } = await supabase.rpc('credit_wallet', {
-          p_user_id:         userId,
-          p_amount:          amount,
-          p_type:            type,
-          p_order_id:        meta.orderId ?? null,
-          p_milestone_id:    meta.milestoneId ?? null,
-          p_note:            meta.note ?? null,
-          p_idempotency_key: meta.idempotencyKey ?? null,
-        })
-
-        if (!error && data) {
-          return mapEntry(data)
-        }
-      }
-    } catch {}
-
-    // In-memory fallback
-    const u = await db.user.findUnique({ where: { id: userId } })
-    const curBal = Number(u?.walletBalance ?? 0)
-    const newBal = Math.round((curBal + amount) * 100) / 100
-
-    try {
-      await db.user.update({
-        where: { id: userId },
-        data: { walletBalance: newBal },
-      })
-    } catch {}
-
-    const entry: LedgerEntry = {
-      id: `tx_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-      userId,
-      orderId: meta.orderId,
-      milestoneId: meta.milestoneId,
-      type,
-      amount,
-      balanceAfter: newBal,
-      note: meta.note,
-      idempotencyKey: meta.idempotencyKey,
-      createdAt: new Date(),
-    }
-
-    txs.unshift(entry)
-    ;(global as any).__AST_LEDGER_TXS__ = txs
-    return entry
+    return _creditWalletInternal(userId, amount, type, meta)
   })
 }
 
-// ─── debitWallet ──────────────────────────────────────────────────────────────
+// ─── debitWallet (Public Mutex Wrapper) ───────────────────────────────────────
 export async function debitWallet(
   userId: string,
   amount: number,
@@ -230,67 +393,7 @@ export async function debitWallet(
   meta: TransactionMeta = {}
 ): Promise<LedgerEntry> {
   return withUserLock(userId, async () => {
-    if (amount <= 0) throw new Error('[ledger] debitWallet: amount must be positive')
-
-    // Check idempotency if key provided
-    const txs = getInMemoryTxs()
-    if (meta.idempotencyKey) {
-      const existing = txs.find(t => t.idempotencyKey === meta.idempotencyKey)
-      if (existing) return existing
-    }
-
-    try {
-      const supabase = getServiceClient()
-      if (supabase) {
-        const { data, error } = await supabase.rpc('debit_wallet', {
-          p_user_id:         userId,
-          p_amount:          amount,
-          p_type:            type,
-          p_order_id:        meta.orderId ?? null,
-          p_milestone_id:    meta.milestoneId ?? null,
-          p_note:            meta.note ?? null,
-          p_idempotency_key: meta.idempotencyKey ?? null,
-        })
-
-        if (!error && data) {
-          return mapEntry(data)
-        }
-      }
-    } catch {}
-
-    // In-memory fallback with atomic balance verification
-    const u = await db.user.findUnique({ where: { id: userId } })
-    const curBal = Number(u?.walletBalance ?? 0)
-
-    if (curBal < amount) {
-      throw new Error(`Insufficient wallet balance. Available: ${curBal} TND, Required: ${amount} TND.`)
-    }
-
-    const newBal = Math.round((curBal - amount) * 100) / 100
-
-    try {
-      await db.user.update({
-        where: { id: userId },
-        data: { walletBalance: newBal },
-      })
-    } catch {}
-
-    const entry: LedgerEntry = {
-      id: `tx_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-      userId,
-      orderId: meta.orderId,
-      milestoneId: meta.milestoneId,
-      type,
-      amount: -amount,
-      balanceAfter: newBal,
-      note: meta.note,
-      idempotencyKey: meta.idempotencyKey,
-      createdAt: new Date(),
-    }
-
-    txs.unshift(entry)
-    ;(global as any).__AST_LEDGER_TXS__ = txs
-    return entry
+    return _debitWalletInternal(userId, amount, type, meta)
   })
 }
 
@@ -301,22 +404,24 @@ export async function processEscrowRelease(
   amount: number,
   adminId: string = 'platform'
 ): Promise<{ sellerPayout: number; platformFee: number }> {
-  const sellerPayout = Math.round(amount * (1 - PLATFORM_FEE_RATE) * 100) / 100
-  const platformFee  = Math.round(amount * PLATFORM_FEE_RATE * 100) / 100
+  return withSortedMultiUserLock([sellerId, adminId], async () => {
+    const sellerPayout = Math.round(amount * (1 - PLATFORM_FEE_RATE) * 100) / 100
+    const platformFee  = Math.round(amount * PLATFORM_FEE_RATE * 100) / 100
 
-  await creditWallet(sellerId, sellerPayout, 'RELEASE', {
-    orderId,
-    note: `Escrow payout for order #${orderId} (88% net: ${sellerPayout} TND)`,
-    idempotencyKey: `release-${orderId}-seller`,
+    await _creditWalletInternal(sellerId, sellerPayout, 'RELEASE', {
+      orderId,
+      note: `Escrow payout for order #${orderId} (88% net: ${sellerPayout} TND)`,
+      idempotencyKey: `release-${orderId}-seller`,
+    })
+
+    await _creditWalletInternal(adminId, platformFee, 'PLATFORM_FEE', {
+      orderId,
+      note: `12% Platform commission for order #${orderId} (${platformFee} TND)`,
+      idempotencyKey: `release-${orderId}-platform`,
+    })
+
+    return { sellerPayout, platformFee }
   })
-
-  await creditWallet(adminId, platformFee, 'PLATFORM_FEE', {
-    orderId,
-    note: `12% Platform commission for order #${orderId} (${platformFee} TND)`,
-    idempotencyKey: `release-${orderId}-platform`,
-  })
-
-  return { sellerPayout, platformFee }
 }
 
 // ─── processMilestoneRelease ──────────────────────────────────────────────────
@@ -326,24 +431,26 @@ export async function processMilestoneRelease(
   sellerId: string,
   milestoneAmount: number
 ): Promise<{ sellerPayout: number; platformFee: number }> {
-  const sellerPayout = Math.round(milestoneAmount * (1 - PLATFORM_FEE_RATE) * 100) / 100
-  const platformFee  = Math.round(milestoneAmount * PLATFORM_FEE_RATE * 100) / 100
+  return withSortedMultiUserLock([sellerId, 'platform'], async () => {
+    const sellerPayout = Math.round(milestoneAmount * (1 - PLATFORM_FEE_RATE) * 100) / 100
+    const platformFee  = Math.round(milestoneAmount * PLATFORM_FEE_RATE * 100) / 100
 
-  await creditWallet(sellerId, sellerPayout, 'RELEASE', {
-    orderId,
-    milestoneId,
-    note: `Milestone #${milestoneId} release on order #${orderId} (88% net: ${sellerPayout} TND)`,
-    idempotencyKey: `milestone-release-${milestoneId}-seller`,
+    await _creditWalletInternal(sellerId, sellerPayout, 'RELEASE', {
+      orderId,
+      milestoneId,
+      note: `Milestone #${milestoneId} release on order #${orderId} (88% net: ${sellerPayout} TND)`,
+      idempotencyKey: `milestone-release-${milestoneId}-seller`,
+    })
+
+    await _creditWalletInternal('platform', platformFee, 'PLATFORM_FEE', {
+      orderId,
+      milestoneId,
+      note: `12% Platform fee on milestone #${milestoneId} (${platformFee} TND)`,
+      idempotencyKey: `milestone-release-${milestoneId}-platform`,
+    })
+
+    return { sellerPayout, platformFee }
   })
-
-  await creditWallet('platform', platformFee, 'PLATFORM_FEE', {
-    orderId,
-    milestoneId,
-    note: `12% Platform fee on milestone #${milestoneId} (${platformFee} TND)`,
-    idempotencyKey: `milestone-release-${milestoneId}-platform`,
-  })
-
-  return { sellerPayout, platformFee }
 }
 
 // ─── processRefund ────────────────────────────────────────────────────────────

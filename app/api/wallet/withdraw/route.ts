@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { requireRole } from '@/lib/authz'
-import { getBalance, debitWallet } from '@/lib/ledger'
+import { getBalance, debitWallet, checkIdempotency, saveIdempotency } from '@/lib/ledger'
 import { logger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
@@ -14,6 +14,19 @@ export async function POST(req: NextRequest) {
     if (authError) return authError
 
     const userId = session!.user.id
+    const idempotencyKey = req.headers.get('idempotency-key') || req.headers.get('x-idempotency-key')
+
+    // 1. Check Idempotency Key header (Task 1.4)
+    if (idempotencyKey) {
+      const cached = await checkIdempotency(idempotencyKey, '/api/wallet/withdraw')
+      if (cached.cached) {
+        return NextResponse.json(cached.result, {
+          status: cached.statusCode || 200,
+          headers: { 'X-Idempotency-Status': 'CACHED' },
+        })
+      }
+    }
+
     const body = await req.json()
     const { amount, method, accountDetails } = body
 
@@ -51,13 +64,14 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // 1. Immediately hold/debit the funds from user balance to prevent duplicate/overdraft exploit
+    // 2. Immediately hold/debit the funds from user balance under transaction lock
+    const effectiveIdempotencyKey = idempotencyKey || `with-req-${userId}-${Date.now()}`
     await debitWallet(userId, numericAmount, 'WITHDRAWAL', {
       note: `Payout request initiated via ${method} (${accountDetails})`,
-      idempotencyKey: `with-req-${userId}-${Date.now()}`,
+      idempotencyKey: effectiveIdempotencyKey,
     })
 
-    // 2. Create withdrawal request in DB
+    // 3. Create withdrawal request in DB
     const withdrawal = await db.withdrawal.create({
       data: {
         userId,
@@ -68,7 +82,7 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    // 3. Log action in audit trail
+    // 4. Log action in audit trail
     logger.audit('WITHDRAWAL_REQUESTED', `Freelancer ${session!.user.name} requested withdrawal of ${numericAmount} TND via ${method}`, {
       userId,
       withdrawalId: withdrawal.id,
@@ -76,13 +90,17 @@ export async function POST(req: NextRequest) {
       method,
     })
 
-    return NextResponse.json(
-      {
-        withdrawal,
-        message: `Your withdrawal request of ${numericAmount.toFixed(2)} TND has been submitted and funds held for transfer by the Admin Finance Desk.`,
-      },
-      { status: 201 }
-    )
+    const responsePayload = {
+      withdrawal,
+      message: `Your withdrawal request of ${numericAmount.toFixed(2)} TND has been submitted and funds held for transfer by the Admin Finance Desk.`,
+    }
+
+    // 5. Store response for 24h against the idempotency key
+    if (idempotencyKey) {
+      await saveIdempotency(idempotencyKey, '/api/wallet/withdraw', userId, responsePayload, 201)
+    }
+
+    return NextResponse.json(responsePayload, { status: 201 })
   } catch (err: any) {
     logger.error('WITHDRAWAL_REQUEST_ERROR', `Failed to submit withdrawal request: ${err.message}`, { error: err })
     return NextResponse.json({ error: err.message || 'Failed to submit withdrawal request' }, { status: 500 })
