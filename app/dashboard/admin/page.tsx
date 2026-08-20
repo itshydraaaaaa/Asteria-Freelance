@@ -3,6 +3,8 @@ import { db }   from '@/lib/db'
 import { redirect } from 'next/navigation'
 import { AdminClient } from './AdminClient'
 
+export const dynamic = 'force-dynamic'
+
 export default async function AdminPage() {
   const session = await auth()
   
@@ -14,8 +16,8 @@ export default async function AdminPage() {
 
   const [users, orders, gigs, verifications, logs, reports, withdrawals] = await Promise.all([
     db.user.findMany({ orderBy: { createdAt: 'desc' } }).catch(() => []),
-    db.order.findMany({ orderBy: { createdAt: 'desc' }, take: 20 }).catch(() => []),
-    db.gig.findMany({ orderBy: { createdAt: 'desc' }, take: 20 }).catch(() => []),
+    db.order.findMany({ orderBy: { createdAt: 'desc' }, take: 50 }).catch(() => []),
+    db.gig.findMany({ orderBy: { createdAt: 'desc' }, take: 50 }).catch(() => []),
     db.verification.findMany({ orderBy: { submittedAt: 'desc' } }).catch(() => []),
     db.auditLog.findMany().catch(() => []),
     db.report.findMany().catch(() => []),
