@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { categories } from '@/lib/data/categories'
-import { Check, ChevronRight, Image as ImageIcon, Loader2, Sparkles, X, UploadCloud, RefreshCw } from 'lucide-react'
+import { Check, ChevronRight, Image as ImageIcon, Loader2, Sparkles, X, UploadCloud, RefreshCw, ShieldAlert, ArrowRight, ShieldCheck } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { AIAssistantModal } from '@/components/ai/AIAssistantModal'
 
@@ -45,10 +46,26 @@ export default function NewGigPage() {
   const [form, setForm] = useState<Form>(EMPTY)
 
   const [loading, setLoading] = useState(false)
+  const [verifLoading, setVerifLoading] = useState(true)
+  const [verifiedStatus, setVerifiedStatus] = useState<string>('APPROVED')
   const [uploadingImage, setUploadingImage] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
   const [showAiModal, setShowAiModal] = useState(false)
+
+  useEffect(() => {
+    fetch('/api/user/verification')
+      .then(res => res.json())
+      .then(data => {
+        if (data.verification?.status) {
+          setVerifiedStatus(data.verification.status)
+        } else {
+          setVerifiedStatus('UNSUBMITTED')
+        }
+      })
+      .catch(() => setVerifiedStatus('APPROVED'))
+      .finally(() => setVerifLoading(false))
+  }, [])
 
   const handle = (k: keyof Form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
     setForm(f => ({ ...f, [k]: e.target.value }))
@@ -101,26 +118,20 @@ export default function NewGigPage() {
     setError('')
     try {
       const res = await fetch('/api/gigs', {
-        method:  'POST',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({
-          title:        form.title,
-          description:  form.description,
-          category:     form.category,
-          price:        parseFloat(form.price),
-          deliveryDays: parseInt(form.deliveryDays, 10),
-          tags:         form.tags,
-          image:        form.image || DEFAULT_COVERS[0],
+        body: JSON.stringify({
+          ...form,
+          price: Number(form.price),
+          deliveryDays: Number(form.deliveryDays),
         }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Failed to create gig')
+      if (!res.ok) throw new Error(data.error || 'Failed to create gig')
+
       setSuccess(true)
       router.refresh()
-      setTimeout(() => {
-        router.push('/dashboard/gigs')
-        router.refresh()
-      }, 1500)
+      setTimeout(() => router.push('/dashboard/gigs'), 1500)
     } catch (err: any) {
       setError(err.message)
     } finally {
@@ -132,6 +143,46 @@ export default function NewGigPage() {
     enter:  (d: number) => ({ x: d * 60, opacity: 0 }),
     center: { x: 0, opacity: 1 },
     exit:   (d: number) => ({ x: d * -60, opacity: 0 }),
+  }
+
+  if (verifLoading) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <div className="w-8 h-8 border-4 border-ast-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
+
+  if (verifiedStatus !== 'APPROVED') {
+    return (
+      <div className="max-w-xl mx-auto py-12">
+        <div className="bg-white rounded-3xl border border-black/8 p-8 md:p-12 text-center space-y-6 shadow-sm">
+          <div className="w-16 h-16 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mx-auto">
+            <ShieldAlert size={32} />
+          </div>
+          <div>
+            <h2 className="font-heading font-bold text-2xl text-black">Identity Verification Required</h2>
+            <p className="text-ast-gray text-xs mt-2 leading-relaxed max-w-md mx-auto">
+              To guarantee client protection and safe escrow payouts, freelancers must have their KYC identity verified before publishing services. You can watch and explore open jobs and marketplace gigs freely.
+            </p>
+          </div>
+          <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <Link
+              href="/dashboard/verification"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 bg-ast-primary text-white text-xs font-semibold px-6 py-3 rounded-full hover:bg-ast-dark transition-colors shadow-sm"
+            >
+              <ShieldCheck size={16} /> Complete KYC Verification
+            </Link>
+            <Link
+              href="/explore"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 border border-black/15 text-black text-xs font-semibold px-6 py-3 rounded-full hover:bg-ast-surface transition-colors"
+            >
+              Explore Gigs <ArrowRight size={14} />
+            </Link>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   if (success) {

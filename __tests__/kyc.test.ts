@@ -16,6 +16,18 @@ describe('Phase 3: KYC Identity Verification End-to-End Tests', () => {
         verifiedStatus: 'UNSUBMITTED',
       },
     })
+
+    // Seed a verified test user
+    await db.user.create({
+      data: {
+        id: VERIFIED_USER_ID,
+        name: 'Verified Test User',
+        email: 'verified_f1@test.com',
+        role: 'FREELANCER',
+        walletBalance: 2500,
+        verifiedStatus: 'APPROVED',
+      },
+    })
   })
 
   it('verifies user starts in UNSUBMITTED state and transitions to PENDING upon document upload', async () => {

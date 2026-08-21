@@ -225,76 +225,14 @@ function initUsersStore(): UserRecord[] {
 
 function initGigsStore(): any[] {
   if (!(global as any).__AST_GIGS__) {
-    const userList = initUsersStore()
-    const seededGigs = staticGigs.map(g => {
-      const fl = userList.find(u => u.id === g.freelancerId) || userList.find(u => u.role === 'FREELANCER') || userList[0]
-      return {
-        ...g,
-        freelancer: {
-          id: fl.id,
-          name: fl.name,
-          image: fl.image,
-          bio: fl.bio,
-          skills: fl.skills,
-          rating: fl.rating ?? 4.9,
-          reviewCount: fl.reviewCount ?? 15,
-        },
-        rating: 4.9,
-        reviewCount: 15,
-        createdAt: new Date('2025-01-10'),
-      }
-    })
-    ;(global as any).__AST_GIGS__ = seededGigs
+    (global as any).__AST_GIGS__ = []
   }
   return (global as any).__AST_GIGS__
 }
 
 function initJobsStore(): JobRecord[] {
   if (!(global as any).__AST_JOBS__) {
-    (global as any).__AST_JOBS__ = [
-      {
-        id: 'job_1',
-        title: 'Full-Stack Next.js 14 SaaS Platform with Stripe & Flouci Payments',
-        description: 'We are seeking a senior full-stack developer to architect and build our cloud marketplace with user authentication, multi-tenant billing, and real-time order tracking.',
-        category: 'Web Development',
-        budget: 1200,
-        deliveryDays: 14,
-        skills: ['Next.js', 'TypeScript', 'Prisma', 'PostgreSQL', 'Stripe'],
-        status: 'OPEN',
-        clientId: 'c1',
-        client: { id: 'c1', name: 'Sami Mansour (Client)' },
-        _count: { proposals: 2 },
-        createdAt: new Date('2025-02-12'),
-      },
-      {
-        id: 'job_2',
-        title: 'Mobile Banking & Escrow Wallet UI/UX Design System in Figma',
-        description: 'Need an experienced product designer to create a 20-screen high-fidelity mobile app design with interactive prototypes and design system token components.',
-        category: 'Design',
-        budget: 750,
-        deliveryDays: 7,
-        skills: ['Figma', 'UI/UX', 'Mobile Design', 'Design Systems'],
-        status: 'OPEN',
-        clientId: 'c2',
-        client: { id: 'c2', name: 'Nour El Houda (Client)' },
-        _count: { proposals: 1 },
-        createdAt: new Date('2025-02-14'),
-      },
-      {
-        id: 'job_3',
-        title: 'AI Recommendation Engine & NLP Classification Pipeline',
-        description: 'Develop a Python-based customer recommendation algorithm and text categorization pipeline with REST API endpoints for our e-commerce catalogue.',
-        category: 'Data Science',
-        budget: 2200,
-        deliveryDays: 20,
-        skills: ['Python', 'Machine Learning', 'NLP', 'FastAPI', 'PyTorch'],
-        status: 'OPEN',
-        clientId: 'c3',
-        client: { id: 'c3', name: 'Oussama Hamdi (Client)' },
-        _count: { proposals: 3 },
-        createdAt: new Date('2025-02-15'),
-      },
-    ]
+    (global as any).__AST_JOBS__ = []
   }
   return (global as any).__AST_JOBS__
 }
@@ -743,28 +681,7 @@ export const db = {
     findMany: async (query?: { where?: { jobId?: string; freelancerId?: string }; orderBy?: any; include?: any }): Promise<ProposalRecord[]> => {
       let localProps: ProposalRecord[] = (global as any).__AST_PROPOSALS__
       if (!localProps) {
-        localProps = [
-          {
-            id: 'prop1',
-            jobId: 'job_1',
-            freelancerId: 'f1',
-            coverLetter: 'Hello! I have 7+ years of experience architecting Next.js 14 SaaS platforms with Stripe and Prisma.',
-            price: 1100,
-            deliveryDays: 12,
-            status: 'PENDING',
-            createdAt: new Date('2025-02-13'),
-          },
-          {
-            id: 'prop2',
-            jobId: 'job_2',
-            freelancerId: 'f2',
-            coverLetter: 'Hi! I specialize in fintech UI/UX design and Figma design systems with interactive components.',
-            price: 700,
-            deliveryDays: 6,
-            status: 'PENDING',
-            createdAt: new Date('2025-02-15'),
-          },
-        ]
+        localProps = []
         ;(global as any).__AST_PROPOSALS__ = localProps
       }
 
@@ -857,26 +774,7 @@ export const db = {
     findMany: async (query?: { where?: { buyerId?: string; sellerId?: string; status?: string }; orderBy?: any; include?: any; take?: number; limit?: number }): Promise<OrderRecord[]> => {
       let ordersList: OrderRecord[] = (global as any).__AST_ORDERS__
       if (!ordersList) {
-        ordersList = [
-          {
-            id: 'ord1',
-            gigId: 'g1',
-            buyerId: 'c1',
-            sellerId: 'f1',
-            amount: 299,
-            status: 'COMPLETED',
-            createdAt: new Date('2025-02-01'),
-          },
-          {
-            id: 'ord2',
-            gigId: 'g2',
-            buyerId: 'c1',
-            sellerId: 'f2',
-            amount: 199,
-            status: 'ACTIVE',
-            createdAt: new Date('2025-02-05'),
-          },
-        ]
+        ordersList = []
         ;(global as any).__AST_ORDERS__ = ordersList
       }
 
@@ -1392,34 +1290,7 @@ export const db = {
     findMany: async (query?: { where?: { freelancerId?: string; gigId?: string }; orderBy?: any }): Promise<any[]> => {
       let list: any[] = (global as any).__AST_REVIEWS__
       if (!list) {
-        list = [
-          {
-            id: 'rev1',
-            orderId: 'ord1',
-            gigId: 'g1',
-            freelancerId: 'f1',
-            clientId: 'c1',
-            name: 'Sami Mansour',
-            initials: 'SM',
-            rating: 5,
-            comment: 'Exceptional delivery quality and excellent technical communication. Delivered ahead of schedule with clean documentation.',
-            date: 'Verified Client',
-            createdAt: new Date('2025-02-03'),
-          },
-          {
-            id: 'rev2',
-            orderId: 'ord2',
-            gigId: 'g2',
-            freelancerId: 'f2',
-            clientId: 'c2',
-            name: 'Nour El Houda',
-            initials: 'NH',
-            rating: 5,
-            comment: 'Great work! The attention to detail and milestone updates were seamless. Escrow payout was completely smooth.',
-            date: 'Verified Client',
-            createdAt: new Date('2025-02-07'),
-          },
-        ]
+        list = []
         ;(global as any).__AST_REVIEWS__ = list
       }
       if (query?.where?.freelancerId) list = list.filter(r => r.freelancerId === query.where!.freelancerId)
@@ -1445,19 +1316,7 @@ export const db = {
     findMany: async (query?: { where?: { userId?: string; status?: string }; orderBy?: any }): Promise<any[]> => {
       let list: any[] = (global as any).__AST_WITHDRAWALS__
       if (!list) {
-        list = [
-          {
-            id: 'w1',
-            userId: 'f1',
-            amount: 450,
-            currency: 'TND',
-            method: 'BANK_RIB',
-            payoutDetails: 'Attijari Bank RIB: 04 012 0001234567890 12',
-            status: 'PENDING',
-            createdAt: new Date(Date.now() - 3600000 * 3),
-            user: { name: 'Yassine Khelifi', email: 'yassine.freelancer@asteria.com' },
-          },
-        ]
+        list = []
         ;(global as any).__AST_WITHDRAWALS__ = list
       }
 
@@ -1512,28 +1371,7 @@ export const db = {
     findMany: async (query?: { where?: { userId?: string; isRead?: boolean }; orderBy?: any; take?: number }): Promise<NotificationRecord[]> => {
       let list: NotificationRecord[] = (global as any).__AST_NOTIFICATIONS__
       if (!list) {
-        list = [
-          {
-            id: 'notif_1',
-            userId: 'c1',
-            title: 'Welcome to Asteria Freelance',
-            message: 'Your account is ready. Complete identity verification to unlock full escrow checkout.',
-            type: 'SYSTEM',
-            link: '/dashboard/verification',
-            isRead: false,
-            createdAt: new Date(Date.now() - 3600000 * 2),
-          },
-          {
-            id: 'notif_2',
-            userId: 'f1',
-            title: 'KYC Verified Successfully',
-            message: 'Your ID documents have been approved by Admin. You are eligible for unlimited payouts.',
-            type: 'KYC_APPROVED',
-            link: '/dashboard/wallet',
-            isRead: true,
-            createdAt: new Date(Date.now() - 3600000 * 24),
-          },
-        ]
+        list = []
         ;(global as any).__AST_NOTIFICATIONS__ = list
       }
 

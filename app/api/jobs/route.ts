@@ -40,6 +40,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'You must be logged in to post a job' }, { status: 401 })
     }
 
+    const user = await db.user.findUnique({ where: { id: session.user.id } })
+    if (user && user.verifiedStatus !== 'APPROVED' && user.role !== 'ADMIN') {
+      return NextResponse.json({
+        error: 'Identity verification required. You can watch and explore until your KYC is approved.'
+      }, { status: 403 })
+    }
+
     const body = await req.json()
     const { title, description, category, budget, deliveryDays, skills } = body
 

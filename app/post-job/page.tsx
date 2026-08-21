@@ -1,8 +1,10 @@
 'use client'
-import { useState }           from 'react'
+
+import { useState, useEffect }     from 'react'
 import { useRouter }          from 'next/navigation'
+import Link                   from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Check, ChevronRight, ChevronLeft, Upload, Briefcase, Sparkles } from 'lucide-react'
+import { Check, ChevronRight, ChevronLeft, Upload, Briefcase, Sparkles, ShieldAlert, ShieldCheck, ArrowRight } from 'lucide-react'
 import { categories } from '@/lib/data/categories'
 import { AIAssistantModal } from '@/components/ai/AIAssistantModal'
 
@@ -35,8 +37,24 @@ export default function PostJobPage() {
   const [form,      setForm]      = useState<FormData>(INITIAL)
   const [submitted, setSubmitted] = useState(false)
   const [loading,   setLoading]   = useState(false)
+  const [verifLoading, setVerifLoading] = useState(true)
+  const [verifiedStatus, setVerifiedStatus] = useState<string>('APPROVED')
   const [error,     setError]     = useState('')
   const [showAiModal, setShowAiModal] = useState(false)
+
+  useEffect(() => {
+    fetch('/api/user/verification')
+      .then(res => res.json())
+      .then(data => {
+        if (data.verification?.status) {
+          setVerifiedStatus(data.verification.status)
+        } else {
+          setVerifiedStatus('UNSUBMITTED')
+        }
+      })
+      .catch(() => setVerifiedStatus('APPROVED'))
+      .finally(() => setVerifLoading(false))
+  }, [])
 
   const next = () => { setDir(1);  setStep(s => Math.min(s + 1, STEPS.length - 1)) }
   const prev = () => { setDir(-1); setStep(s => Math.max(s - 1, 0)) }
@@ -61,6 +79,52 @@ export default function PostJobPage() {
     }
   }
 
+  const variants = {
+    enter:  (d: number) => ({ x: d * 80, opacity: 0 }),
+    center: { x: 0, opacity: 1 },
+    exit:   (d: number) => ({ x: d * -80, opacity: 0 }),
+  }
+
+  if (verifLoading) {
+    return (
+      <div className="min-h-screen bg-ast-surface pt-24 flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-ast-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
+
+  if (verifiedStatus !== 'APPROVED') {
+    return (
+      <div className="min-h-screen bg-ast-surface pt-24 flex items-center justify-center px-4">
+        <div className="bg-white rounded-3xl p-8 md:p-12 text-center max-w-lg shadow-xl space-y-6">
+          <div className="w-16 h-16 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mx-auto">
+            <ShieldAlert size={32} />
+          </div>
+          <div>
+            <h2 className="font-heading font-bold text-2xl text-black">Identity Verification Required</h2>
+            <p className="text-ast-gray text-xs mt-2 leading-relaxed max-w-md mx-auto">
+              To secure escrow deposits and prevent fraudulent project postings, clients must verify their identity before publishing job briefs. You can watch and explore freelancer gigs freely.
+            </p>
+          </div>
+          <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <Link
+              href="/dashboard/verification"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 bg-ast-primary text-white text-xs font-semibold px-6 py-3 rounded-full hover:bg-ast-dark transition-colors shadow-sm"
+            >
+              <ShieldCheck size={16} /> Complete KYC Verification
+            </Link>
+            <Link
+              href="/explore"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 border border-black/15 text-black text-xs font-semibold px-6 py-3 rounded-full hover:bg-ast-surface transition-colors"
+            >
+              Explore Gigs <ArrowRight size={14} />
+            </Link>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   if (submitted) {
     return (
       <div className="min-h-screen bg-ast-surface pt-24 flex items-center justify-center px-4">
@@ -81,12 +145,6 @@ export default function PostJobPage() {
         </motion.div>
       </div>
     )
-  }
-
-  const variants = {
-    enter:  (d: number) => ({ x: d * 80, opacity: 0 }),
-    center: { x: 0, opacity: 1 },
-    exit:   (d: number) => ({ x: d * -80, opacity: 0 }),
   }
 
   return (

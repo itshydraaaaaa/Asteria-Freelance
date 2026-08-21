@@ -53,39 +53,19 @@ export default function LoginPage() {
           <p className="text-ast-gray text-xs mt-1">Select a test role or enter your credentials</p>
         </div>
 
-        {/* ⚡ Quick One-Click Demo Logins */}
+        {/* ⚡ Quick Admin Demo Login */}
         <div className="bg-ast-surface p-4 rounded-2xl border border-black/8 space-y-2.5">
           <p className="text-[11px] font-semibold text-ast-dark uppercase tracking-wider text-center">
-            ⚡ Quick Demo Logins (1-Click)
+            ⚡ Quick Admin Login (1-Click)
           </p>
-          <div className="grid grid-cols-3 gap-2">
-            <button
-              onClick={() => handleTestLogin('admin1')}
-              type="button"
-              className="flex flex-col items-center justify-center p-2.5 bg-ast-dark text-white rounded-xl text-xs font-semibold hover:bg-black transition-colors"
-            >
-              <Shield size={16} className="mb-1 text-ast-light" />
-              Admin
-            </button>
-
-            <button
-              onClick={() => handleTestLogin('c1')}
-              type="button"
-              className="flex flex-col items-center justify-center p-2.5 bg-blue-600 text-white rounded-xl text-xs font-semibold hover:bg-blue-700 transition-colors"
-            >
-              <Briefcase size={16} className="mb-1" />
-              Client
-            </button>
-
-            <button
-              onClick={() => handleTestLogin('f1')}
-              type="button"
-              className="flex flex-col items-center justify-center p-2.5 bg-ast-primary text-white rounded-xl text-xs font-semibold hover:bg-ast-dark transition-colors"
-            >
-              <User size={16} className="mb-1" />
-              Freelancer
-            </button>
-          </div>
+          <button
+            onClick={() => handleTestLogin('admin1')}
+            type="button"
+            className="w-full flex items-center justify-center gap-2 p-3 bg-ast-dark text-white rounded-xl text-xs font-semibold hover:bg-black transition-colors shadow-sm"
+          >
+            <Shield size={16} className="text-ast-light" />
+            Sign in as Platform Administrator
+          </button>
         </div>
 
         {error && (

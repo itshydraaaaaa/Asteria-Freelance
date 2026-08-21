@@ -51,6 +51,13 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     const freelancerId = session.user.id
 
+    const user = await db.user.findUnique({ where: { id: freelancerId } })
+    if (user && user.verifiedStatus !== 'APPROVED' && user.role !== 'ADMIN') {
+      return NextResponse.json({
+        error: 'Identity verification required. You can watch and explore until your KYC is approved.'
+      }, { status: 403 })
+    }
+
     const job = await db.job.findUnique({ where: { id: params.id } })
     if (!job) {
       return NextResponse.json({ error: 'Job not found' }, { status: 404 })

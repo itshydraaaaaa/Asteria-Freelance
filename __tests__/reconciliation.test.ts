@@ -10,9 +10,33 @@ import {
 } from '@/lib/ledger'
 
 describe('Phase 1: Escrow Correctness & Reconciliation Tests', () => {
-  const TEST_USER = 'c1'
-  const TEST_SELLER = 'f1'
+  const TEST_USER = 'c1_reconciliation'
+  const TEST_SELLER = 'f1_reconciliation'
   const TEST_ORDER = 'ord_test_phase1'
+
+  beforeAll(async () => {
+    const { db } = await import('@/lib/db')
+    await db.user.create({
+      data: {
+        id: TEST_USER,
+        name: 'Reconciliation Client',
+        email: 'reconciliation_c1@asteria.com',
+        role: 'CLIENT',
+        walletBalance: 0,
+        verifiedStatus: 'APPROVED',
+      },
+    })
+    await db.user.create({
+      data: {
+        id: TEST_SELLER,
+        name: 'Reconciliation Freelancer',
+        email: 'reconciliation_f1@asteria.com',
+        role: 'FREELANCER',
+        walletBalance: 0,
+        verifiedStatus: 'APPROVED',
+      },
+    })
+  })
 
   it('verifies platform fee rate is set to 12%', () => {
     expect(PLATFORM_FEE_RATE).toBe(0.12)
