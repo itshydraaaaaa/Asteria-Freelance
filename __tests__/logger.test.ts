@@ -45,6 +45,8 @@ describe('Phase 4: Structured Logging, PII Redaction & Health Audit Tests', () =
       amount: 100,
     })
 
+    await new Promise(r => setTimeout(r, 200))
+
     const updatedLogs = await db.auditLog.findMany({})
     expect(updatedLogs.length).toBeGreaterThan(initialCount)
 
