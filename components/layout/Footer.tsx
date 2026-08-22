@@ -24,8 +24,8 @@ const LINKS = [
     title: 'Support',
     items: [
       { label: 'Help Center', href: '/contact' },
-      { label: 'Terms of Service', href: '/about' },
-      { label: 'Privacy Policy', href: '/contact' },
+      { label: 'Terms of Service', href: '/terms' },
+      { label: 'Privacy Policy', href: '/privacy' },
     ],
   },
 ]
