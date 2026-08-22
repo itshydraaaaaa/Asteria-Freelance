@@ -48,16 +48,35 @@ export function TestimonialsSection() {
           </AnimatePresence>
         </div>
 
-        <div className="flex items-center justify-center gap-4 mt-10">
-          <button onClick={prev} className="w-10 h-10 rounded-full border border-black/20 flex items-center justify-center hover:border-ast-primary hover:text-ast-primary transition-colors" aria-label="Previous">
+        <div className="flex items-center justify-center gap-2 mt-10">
+          <button
+            onClick={prev}
+            className="w-11 h-11 rounded-full border border-black/20 flex items-center justify-center hover:border-ast-primary hover:text-ast-primary transition-colors shrink-0"
+            aria-label="Previous testimonial"
+          >
             <ChevronLeft size={18} />
           </button>
-          <div className="flex gap-2">
+          <div className="flex items-center">
             {testimonials.map((_, i) => (
-              <button key={i} onClick={() => setActive(i)} className={`w-2 h-2 rounded-full transition-all ${i === active ? 'bg-ast-primary w-6' : 'bg-black/20'}`} aria-label={`Go to ${i + 1}`} />
+              <button
+                key={i}
+                onClick={() => setActive(i)}
+                className="min-w-11 min-h-11 flex items-center justify-center p-2"
+                aria-label={`Go to slide ${i + 1}`}
+              >
+                <span
+                  className={`block h-2 rounded-full transition-all ${
+                    i === active ? 'bg-ast-primary w-6' : 'bg-black/20 w-2'
+                  }`}
+                />
+              </button>
             ))}
           </div>
-          <button onClick={next} className="w-10 h-10 rounded-full border border-black/20 flex items-center justify-center hover:border-ast-primary hover:text-ast-primary transition-colors" aria-label="Next">
+          <button
+            onClick={next}
+            className="w-11 h-11 rounded-full border border-black/20 flex items-center justify-center hover:border-ast-primary hover:text-ast-primary transition-colors shrink-0"
+            aria-label="Next testimonial"
+          >
             <ChevronRight size={18} />
           </button>
         </div>

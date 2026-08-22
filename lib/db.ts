@@ -1056,11 +1056,13 @@ export const db = {
   // ── AUDIT LOG ───────────────────────────────────────────────────────────────
   auditLog: {
     findMany: async (query?: { orderBy?: any; take?: number }): Promise<AuditLogRecord[]> => {
+      let localLogs: AuditLogRecord[] = (global as any).__AST_AUDIT_LOGS__ || []
+      let dbLogs: AuditLogRecord[] = []
       try {
         const supabase = await getDbClient()
         const { data, error } = await supabase.from('AuditLog').select('*').order('createdAt', { ascending: false }).limit(query?.take ?? 50)
         if (!error && data) {
-          return data.map(a => ({
+          dbLogs = data.map(a => ({
             id: a.id,
             adminId: a.adminId,
             adminName: a.adminName,
@@ -1071,7 +1073,15 @@ export const db = {
           }))
         }
       } catch (e) {}
-      return (global as any).__AST_AUDIT_LOGS__ || []
+
+      const merged = [...localLogs]
+      dbLogs.forEach(dl => {
+        if (!merged.some(l => l.id === dl.id)) {
+          merged.push(dl)
+        }
+      })
+      if (query?.take) return merged.slice(0, query.take)
+      return merged
     },
 
     create: async ({ data }: { data: { adminId: string; adminName: string; action: string; targetId?: string; details: string } }): Promise<AuditLogRecord> => {

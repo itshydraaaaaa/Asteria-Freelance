@@ -12,13 +12,15 @@ const config: Config = {
         ast: {
           primary: '#11606e',
           light:   '#60c8d4',
+          'light-contrast': '#0d7380',
           sky:     '#4CB4E7',
+          'sky-contrast': '#0369a1',
           dark:    '#0a3a40',
           black:   '#000000',
           white:   '#ffffff',
           surface: '#f4fbfb',
           muted:   '#e0f2f3',
-          gray:    '#6b7280',
+          gray:    '#4b5563',
         },
       },
       fontFamily: {
