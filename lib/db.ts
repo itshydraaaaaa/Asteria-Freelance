@@ -247,20 +247,26 @@ export const db = {
         const supabase = await getDbClient()
         const { data, error } = await supabase.from('User').select('*')
         if (!error && data && data.length > 0) {
-          const dbUsers: UserRecord[] = data.map(u => ({
-            id: u.id,
-            name: u.name || 'User',
-            email: u.email || '',
-            role: u.role || 'CLIENT',
-            image: u.image || null,
-            bio: u.bio || '',
-            skills: u.skills || [],
-            walletBalance: u.walletBalance ?? 0,
-            verifiedStatus: u.verifiedStatus || 'APPROVED',
-            rating: 5.0,
-            reviewCount: 0,
-            createdAt: new Date(u.createdAt || Date.now()),
-          }))
+          const { data: verifs } = await supabase.from('Verification').select('userId, status')
+
+          const dbUsers: UserRecord[] = data.map(u => {
+            const v = verifs?.find(ver => ver.userId === u.id)
+            const vStatus = v?.status || (u.role === 'ADMIN' ? 'APPROVED' : 'UNSUBMITTED')
+            return {
+              id: u.id,
+              name: u.name || 'User',
+              email: u.email || '',
+              role: u.role || 'CLIENT',
+              image: u.image || null,
+              bio: u.bio || '',
+              skills: u.skills || [],
+              walletBalance: u.walletBalance ?? 0,
+              verifiedStatus: vStatus,
+              rating: 5.0,
+              reviewCount: 0,
+              createdAt: new Date(u.createdAt || Date.now()),
+            }
+          })
           
           // Merge avoiding duplicates
           const merged = [...dbUsers]
@@ -294,6 +300,8 @@ export const db = {
         if (where.email) query = query.eq('email', where.email.toLowerCase())
         const { data, error } = await query.maybeSingle()
         if (!error && data) {
+          const { data: v } = await supabase.from('Verification').select('status').eq('userId', data.id).maybeSingle()
+          const vStatus = v?.status || (data.role === 'ADMIN' ? 'APPROVED' : 'UNSUBMITTED')
           return {
             id: data.id,
             name: data.name || localFound?.name || 'User',
@@ -303,7 +311,7 @@ export const db = {
             bio: data.bio || localFound?.bio,
             skills: data.skills || localFound?.skills || [],
             walletBalance: data.walletBalance ?? localFound?.walletBalance ?? 0,
-            verifiedStatus: data.verifiedStatus || localFound?.verifiedStatus || 'APPROVED',
+            verifiedStatus: vStatus,
             rating: 5.0,
             reviewCount: 0,
             createdAt: new Date(data.createdAt || Date.now()),
