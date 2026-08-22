@@ -85,12 +85,23 @@ export function NotificationDropdown() {
     }
   }
 
+  useEffect(() => {
+    if (!open) return
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    window.addEventListener('keydown', handleEscape)
+    return () => window.removeEventListener('keydown', handleEscape)
+  }, [open])
+
   return (
     <div className="relative">
       <button
         onClick={() => setOpen(o => !o)}
         className="relative p-2 rounded-full text-white/80 hover:text-white hover:bg-white/10 transition-colors"
-        aria-label="Notifications"
+        aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ''}`}
+        aria-haspopup="true"
+        aria-expanded={open}
       >
         <Bell size={19} />
         {unreadCount > 0 && (
@@ -108,6 +119,8 @@ export function NotificationDropdown() {
             exit={{ opacity: 0, y: -8, scale: 0.96 }}
             transition={{ duration: 0.15 }}
             className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-3xl shadow-2xl border border-black/10 overflow-hidden z-50 text-black"
+            role="region"
+            aria-live="polite"
           >
             <div className="px-5 py-3.5 border-b border-black/8 flex items-center justify-between bg-ast-surface/50">
               <div className="flex items-center gap-2">

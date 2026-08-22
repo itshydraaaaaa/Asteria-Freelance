@@ -9,7 +9,7 @@
  * - Focus management and trap prevention
  */
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Star, X, CheckCircle2 } from 'lucide-react'
 
 interface Props {
@@ -36,6 +36,15 @@ export function ReviewSubmissionModal({
   const [comment, setComment] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
+
+  useEffect(() => {
+    if (!isOpen) return
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handleEscape)
+    return () => window.removeEventListener('keydown', handleEscape)
+  }, [isOpen, onClose])
 
   if (!isOpen) return null
 
