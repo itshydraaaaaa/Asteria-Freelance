@@ -977,28 +977,7 @@ export const db = {
     findMany: async (query?: { where?: { senderId?: string; receiverId?: string; userId?: string }; orderBy?: any }): Promise<MessageRecord[]> => {
       let localMessages: MessageRecord[] = (global as any).__AST_MESSAGES__
       if (!localMessages) {
-        localMessages = [
-          {
-            id: 'm1',
-            senderId: 'f1',
-            receiverId: 'c1',
-            content: 'Hello Sami! I reviewed your project scope and would love to collaborate on the Next.js SaaS architecture.',
-            msgType: 'TEXT',
-            offerData: null,
-            isRead: true,
-            createdAt: new Date(Date.now() - 3600000 * 2),
-          },
-          {
-            id: 'm2',
-            senderId: 'c1',
-            receiverId: 'f1',
-            content: 'Great to connect Yassine! Please feel free to send a custom offer or review the job posting.',
-            msgType: 'TEXT',
-            offerData: null,
-            isRead: true,
-            createdAt: new Date(Date.now() - 3600000),
-          },
-        ]
+        localMessages = []
         ;(global as any).__AST_MESSAGES__ = localMessages
       }
 
@@ -1055,13 +1034,16 @@ export const db = {
       // Insert into Supabase
       try {
         const supabase = await getDbClient()
-        await supabase.from('Message').insert({
+        const { data: created, error } = await supabase.from('Message').insert({
           senderId: newMsg.senderId,
           receiverId: newMsg.receiverId,
           content: newMsg.content,
-          msgType: newMsg.msgType,
-          offerData: newMsg.offerData,
-        })
+          read: false,
+        }).select('*').single()
+
+        if (!error && created) {
+          newMsg.id = created.id
+        }
       } catch (e) {}
 
       let list: MessageRecord[] = (global as any).__AST_MESSAGES__ || []
@@ -1074,6 +1056,21 @@ export const db = {
   // ── AUDIT LOG ───────────────────────────────────────────────────────────────
   auditLog: {
     findMany: async (query?: { orderBy?: any; take?: number }): Promise<AuditLogRecord[]> => {
+      try {
+        const supabase = await getDbClient()
+        const { data, error } = await supabase.from('AuditLog').select('*').order('createdAt', { ascending: false }).limit(query?.take ?? 50)
+        if (!error && data) {
+          return data.map(a => ({
+            id: a.id,
+            adminId: a.adminId,
+            adminName: a.adminName,
+            action: a.action,
+            details: a.details,
+            targetId: a.targetId,
+            createdAt: new Date(a.createdAt || Date.now()),
+          }))
+        }
+      } catch (e) {}
       return (global as any).__AST_AUDIT_LOGS__ || []
     },
 
@@ -1087,6 +1084,17 @@ export const db = {
         details: data.details,
         createdAt: new Date(),
       }
+
+      try {
+        const supabase = await getDbClient()
+        await supabase.from('AuditLog').insert({
+          adminId: newLog.adminId,
+          adminName: newLog.adminName,
+          action: newLog.action,
+          details: newLog.details,
+        })
+      } catch (e) {}
+
       let logs = (global as any).__AST_AUDIT_LOGS__ || []
       logs.unshift(newLog)
       ;(global as any).__AST_AUDIT_LOGS__ = logs
@@ -1295,24 +1303,68 @@ export const db = {
 
   // ── REVIEW ──────────────────────────────────────────────────────────────────
   review: {
-    findMany: async (query?: { where?: { freelancerId?: string; gigId?: string }; orderBy?: any }): Promise<any[]> => {
-      let list: any[] = (global as any).__AST_REVIEWS__
-      if (!list) {
-        list = []
-        ;(global as any).__AST_REVIEWS__ = list
-      }
-      if (query?.where?.freelancerId) list = list.filter(r => r.freelancerId === query.where!.freelancerId)
+    findMany: async (query?: { where?: { freelancerId?: string; gigId?: string; reviewerId?: string }; orderBy?: any }): Promise<any[]> => {
+      const users = await db.user.findMany()
+      let dbReviews: any[] = []
+
+      try {
+        const supabase = await getDbClient()
+        const { data, error } = await supabase.from('Review').select('*').order('createdAt', { ascending: false })
+        if (!error && data) {
+          dbReviews = data.map(r => {
+            const u = users.find(usr => usr.id === r.reviewerId) || { name: 'Client' }
+            return {
+              id: r.id,
+              gigId: r.gigId,
+              reviewerId: r.reviewerId,
+              name: u.name,
+              initials: (u.name || 'C').split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase(),
+              rating: Number(r.rating) || 5,
+              comment: r.comment || '',
+              date: 'Verified Client',
+              createdAt: new Date(r.createdAt || Date.now()),
+            }
+          })
+        }
+      } catch (e) {}
+
+      let list = [...dbReviews]
       if (query?.where?.gigId) list = list.filter(r => r.gigId === query.where!.gigId)
+      if (query?.where?.reviewerId) list = list.filter(r => r.reviewerId === query.where!.reviewerId)
       return list
     },
 
     create: async ({ data }: { data: any }): Promise<any> => {
+      const users = await db.user.findMany()
+      const u = users.find(usr => usr.id === data.reviewerId || usr.id === data.userId) || { id: data.reviewerId || data.userId || 'u1', name: 'Client' }
+
       const newRev = {
-        id: `rev_${Date.now()}`,
-        ...data,
+        id: data.id ?? `rev_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        gigId: data.gigId,
+        reviewerId: data.reviewerId || data.userId || u.id,
+        name: u.name,
+        initials: (u.name || 'C').split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase(),
+        rating: Number(data.rating) || 5,
+        comment: data.comment ?? '',
+        date: 'Verified Client',
         createdAt: new Date(),
       }
-      let list: any[] = (global as any).__AST_REVIEWS__ || []
+
+      try {
+        const supabase = await getDbClient()
+        const { data: created, error } = await supabase.from('Review').insert({
+          gigId: newRev.gigId,
+          reviewerId: newRev.reviewerId,
+          rating: newRev.rating,
+          comment: newRev.comment,
+        }).select('*').single()
+
+        if (!error && created) {
+          newRev.id = created.id
+        }
+      } catch (e) {}
+
+      let list = (global as any).__AST_REVIEWS__ || []
       list.unshift(newRev)
       ;(global as any).__AST_REVIEWS__ = list
       return newRev
@@ -1377,12 +1429,31 @@ export const db = {
   // ── NOTIFICATION ───────────────────────────────────────────────────────────
   notification: {
     findMany: async (query?: { where?: { userId?: string; isRead?: boolean }; orderBy?: any; take?: number }): Promise<NotificationRecord[]> => {
-      let list: NotificationRecord[] = (global as any).__AST_NOTIFICATIONS__
-      if (!list) {
-        list = []
-        ;(global as any).__AST_NOTIFICATIONS__ = list
-      }
+      let dbNotifs: NotificationRecord[] = []
+      try {
+        const supabase = await getDbClient()
+        let q = supabase.from('Notification').select('*').order('createdAt', { ascending: false })
+        if (query?.where?.userId) q = q.eq('userId', query.where.userId)
+        if (typeof query?.where?.isRead === 'boolean') q = q.eq('read', query.where.isRead)
+        if (query?.take) q = q.limit(query.take)
 
+        const { data, error } = await q
+        if (!error && data && data.length > 0) {
+          dbNotifs = data.map(n => ({
+            id: n.id,
+            userId: n.userId,
+            title: n.title,
+            message: n.message || '',
+            type: n.type || 'INFO',
+            link: n.link || '/dashboard',
+            isRead: n.read ?? false,
+            createdAt: new Date(n.createdAt || Date.now()),
+          }))
+          return dbNotifs
+        }
+      } catch (e) {}
+
+      let list: NotificationRecord[] = (global as any).__AST_NOTIFICATIONS__ || []
       let filtered = [...list]
       if (query?.where?.userId) filtered = filtered.filter(n => n.userId === query.where!.userId)
       if (typeof query?.where?.isRead === 'boolean') filtered = filtered.filter(n => n.isRead === query.where!.isRead)
@@ -1402,10 +1473,23 @@ export const db = {
         createdAt: new Date(),
       }
 
-      let list: NotificationRecord[] = (global as any).__AST_NOTIFICATIONS__
-      if (!list) {
-        list = await db.notification.findMany()
-      }
+      try {
+        const supabase = await getDbClient()
+        const { data: created, error } = await supabase.from('Notification').insert({
+          userId: newNotif.userId,
+          title: newNotif.title,
+          message: newNotif.message,
+          type: newNotif.type,
+          link: newNotif.link,
+          read: false,
+        }).select('*').single()
+
+        if (!error && created) {
+          newNotif.id = created.id
+        }
+      } catch (e) {}
+
+      let list: NotificationRecord[] = (global as any).__AST_NOTIFICATIONS__ || []
       list.unshift(newNotif)
       ;(global as any).__AST_NOTIFICATIONS__ = list
       return newNotif
@@ -1417,9 +1501,18 @@ export const db = {
       if (idx !== -1) {
         list[idx] = { ...list[idx], ...data }
         ;(global as any).__AST_NOTIFICATIONS__ = list
-        return list[idx]
       }
-      return null
+
+      try {
+        const supabase = await getDbClient()
+        await supabase.from('Notification').update({
+          read: data.isRead,
+          title: data.title,
+          message: data.message,
+        }).eq('id', where.id)
+      } catch (e) {}
+
+      return list[idx] || null
     },
 
     markAllAsRead: async (userId: string): Promise<number> => {
@@ -1432,6 +1525,12 @@ export const db = {
         }
       })
       ;(global as any).__AST_NOTIFICATIONS__ = list
+
+      try {
+        const supabase = await getDbClient()
+        await supabase.from('Notification').update({ read: true }).eq('userId', userId)
+      } catch (e) {}
+
       return updatedCount
     },
   },
