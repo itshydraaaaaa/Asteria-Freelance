@@ -2,9 +2,42 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
+  const nonce = Buffer.from(crypto.randomUUID()).toString('base64')
+  const isDev = process.env.NODE_ENV !== 'production'
+
+  const cspHeader = `
+    default-src 'self';
+    script-src 'self' 'nonce-${nonce}' 'strict-dynamic' ${isDev ? "'unsafe-eval'" : ''} https://js.stripe.com https://cdn.jsdelivr.net https://sandbox.flouci.com;
+    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+    img-src 'self' blob: data: https://utfs.io https://avatars.githubusercontent.com https://lh3.googleusercontent.com https://images.unsplash.com https://*.stripe.com https://*.supabase.co;
+    font-src 'self' https://fonts.gstatic.com;
+    connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com https://api.exchangerate-api.com https://sandbox.flouci.com https://sandbox.gateway.konnect.network;
+    frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://sandbox.flouci.com https://sandbox.gateway.konnect.network;
+    object-src 'none';
+    base-uri 'self';
+    form-action 'self';
+    frame-ancestors 'none';
+    require-trusted-types-for 'script';
+    trusted-types nextjs nextjs#bundler default;
+    upgrade-insecure-requests;
+  `.replace(/\s{2,}/g, ' ').trim()
+
+  const requestHeaders = new Headers(request.headers)
+  requestHeaders.set('x-nonce', nonce)
+  requestHeaders.set('Content-Security-Policy', cspHeader)
+
   let response = NextResponse.next({
-    request: { headers: request.headers },
+    request: { headers: requestHeaders },
   })
+
+  // Security Headers
+  response.headers.set('Content-Security-Policy', cspHeader)
+  response.headers.set('Cross-Origin-Opener-Policy', 'same-origin')
+  response.headers.set('X-Frame-Options', 'DENY')
+  response.headers.set('X-Content-Type-Options', 'nosniff')
+  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
+  response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
+  response.headers.set('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload')
 
   const isDashboard = request.nextUrl.pathname.startsWith('/dashboard')
   if (!isDashboard) return response
@@ -22,7 +55,6 @@ export async function middleware(request: NextRequest) {
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
   if (!supabaseUrl || !supabaseAnonKey || supabaseUrl.includes('placeholder')) {
-    // If Supabase credentials are placeholder in local testing, check demo cookie or redirect
     const demoUserId = request.cookies.get('demo_user_id')?.value
     if (demoUserId) return response
     return NextResponse.redirect(new URL('/login', request.url))
@@ -63,5 +95,14 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*'],
+  matcher: [
+    /*
+     * Match all request paths except:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - images/static assets (.svg, .png, .jpg, .jpeg, .gif, .webp)
+     */
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+  ],
 }

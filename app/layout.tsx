@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Exo_2, Inter, JetBrains_Mono, Plus_Jakarta_Sans } from 'next/font/google'
+import { headers } from 'next/headers'
 import './globals.css'
 import { Navbar } from '@/components/layout/Navbar'
 import { Footer } from '@/components/layout/Footer'
@@ -37,8 +38,27 @@ export const metadata: Metadata = {
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  let supabaseOrigin = ''
+  try {
+    const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    if (rawUrl && !rawUrl.includes('placeholder')) {
+      supabaseOrigin = new URL(rawUrl).origin
+    }
+  } catch {}
+
   return (
     <html lang="en" className={`${exo2.variable} ${inter.variable} ${jetbrains.variable} ${jakarta.variable}`}>
+      <head>
+        {supabaseOrigin && (
+          <>
+            <link rel="preconnect" href={supabaseOrigin} crossOrigin="anonymous" />
+            <link rel="dns-prefetch" href={supabaseOrigin} />
+          </>
+        )}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
+      </head>
       <body className="font-body bg-white text-black antialiased">
         <Providers>
           <CustomCursor />
