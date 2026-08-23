@@ -45,32 +45,18 @@ export function LoadingScreen({ onComplete }: { onComplete: () => void }) {
         fading ? 'opacity-0 pointer-events-none' : 'opacity-100'
       }`}
     >
-      <div className="relative w-16 h-16 mb-4 flex items-center justify-center">
-        <svg
-          width="56"
-          height="56"
-          viewBox="0 0 64 64"
-          fill="none"
-          className="animate-pulse"
-        >
-          <path
-            d="M32 6 L58 54 L6 54 Z"
-            stroke="#60c8d4"
-            strokeWidth="2.5"
-            fill="none"
-          />
-          <path
-            d="M32 20 L48 50 L16 50 Z"
-            stroke="#4CB4E7"
-            strokeWidth="1.5"
-            fill="none"
-          />
-          <circle cx="32" cy="38" r="4" fill="#60c8d4" />
-        </svg>
+
+      <div className="relative flex items-center justify-center w-20 h-20 mb-6">
+        <div className="absolute inset-0 rounded-full border-t-2 border-r-2 border-ast-light/30 animate-spin" />
+        <div className="absolute inset-0 rounded-full border-t-2 border-ast-light animate-spin blur-[2px]" />
+        <div className="absolute inset-2 rounded-full border-b-2 border-l-2 border-ast-primary animate-[spin_1.5s_linear_infinite_reverse]" />
+        <div className="absolute bg-ast-dark/80 w-12 h-12 rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(17,96,110,0.5)] overflow-hidden">
+          <img src="/logo.png" alt="Asteria Logo" className="w-8 h-8 object-contain animate-pulse drop-shadow-[0_0_8px_rgba(96,200,212,0.8)]" />
+        </div>
       </div>
 
       <div className="flex items-center gap-1">
-        <span className="font-heading text-2xl font-bold text-ast-light tracking-widest">
+        <span className="font-heading text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-ast-light tracking-[0.25em]">
           ASTERIA
         </span>
       </div>

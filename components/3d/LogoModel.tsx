@@ -49,11 +49,12 @@ export default function LogoModel() {
         />
 
         {/* 3D Holographic Wave Logo Graphic */}
-        <div className="relative w-64 h-64 flex items-center justify-center">
+        <div className="relative w-52 h-52 flex items-center justify-center">
+          <div className="absolute inset-4 bg-gradient-to-tr from-ast-light/30 via-sky-400/20 to-transparent rounded-full blur-xl animate-pulse" />
           <img
             src="/logo.png"
             alt="Asteria Hologram Logo"
-            className="w-52 h-52 object-contain filter drop-shadow-[0_0_30px_rgba(96,200,212,0.6)]"
+            className="relative w-36 h-36 sm:w-40 sm:h-40 object-contain filter drop-shadow-[0_0_25px_rgba(96,200,212,0.7)] group-hover:rotate-6 transition-transform duration-700"
             style={reducedMotion ? {} : { animation: 'heroFloat 4s ease-in-out infinite' }}
           />
         </div>
