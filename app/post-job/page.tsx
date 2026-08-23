@@ -4,7 +4,7 @@ import { useState, useEffect }     from 'react'
 import { useRouter }          from 'next/navigation'
 import Link                   from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Check, ChevronRight, ChevronLeft, Upload, Briefcase, Sparkles, ShieldAlert, ShieldCheck, ArrowRight } from 'lucide-react'
+import { Check, ChevronRight, ChevronLeft, Upload, Briefcase, Sparkles, ShieldAlert, ShieldCheck, ArrowRight, Wallet, AlertCircle } from 'lucide-react'
 import { categories } from '@/lib/data/categories'
 import { AIAssistantModal } from '@/components/ai/AIAssistantModal'
 
@@ -39,10 +39,12 @@ export default function PostJobPage() {
   const [loading,   setLoading]   = useState(false)
   const [verifLoading, setVerifLoading] = useState(true)
   const [verifiedStatus, setVerifiedStatus] = useState<string>('APPROVED')
+  const [walletBalance, setWalletBalance] = useState<number | null>(null)
   const [error,     setError]     = useState('')
   const [showAiModal, setShowAiModal] = useState(false)
 
   useEffect(() => {
+    // 1. Check Verification
     fetch('/api/user/verification')
       .then(res => res.json())
       .then(data => {
@@ -54,6 +56,16 @@ export default function PostJobPage() {
       })
       .catch(() => setVerifiedStatus('APPROVED'))
       .finally(() => setVerifLoading(false))
+
+    // 2. Fetch User Wallet Balance
+    fetch('/api/auth/session')
+      .then(res => res.json())
+      .then(data => {
+        if (data.user?.walletBalance !== undefined) {
+          setWalletBalance(Number(data.user.walletBalance))
+        }
+      })
+      .catch(() => {})
   }, [])
 
   const next = () => { setDir(1);  setStep(s => Math.min(s + 1, STEPS.length - 1)) }
@@ -270,6 +282,45 @@ export default function PostJobPage() {
                     </div>
                   </div>
 
+                  {/* Live Wallet Balance Indicator */}
+                  <div className="bg-ast-surface rounded-2xl p-4 border border-black/10 flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-ast-primary/10 flex items-center justify-center text-ast-primary">
+                        <Wallet size={16} />
+                      </div>
+                      <div>
+                        <span className="text-xs font-semibold text-black block">Available Wallet Balance</span>
+                        <span className="text-[11px] text-ast-gray">Required to fund project escrow</span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <span className={`text-sm font-bold ${walletBalance !== null && form.budget > walletBalance ? 'text-red-600' : 'text-emerald-700'}`}>
+                        {walletBalance !== null ? `${walletBalance.toFixed(2)} TND` : 'Checking balance...'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {walletBalance !== null && form.budget > walletBalance && (
+                    <div className="bg-red-50 border border-red-200 text-red-700 text-xs rounded-2xl p-4 flex items-start gap-3">
+                      <AlertCircle size={18} className="shrink-0 mt-0.5" />
+                      <div className="space-y-1.5 flex-1">
+                        <p className="font-semibold">
+                          Insufficient Funds: Your job budget ({form.budget.toLocaleString()} TND) exceeds your wallet balance ({walletBalance.toFixed(2)} TND).
+                        </p>
+                        <p className="text-ast-gray text-[11px]">
+                          Clients cannot post jobs exceeding their available funds. Please top up at least {(form.budget - walletBalance).toFixed(2)} TND to proceed.
+                        </p>
+                        <Link
+                          href="/dashboard/wallet"
+                          target="_blank"
+                          className="inline-flex items-center gap-1 font-bold text-red-800 underline hover:no-underline pt-1"
+                        >
+                          <Wallet size={13} /> Top Up Wallet in New Tab →
+                        </Link>
+                      </div>
+                    </div>
+                  )}
+
                   <div>
                     <label className="block text-sm font-medium text-black mb-3">
                       Project Budget: <span className="text-ast-primary font-bold">{form.budget.toLocaleString()} TND</span>
@@ -326,7 +377,7 @@ export default function PostJobPage() {
                   {[
                     ['Title',      form.title || '—'],
                     ['Category',   form.category || '—'],
-                    ['Budget',     `$${form.budget.toLocaleString()}`],
+                    ['Budget',     `${form.budget.toLocaleString()} TND`],
                     ['Delivery',   `${form.deliveryDays} day(s)`],
                     ['Skills',     form.skills || '—'],
                   ].map(([k, v]) => (
@@ -335,6 +386,28 @@ export default function PostJobPage() {
                       <span className="font-medium text-black text-sm text-right max-w-xs">{v}</span>
                     </div>
                   ))}
+
+                  {/* Escrow Balance Check Banner in Review */}
+                  <div className={`p-4 rounded-2xl border ${walletBalance !== null && form.budget > walletBalance ? 'bg-red-50 border-red-200' : 'bg-emerald-50 border-emerald-200'} space-y-2`}>
+                    <div className="flex items-center justify-between text-xs font-bold">
+                      <span className={walletBalance !== null && form.budget > walletBalance ? 'text-red-700' : 'text-emerald-800'}>
+                        {walletBalance !== null && form.budget > walletBalance ? '⚠️ Insufficient Wallet Balance' : '✓ Escrow Funding Ready'}
+                      </span>
+                      <span className={walletBalance !== null && form.budget > walletBalance ? 'text-red-700' : 'text-emerald-800'}>
+                        Wallet: {walletBalance !== null ? `${walletBalance.toFixed(2)} TND` : '...'} · Needed: {form.budget} TND
+                      </span>
+                    </div>
+                    {walletBalance !== null && form.budget > walletBalance ? (
+                      <p className="text-[11px] text-red-600 leading-relaxed">
+                        You need at least {(form.budget - walletBalance).toFixed(2)} TND more in your balance to publish this job.
+                      </p>
+                    ) : (
+                      <p className="text-[11px] text-emerald-700 leading-relaxed">
+                        Your account has sufficient funds to guarantee escrow payout upon project completion.
+                      </p>
+                    )}
+                  </div>
+
                   {form.description && (
                     <div className="bg-ast-surface rounded-xl p-4">
                       <p className="text-xs text-ast-gray uppercase tracking-wider mb-2">Description</p>
@@ -359,6 +432,14 @@ export default function PostJobPage() {
               >
                 Continue <ChevronRight size={16} />
               </button>
+            ) : walletBalance !== null && form.budget > walletBalance ? (
+              <Link
+                href="/dashboard/wallet"
+                target="_blank"
+                className="flex items-center gap-2 bg-red-600 text-white rounded-full px-6 py-2.5 text-sm font-semibold hover:bg-red-700 transition-colors shadow-sm"
+              >
+                <Wallet size={15} /> Top Up Wallet ({(form.budget - walletBalance).toFixed(0)} TND Needed)
+              </Link>
             ) : (
               <button onClick={handleSubmit} disabled={loading}
                 className="flex items-center gap-2 bg-ast-primary text-white rounded-full px-6 py-2.5 text-sm font-medium hover:bg-ast-dark transition-colors disabled:opacity-60">

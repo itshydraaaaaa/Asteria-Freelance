@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Clock, RefreshCw, Check, ShieldCheck, DollarSign, Layers,
@@ -27,10 +27,22 @@ export function GigOrderCheckoutClient({ gig, freelancer, packages }: Props) {
   const [selectedPkgIndex, setSelectedPkgIndex] = useState(1) // Default to Standard
   const [paymentMode, setPaymentMode] = useState<'FULL_JOB' | 'MILESTONE'>('FULL_JOB')
   const [showCheckoutModal, setShowCheckoutModal] = useState(false)
+  const [walletBalance, setWalletBalance] = useState<number | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
   const selectedPkg = packages[selectedPkgIndex]
+
+  useEffect(() => {
+    fetch('/api/auth/session')
+      .then(res => res.json())
+      .then(data => {
+        if (data.user?.walletBalance !== undefined) {
+          setWalletBalance(Number(data.user.walletBalance))
+        }
+      })
+      .catch(() => {})
+  }, [])
 
   // Custom milestones if milestone mode is selected
   const [milestones, setMilestones] = useState([
@@ -167,15 +179,45 @@ export function GigOrderCheckoutClient({ gig, freelancer, packages }: Props) {
             ))}
           </ul>
 
-          <div className="space-y-2.5 pt-2">
-            <button
-              type="button"
-              onClick={() => setShowCheckoutModal(true)}
-              className="w-full bg-ast-primary text-white rounded-2xl py-3.5 font-semibold text-sm hover:bg-ast-dark transition-all shadow-sm flex items-center justify-center gap-2 group"
-            >
-              <span>Order Now ({selectedPkg.price} TND)</span>
-              <ArrowRight size={15} className="group-hover:translate-x-0.5 transition-transform" />
-            </button>
+          {/* Live Wallet Balance Pill */}
+          <div className="bg-ast-surface rounded-2xl p-3 border border-black/8 flex items-center justify-between text-xs">
+            <div className="flex items-center gap-2">
+              <Wallet size={14} className="text-ast-primary" />
+              <span className="text-ast-gray font-medium">Your Balance:</span>
+            </div>
+            <span className={`font-bold ${walletBalance !== null && walletBalance < selectedPkg.price ? 'text-red-600' : 'text-emerald-700'}`}>
+              {walletBalance !== null ? `${walletBalance.toFixed(2)} TND` : '...'}
+            </span>
+          </div>
+
+          <div className="space-y-2.5 pt-1">
+            {walletBalance !== null && walletBalance < selectedPkg.price ? (
+              <div className="space-y-2">
+                <Link
+                  href="/dashboard/wallet"
+                  className="w-full bg-red-600 text-white rounded-2xl py-3.5 font-semibold text-xs hover:bg-red-700 transition-all shadow-sm flex items-center justify-center gap-2"
+                >
+                  <Wallet size={15} />
+                  <span>Top Up Wallet ({(selectedPkg.price - walletBalance).toFixed(0)} TND Needed)</span>
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => setShowCheckoutModal(true)}
+                  className="w-full border border-black/15 text-ast-gray rounded-2xl py-2 text-xs font-semibold hover:bg-ast-surface transition-colors flex items-center justify-center gap-1.5"
+                >
+                  <span>Preview Escrow Terms</span>
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowCheckoutModal(true)}
+                className="w-full bg-ast-primary text-white rounded-2xl py-3.5 font-semibold text-sm hover:bg-ast-dark transition-all shadow-sm flex items-center justify-center gap-2 group"
+              >
+                <span>Order Now ({selectedPkg.price} TND)</span>
+                <ArrowRight size={15} className="group-hover:translate-x-0.5 transition-transform" />
+              </button>
+            )}
 
             <Link
               href={`/dashboard/messages?user=${freelancer.id}`}
@@ -338,8 +380,8 @@ export function GigOrderCheckoutClient({ gig, freelancer, packages }: Props) {
               </div>
             )}
 
-            {/* Price Breakdown */}
-            <div className="bg-ast-surface rounded-2xl p-4 border border-black/5 space-y-2 text-xs">
+            {/* Price & Balance Breakdown */}
+            <div className="bg-ast-surface rounded-2xl p-4 border border-black/5 space-y-2.5 text-xs">
               <div className="flex items-center justify-between text-ast-gray">
                 <span>Selected Package:</span>
                 <span className="font-semibold text-black">{selectedPkg.label} ({selectedPkg.deliveryDays} Days)</span>
@@ -349,10 +391,28 @@ export function GigOrderCheckoutClient({ gig, freelancer, packages }: Props) {
                 <span className="font-bold text-base text-black">{selectedPkg.price} TND</span>
               </div>
               <div className="flex items-center justify-between text-ast-gray">
+                <span>Your Wallet Balance:</span>
+                <span className={`font-bold ${walletBalance !== null && walletBalance < selectedPkg.price ? 'text-red-600' : 'text-emerald-700'}`}>
+                  {walletBalance !== null ? `${walletBalance.toFixed(2)} TND` : 'Checking...'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-ast-gray pt-1 border-t border-black/5">
                 <span>Escrow Protection:</span>
                 <span className="font-semibold text-emerald-600">Included (Free)</span>
               </div>
             </div>
+
+            {walletBalance !== null && walletBalance < selectedPkg.price && (
+              <div className="bg-red-50 border border-red-200 text-red-700 text-xs rounded-2xl p-3.5 flex items-start gap-2.5">
+                <AlertCircle size={16} className="shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="font-bold">Insufficient Wallet Balance</p>
+                  <p className="text-[11px] text-red-600">
+                    You have {walletBalance.toFixed(2)} TND in your account. You need {(selectedPkg.price - walletBalance).toFixed(2)} TND more to fund escrow for this order.
+                  </p>
+                </div>
+              </div>
+            )}
 
             <div className="flex items-center justify-end gap-3 pt-2">
               <button
@@ -362,14 +422,23 @@ export function GigOrderCheckoutClient({ gig, freelancer, packages }: Props) {
               >
                 Cancel
               </button>
-              <button
-                type="button"
-                disabled={loading}
-                onClick={handlePlaceOrder}
-                className="px-6 py-2.5 rounded-xl text-xs font-semibold bg-ast-primary text-white hover:bg-ast-dark transition-all shadow-sm disabled:opacity-50 flex items-center gap-2"
-              >
-                {loading ? 'Funding Escrow...' : `Confirm & Place Order (${selectedPkg.price} TND)`}
-              </button>
+              {walletBalance !== null && walletBalance < selectedPkg.price ? (
+                <Link
+                  href="/dashboard/wallet"
+                  className="px-6 py-2.5 rounded-xl text-xs font-semibold bg-red-600 text-white hover:bg-red-700 transition-all shadow-sm flex items-center gap-1.5"
+                >
+                  <Wallet size={14} /> Top Up Wallet ({(selectedPkg.price - walletBalance).toFixed(0)} TND Needed)
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={handlePlaceOrder}
+                  className="px-6 py-2.5 rounded-xl text-xs font-semibold bg-ast-primary text-white hover:bg-ast-dark transition-all shadow-sm disabled:opacity-50 flex items-center gap-2"
+                >
+                  {loading ? 'Funding Escrow...' : `Confirm & Place Order (${selectedPkg.price} TND)`}
+                </button>
+              )}
             </div>
           </div>
         </div>

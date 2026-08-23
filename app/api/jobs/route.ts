@@ -59,6 +59,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Budget must be a positive number' }, { status: 400 })
     }
 
+    // Strict Wallet Balance Enforcement: Client cannot post a job exceeding their available balance
+    const userBalance = Number(user?.walletBalance ?? 0)
+    if (numericBudget > userBalance) {
+      return NextResponse.json({
+        error: `Insufficient wallet balance. You have ${userBalance.toFixed(2)} TND in your account, but this job requires a budget of ${numericBudget.toFixed(2)} TND. Please top up your wallet to post this job.`,
+        currentBalance: userBalance,
+        requiredBudget: numericBudget,
+      }, { status: 402 })
+    }
+
     const formattedSkills = Array.isArray(skills)
       ? skills
       : skills?.split(',').map((s: string) => s.trim()).filter(Boolean) ?? []
