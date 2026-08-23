@@ -1,7 +1,114 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { ShieldCheck, Upload, CheckCircle2, AlertCircle, Clock, FileText, UserCheck, ArrowRight } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { ShieldCheck, Upload, CheckCircle2, AlertCircle, Clock, FileText, UserCheck, ArrowRight, Loader2, X, Image as ImageIcon } from 'lucide-react'
+
+interface UploadBoxProps {
+  label: string
+  subtitle: string
+  value: string
+  onChange: (url: string) => void
+  disabled?: boolean
+}
+
+function UploadBox({ label, subtitle, value, onChange, disabled }: UploadBoxProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [uploading, setUploading] = useState(false)
+  const [error, setError] = useState('')
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploading(true)
+    setError('')
+
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('bucket', 'kyc-documents')
+
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      })
+
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to upload photo.')
+      }
+
+      onChange(data.url)
+    } catch (err: any) {
+      setError(err.message || 'Upload failed')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  return (
+    <div className="border-2 border-dashed border-black/15 rounded-2xl p-5 text-center hover:border-ast-primary transition-all bg-ast-surface/30 relative">
+      <input
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        disabled={disabled || uploading}
+        className="hidden"
+      />
+
+      {value ? (
+        <div className="relative group">
+          <div className="w-full h-36 rounded-xl overflow-hidden bg-black/5 border border-black/10 flex items-center justify-center">
+            <img src={value} alt={label} className="w-full h-full object-cover" />
+          </div>
+          <div className="mt-2 flex items-center justify-between">
+            <span className="text-xs font-semibold text-emerald-600 flex items-center gap-1">
+              <CheckCircle2 size={13} /> {label} Attached
+            </span>
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={disabled || uploading}
+              className="text-xs text-ast-primary hover:underline font-semibold"
+            >
+              Change
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div
+          onClick={() => !uploading && fileInputRef.current?.click()}
+          className="cursor-pointer py-4"
+        >
+          {uploading ? (
+            <div className="flex flex-col items-center gap-2">
+              <Loader2 size={26} className="animate-spin text-ast-primary" />
+              <p className="text-xs font-medium text-ast-gray">Scanning &amp; uploading photo…</p>
+            </div>
+          ) : (
+            <>
+              <div className="w-10 h-10 rounded-full bg-ast-primary/10 flex items-center justify-center mx-auto mb-2 text-ast-primary">
+                <Upload size={18} />
+              </div>
+              <p className="text-xs font-semibold text-black mb-0.5">{label}</p>
+              <p className="text-[11px] text-ast-gray mb-3">{subtitle}</p>
+              <span className="inline-block px-3 py-1 bg-white border border-black/15 rounded-lg text-xs font-semibold text-ast-dark hover:border-ast-primary transition-colors">
+                Choose Photo
+              </span>
+            </>
+          )}
+        </div>
+      )}
+
+      {error && (
+        <p className="text-[11px] text-red-600 mt-2 font-medium bg-red-50 p-1.5 rounded-lg">
+          {error}
+        </p>
+      )}
+    </div>
+  )
+}
 
 export default function VerificationPage() {
   const [loading, setLoading] = useState(true)
@@ -31,6 +138,16 @@ export default function VerificationPage() {
       if (res.ok) {
         const data = await res.json()
         setVerification(data.verification)
+        if (data.verification) {
+          setFullName(data.verification.fullName || '')
+          setDob(data.verification.dob || '')
+          setCountry(data.verification.country || 'Tunisia')
+          setDocumentType(data.verification.documentType || 'National ID')
+          setDocumentNumber(data.verification.documentNumber || '')
+          setIdFrontUrl(data.verification.idFrontUrl || data.verification.idFrontPath || '')
+          setIdBackUrl(data.verification.idBackUrl || data.verification.idBackPath || '')
+          setSelfieUrl(data.verification.selfieUrl || data.verification.selfiePath || '')
+        }
       }
     } catch (e) {
       console.error(e)
@@ -100,7 +217,7 @@ export default function VerificationPage() {
         <div>
           <h1 className="font-heading font-bold text-3xl text-black">Identity Verification (KYC)</h1>
           <p className="text-ast-gray text-sm mt-0.5">
-            Verify your official identity to unlock elite freelancer badge, higher withdrawal limits, and client trust.
+            Verify your official identity to unlock verified freelancer badge, higher limits, and platform trust.
           </p>
         </div>
       </div>
@@ -121,10 +238,10 @@ export default function VerificationPage() {
       {status === 'PENDING' && (
         <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 flex items-start gap-4">
           <Clock size={28} className="text-amber-600 shrink-0 mt-0.5 animate-pulse" />
-          <div>
+          <div className="flex-1">
             <h3 className="font-heading font-bold text-lg text-amber-900">Verification Under Admin Review</h3>
             <p className="text-amber-700 text-sm mt-1">
-              Your identity documents were submitted on {new Date(verification.submittedAt).toLocaleDateString()} and are currently pending administrator review. Approval typically takes 2–12 hours.
+              Your identity documents were submitted on {new Date(verification.submittedAt).toLocaleDateString()} and are currently pending review in the Master Admin panel.
             </p>
           </div>
         </div>
@@ -138,13 +255,13 @@ export default function VerificationPage() {
             <p className="text-red-700 text-sm mt-1">
               Reason: <strong>{verification?.rejectionReason ?? 'Document photos were blurry or unreadable.'}</strong>
             </p>
-            <p className="text-red-600 text-xs mt-2 font-medium">Please re-submit clear photos below for re-evaluation.</p>
+            <p className="text-red-600 text-xs mt-2 font-medium">Please re-upload clear photos below and re-submit.</p>
           </div>
         </div>
       )}
 
       {/* Verification Form */}
-      {(status === 'UNSUBMITTED' || status === 'REJECTED') && (
+      {(status === 'UNSUBMITTED' || status === 'REJECTED' || status === 'PENDING') && (
         <form onSubmit={handleSubmit} className="bg-white rounded-3xl border border-black/8 p-8 space-y-8 shadow-sm">
           {errorMsg && (
             <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-xl text-sm flex items-center gap-2">
@@ -234,51 +351,36 @@ export default function VerificationPage() {
             </div>
           </div>
 
-          {/* Step 2: Document Photos */}
+          {/* Step 2: Document Photos Upload */}
           <div className="space-y-4 pt-4">
             <h2 className="font-heading font-semibold text-lg text-black flex items-center gap-2 border-b border-black/5 pb-3">
-              <FileText size={18} className="text-ast-primary" /> 2. Document Attachments
+              <FileText size={18} className="text-ast-primary" /> 2. Upload Document Photos (Scanned &amp; Verified)
             </h2>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="border-2 border-dashed border-black/15 rounded-2xl p-5 text-center hover:border-ast-primary transition-colors bg-ast-surface/30">
-                <Upload size={24} className="mx-auto text-ast-primary mb-2" />
-                <p className="text-xs font-semibold text-black mb-1">ID Front Side</p>
-                <p className="text-[11px] text-ast-gray mb-3">Clear, readable photo</p>
-                <input
-                  type="url"
-                  placeholder="Photo URL or upload link"
-                  value={idFrontUrl}
-                  onChange={e => setIdFrontUrl(e.target.value)}
-                  className="w-full px-3 py-1.5 text-xs rounded-lg border border-black/15"
-                />
-              </div>
+              <UploadBox
+                label="ID Front Side"
+                subtitle="Clear, readable photo"
+                value={idFrontUrl}
+                onChange={setIdFrontUrl}
+                disabled={submitting}
+              />
 
-              <div className="border-2 border-dashed border-black/15 rounded-2xl p-5 text-center hover:border-ast-primary transition-colors bg-ast-surface/30">
-                <Upload size={24} className="mx-auto text-ast-primary mb-2" />
-                <p className="text-xs font-semibold text-black mb-1">ID Back Side</p>
-                <p className="text-[11px] text-ast-gray mb-3">Barcode/signature side</p>
-                <input
-                  type="url"
-                  placeholder="Photo URL or upload link"
-                  value={idBackUrl}
-                  onChange={e => setIdBackUrl(e.target.value)}
-                  className="w-full px-3 py-1.5 text-xs rounded-lg border border-black/15"
-                />
-              </div>
+              <UploadBox
+                label="ID Back Side"
+                subtitle="Barcode / signature side"
+                value={idBackUrl}
+                onChange={setIdBackUrl}
+                disabled={submitting}
+              />
 
-              <div className="border-2 border-dashed border-black/15 rounded-2xl p-5 text-center hover:border-ast-primary transition-colors bg-ast-surface/30">
-                <Upload size={24} className="mx-auto text-ast-primary mb-2" />
-                <p className="text-xs font-semibold text-black mb-1">Selfie Verification</p>
-                <p className="text-[11px] text-ast-gray mb-3">Holding your ID card</p>
-                <input
-                  type="url"
-                  placeholder="Photo URL or upload link"
-                  value={selfieUrl}
-                  onChange={e => setSelfieUrl(e.target.value)}
-                  className="w-full px-3 py-1.5 text-xs rounded-lg border border-black/15"
-                />
-              </div>
+              <UploadBox
+                label="Selfie Verification"
+                subtitle="Holding your ID card"
+                value={selfieUrl}
+                onChange={setSelfieUrl}
+                disabled={submitting}
+              />
             </div>
           </div>
 
@@ -287,9 +389,13 @@ export default function VerificationPage() {
             disabled={submitting}
             className="w-full bg-ast-primary text-white font-semibold rounded-xl py-4 hover:bg-ast-dark transition-colors flex items-center justify-center gap-2 shadow-md disabled:opacity-50"
           >
-            {submitting ? 'Submitting Documents...' : (
+            {submitting ? (
+              <span className="flex items-center gap-2">
+                <Loader2 size={18} className="animate-spin" /> Submitting Verification...
+              </span>
+            ) : (
               <>
-                Submit Verification Request <ArrowRight size={18} />
+                {status === 'PENDING' ? 'Update & Resubmit Verification' : 'Submit Verification Request'} <ArrowRight size={18} />
               </>
             )}
           </button>

@@ -44,28 +44,59 @@ export async function POST(req: NextRequest) {
     } = body
 
     if (!fullName || !dob || !country || !documentType || !documentNumber) {
-      return NextResponse.json({ error: 'Missing required document details' }, { status: 400 })
+      return NextResponse.json({ error: 'Missing required identity details (Full name, Date of birth, Country, Document type, Document number).' }, { status: 400 })
     }
 
-    // Check existing pending request
+    const front = idFrontPath || idFrontUrl || 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=600'
+    const back  = idBackPath  || idBackUrl  || 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=600'
+    const selfie = selfiePath || selfieUrl  || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400'
+
+    // Check existing verification record
     const existing = await db.verification.findUnique({ where: { userId: session!.user.id } })
-    if (existing && existing.status === 'PENDING') {
-      return NextResponse.json({ error: 'A verification request is already pending review' }, { status: 400 })
+
+    let verification
+    if (existing) {
+      // Update existing record with new details and set back to PENDING for review
+      verification = await db.verification.update({
+        where: { id: existing.id },
+        data: {
+          fullName,
+          dob,
+          country,
+          documentType,
+          documentNumber,
+          idFrontPath: front,
+          idBackPath:  back,
+          selfiePath:  selfie,
+          status:      'PENDING',
+          rejectionReason: undefined,
+          reviewedBy:      undefined,
+          reviewedAt:      undefined,
+          submittedAt:     new Date(),
+        } as any,
+      })
+    } else {
+      // Create new verification submission
+      verification = await db.verification.create({
+        data: {
+          userId:         session!.user.id,
+          fullName,
+          dob,
+          country,
+          documentType,
+          documentNumber,
+          idFrontPath:    front,
+          idBackPath:     back,
+          selfiePath:     selfie,
+          status:         'PENDING',
+        },
+      })
     }
 
-    const verification = await db.verification.create({
-      data: {
-        userId:         session!.user.id,
-        fullName,
-        dob,
-        country,
-        documentType,
-        documentNumber,
-        idFrontPath:    idFrontPath || idFrontUrl || 'kyc-documents/placeholder_front.jpg',
-        idBackPath:     idBackPath  || idBackUrl  || 'kyc-documents/placeholder_back.jpg',
-        selfiePath:     selfiePath  || selfieUrl  || 'kyc-documents/placeholder_selfie.jpg',
-        status:         'PENDING',
-      }
+    // Ensure User verifiedStatus is synced to PENDING
+    await db.user.update({
+      where: { id: session!.user.id },
+      data: { verifiedStatus: 'PENDING' },
     })
 
     try {
@@ -77,10 +108,10 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(
       { verification, message: 'Identity verification submitted successfully for review.' },
-      { status: 201 }
+      { status: 200 }
     )
-  } catch (err) {
+  } catch (err: any) {
     console.error('POST /api/user/verification error:', err)
-    return NextResponse.json({ error: 'Failed to submit verification' }, { status: 500 })
+    return NextResponse.json({ error: err.message || 'Failed to submit verification' }, { status: 500 })
   }
 }
