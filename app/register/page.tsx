@@ -37,11 +37,12 @@ export default function RegisterPage() {
         className="w-full max-w-md"
       >
         <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2 mb-6">
-            <svg width="28" height="28" viewBox="0 0 64 64" fill="none">
-              <path d="M32 4 L60 56 L4 56 Z" stroke="#60c8d4" strokeWidth="2.5" fill="none" />
-              <circle cx="32" cy="38" r="4" fill="#60c8d4" />
-            </svg>
+          <Link href="/" className="inline-flex items-center gap-2 mb-6 group">
+            <img
+              src="/logo.png"
+              alt="Asteria Logo"
+              className="w-8 h-8 object-contain transition-transform group-hover:scale-105"
+            />
             <span className="font-heading font-bold text-xl text-ast-light tracking-wide">ASTERIA</span>
           </Link>
           <h1 className="font-heading font-bold text-3xl text-white">Create your account</h1>

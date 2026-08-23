@@ -42,11 +42,12 @@ export default function LoginPage() {
         className="w-full max-w-md bg-white rounded-3xl p-8 shadow-2xl space-y-6"
       >
         <div className="text-center">
-          <Link href="/" className="inline-flex items-center gap-2 mb-4">
-            <svg width="28" height="28" viewBox="0 0 64 64" fill="none">
-              <path d="M32 4 L60 56 L4 56 Z" stroke="#11606e" strokeWidth="2.5" fill="none" />
-              <circle cx="32" cy="38" r="4" fill="#11606e" />
-            </svg>
+          <Link href="/" className="inline-flex items-center gap-2 mb-4 group">
+            <img
+              src="/logo.png"
+              alt="Asteria Logo"
+              className="w-8 h-8 object-contain transition-transform group-hover:scale-105"
+            />
             <span className="font-heading font-bold text-xl text-ast-primary tracking-wide">ASTERIA</span>
           </Link>
           <h1 className="font-heading font-bold text-2xl text-black">Sign In to Platform</h1>

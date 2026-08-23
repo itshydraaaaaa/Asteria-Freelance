@@ -121,11 +121,11 @@ export function Navbar() {
       >
         {/* Brand Logo */}
         <Link href="/" className="flex items-center gap-2.5 group">
-          <svg width="28" height="28" viewBox="0 0 64 64" fill="none">
-            <path d="M32 4 L60 56 L4 56 Z" stroke="#60c8d4" strokeWidth="2.5" fill="none" />
-            <path d="M32 20 L48 52 L16 52 Z" stroke="#4CB4E7" strokeWidth="1.5" fill="none" />
-            <circle cx="32" cy="38" r="4" fill="#60c8d4" />
-          </svg>
+          <img
+            src="/logo.png"
+            alt="Asteria Logo"
+            className="w-8 h-8 sm:w-9 sm:h-9 object-contain drop-shadow-md transition-transform group-hover:scale-105"
+          />
           <span className="font-heading font-bold text-white text-lg tracking-wide">
             A<span className="text-white/80">STERIA</span>
           </span>

@@ -41,11 +41,12 @@ export function Footer() {
       <div className="max-w-7xl mx-auto px-6 lg:px-12">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-10 mb-12">
           <div>
-            <Link href="/" className="flex items-center gap-2 mb-4">
-              <svg width="24" height="24" viewBox="0 0 64 64" fill="none">
-                <path d="M32 4 L60 56 L4 56 Z" stroke="#60c8d4" strokeWidth="2.5" fill="none" />
-                <circle cx="32" cy="38" r="4" fill="#60c8d4" />
-              </svg>
+            <Link href="/" className="flex items-center gap-2.5 mb-4 group">
+              <img
+                src="/logo.png"
+                alt="Asteria Logo"
+                className="w-7 h-7 object-contain drop-shadow-sm transition-transform group-hover:scale-105"
+              />
               <span className="font-heading font-bold text-white text-base tracking-wide">ASTERIA</span>
             </Link>
             <p className="text-ast-gray text-sm leading-relaxed max-w-xs">
