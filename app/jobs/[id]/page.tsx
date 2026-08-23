@@ -3,7 +3,8 @@ import Link         from 'next/link'
 import { auth }     from '@/lib/auth'
 import { db }       from '@/lib/db'
 import { ProposalForm } from '@/components/jobs/ProposalForm'
-import { Clock, Users, Tag, Calendar, CheckCircle, MessageSquare } from 'lucide-react'
+import { ClientJobProposals } from '@/components/jobs/ClientJobProposals'
+import { Clock, Users, Tag, Calendar, CheckCircle, MessageSquare, ArrowRight, UserCheck, ShieldCheck } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,8 +22,21 @@ export default async function JobDetailPage({ params }: { params: { id: string }
   const userId  = session?.user?.id
   const role    = (session?.user as any)?.role
 
+  const clientName = job.client?.name ?? 'Verified Client'
+  const clientId = job.clientId ?? job.client?.id
+  const isJobOwner = userId && (userId === clientId || role === 'ADMIN')
+
+  let proposals: any[] = []
   let existingProposal: any = null
-  if (userId && role === 'FREELANCER') {
+
+  if (isJobOwner) {
+    try {
+      proposals = await db.proposal.findMany({
+        where: { jobId: params.id },
+        orderBy: { createdAt: 'desc' },
+      })
+    } catch {}
+  } else if (userId && role === 'FREELANCER') {
     try {
       existingProposal = await db.proposal.findFirst({
         where: { jobId: params.id, freelancerId: userId },
@@ -30,8 +44,7 @@ export default async function JobDetailPage({ params }: { params: { id: string }
     } catch {}
   }
 
-  const clientName = job.client?.name ?? 'Verified Client'
-  const clientId = job.clientId ?? job.client?.id
+  const acceptedProposal = proposals.find(p => p.status === 'ACCEPTED')
 
   return (
     <div className="min-h-screen bg-ast-surface pt-24 pb-16">
@@ -56,7 +69,7 @@ export default async function JobDetailPage({ params }: { params: { id: string }
                     Budget: {job.budget} TND
                   </span>
                   <span className="flex items-center gap-1.5"><Clock size={13} /> Delivery: <strong className="text-black">{job.deliveryDays} days</strong></span>
-                  <span className="flex items-center gap-1.5"><Users size={13} /> {job._count?.proposals ?? 0} proposals</span>
+                  <span className="flex items-center gap-1.5"><Users size={13} /> {job._count?.proposals ?? proposals.length} proposals</span>
                   <span className="flex items-center gap-1.5"><Calendar size={13} /> Posted {new Date(job.createdAt).toLocaleDateString()}</span>
                 </div>
               </div>
@@ -101,6 +114,15 @@ export default async function JobDetailPage({ params }: { params: { id: string }
                 )}
               </div>
             </div>
+
+            {/* Client Applications Management Section */}
+            {isJobOwner && (
+              <ClientJobProposals
+                job={job}
+                initialProposals={proposals}
+                isJobOwner={Boolean(isJobOwner)}
+              />
+            )}
           </div>
 
           <div className="space-y-5">
@@ -119,9 +141,15 @@ export default async function JobDetailPage({ params }: { params: { id: string }
                 <Link href="/login" className="block w-full text-center bg-ast-primary text-white rounded-2xl py-3 font-bold text-xs hover:bg-ast-dark transition-colors shadow-sm">
                   Sign in to Submit Proposal
                 </Link>
-              ) : (userId === clientId) ? (
-                <div className="p-3.5 bg-ast-surface rounded-2xl text-center text-xs text-ast-gray">
-                  You are the owner of this job posting.
+              ) : isJobOwner ? (
+                <div className="p-4 bg-ast-primary/5 border border-ast-primary/20 rounded-2xl space-y-2">
+                  <div className="flex items-center gap-2 text-xs font-bold text-ast-primary">
+                    <UserCheck size={16} />
+                    <span>Your Job Posting</span>
+                  </div>
+                  <p className="text-[11px] text-ast-gray">
+                    You have received <strong>{proposals.length} proposal{proposals.length !== 1 ? 's' : ''}</strong> from freelancers. Review applications on the left to select and hire.
+                  </p>
                 </div>
               ) : existingProposal ? (
                 <div className="text-center py-4 bg-emerald-50/50 rounded-2xl border border-emerald-200">
@@ -146,7 +174,7 @@ export default async function JobDetailPage({ params }: { params: { id: string }
                 </div>
                 <div className="flex justify-between text-xs">
                   <span className="text-ast-gray">Total Proposals</span>
-                  <span className="font-semibold text-black">{job._count?.proposals ?? 0}</span>
+                  <span className="font-semibold text-black">{proposals.length || (job._count?.proposals ?? 0)}</span>
                 </div>
                 <div className="flex justify-between text-xs">
                   <span className="text-ast-gray">Payment Security</span>

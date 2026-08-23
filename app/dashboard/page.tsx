@@ -164,6 +164,76 @@ export default async function DashboardPage() {
         </div>
       </div>
 
+      {/* Client Posted Jobs Section */}
+      {role !== 'FREELANCER' && (
+        <div className="bg-white rounded-3xl border border-black/8 p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h3 className="font-semibold text-black text-lg">My Posted Projects & Applications</h3>
+              <p className="text-ast-gray text-xs">Manage your job listings and browse received freelancer proposals</p>
+            </div>
+            <Link href="/post-job" className="bg-ast-primary text-white text-xs font-semibold px-4 py-2 rounded-xl hover:bg-ast-dark transition-colors flex items-center gap-1.5 shadow-xs">
+              <Plus size={14} /> Post New Job
+            </Link>
+          </div>
+
+          {jobs.length === 0 ? (
+            <div className="py-8 text-center space-y-3 bg-ast-surface/40 rounded-2xl border border-black/5">
+              <p className="text-ast-gray text-xs">You haven't posted any client jobs yet.</p>
+              <Link href="/post-job" className="inline-block bg-ast-primary text-white text-xs font-semibold px-5 py-2.5 rounded-full hover:bg-ast-dark transition-colors">
+                Post Your First Job
+              </Link>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-black/8 text-left text-ast-gray text-xs uppercase tracking-wider bg-ast-surface/50">
+                    <th className="px-4 py-3 font-medium">Job Title</th>
+                    <th className="px-4 py-3 font-medium">Category</th>
+                    <th className="px-4 py-3 font-medium">Budget</th>
+                    <th className="px-4 py-3 font-medium">Status</th>
+                    <th className="px-4 py-3 font-medium">Proposals</th>
+                    <th className="px-4 py-3 font-medium text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-black/5">
+                  {jobs.map(j => (
+                    <tr key={j.id} className="hover:bg-ast-surface/40 transition-colors">
+                      <td className="px-4 py-4 font-semibold text-black">
+                        <Link href={`/jobs/${j.id}`} className="hover:text-ast-primary transition-colors">
+                          {j.title}
+                        </Link>
+                      </td>
+                      <td className="px-4 py-4 text-xs text-ast-gray">{j.category}</td>
+                      <td className="px-4 py-4 text-black font-bold">{j.budget} TND</td>
+                      <td className="px-4 py-4">
+                        <span className={`inline-block text-[11px] rounded-full px-2.5 py-0.5 font-bold ${
+                          j.status === 'OPEN' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-black/8 text-ast-gray'
+                        }`}>
+                          {j.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 text-xs font-semibold text-ast-primary">
+                        {j._count?.proposals ?? 0} application{(j._count?.proposals ?? 0) !== 1 ? 's' : ''}
+                      </td>
+                      <td className="px-4 py-4 text-right">
+                        <Link
+                          href={`/jobs/${j.id}`}
+                          className="px-3.5 py-1.5 bg-ast-surface border border-black/10 rounded-xl text-xs font-bold text-ast-primary hover:bg-ast-primary hover:text-white transition-colors inline-block"
+                        >
+                          Manage Applications →
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="bg-white rounded-3xl border border-black/8 p-6 shadow-sm">
         <div className="flex items-center justify-between mb-5">
           <h3 className="font-semibold text-black text-lg">
