@@ -1,13 +1,10 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import { db } from '@/lib/db'
 import { DEMO_USERS } from '@/lib/data/demoUsers'
-import { checkAccountLockout, recordFailedLogin, resetFailedLogins } from '@/lib/rateLimit'
-import { sendPasswordResetEmail, sendVerificationEmail } from '@/lib/email'
 
 export async function login(formData: FormData) {
   const email = (formData.get('email') as string)?.trim().toLowerCase()
@@ -19,7 +16,7 @@ export async function login(formData: FormData) {
 
   // 1. Try Supabase Auth first
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -28,13 +25,13 @@ export async function login(formData: FormData) {
     if (!authError && authData?.user) {
       const u = (await db.user.findUnique({ where: { id: authData.user.id } })) ||
                 (await db.user.findUnique({ where: { email } }))
-      const cookieStore = cookies()
+      const cookieStore = await cookies()
       cookieStore.set('demo_user_id', authData.user.id, { path: '/' })
       cookieStore.set('demo_user_role', u?.role ?? authData.user.user_metadata?.role ?? 'CLIENT', { path: '/' })
       revalidatePath('/', 'layout')
       return { success: true }
     }
-  } catch (err: any) {}
+  } catch {}
 
   // 2. Check in static demo users dictionary
   const matchingStatic = Object.values(DEMO_USERS).find(u => u.email.toLowerCase() === email)
@@ -42,7 +39,7 @@ export async function login(formData: FormData) {
     if (matchingStatic.password && matchingStatic.password !== password && password !== 'demo123') {
       return { error: 'Invalid email or password.' }
     }
-    const cookieStore = cookies()
+    const cookieStore = await cookies()
     cookieStore.set('demo_user_id', matchingStatic.id, { path: '/' })
     cookieStore.set('demo_user_role', matchingStatic.role, { path: '/' })
     revalidatePath('/', 'layout')
@@ -56,19 +53,19 @@ export async function login(formData: FormData) {
       if (dbUser.password && dbUser.password !== password && password !== 'demo123') {
         return { error: 'Invalid email or password.' }
       }
-      const cookieStore = cookies()
+      const cookieStore = await cookies()
       cookieStore.set('demo_user_id', dbUser.id, { path: '/' })
       cookieStore.set('demo_user_role', dbUser.role, { path: '/' })
       revalidatePath('/', 'layout')
       return { success: true }
     }
-  } catch (e: any) {}
+  } catch {}
 
   return { error: 'Invalid email or password.' }
 }
 
 export async function loginAsTestUser(userId: string) {
-  const cookieStore = cookies()
+  const cookieStore = await cookies()
   const staticDemo = DEMO_USERS[userId]
 
   if (staticDemo) {
@@ -104,15 +101,17 @@ export async function register(formData: FormData) {
   }
 
   // 1. Check if account already exists
-  const existing = await db.user.findUnique({ where: { email } })
-  if (existing) {
-    return { error: 'An account with this email already exists. Please sign in.' }
-  }
+  try {
+    const existing = await db.user.findUnique({ where: { email } })
+    if (existing) {
+      return { error: 'An account with this email already exists. Please sign in.' }
+    }
+  } catch {}
 
   // 2. Create user in Supabase Auth
-  const supabase = createClient()
   let authUserId: string | null = null
   try {
+    const supabase = await createClient()
     const { data: authData } = await supabase.auth.signUp({
       email,
       password,
@@ -131,23 +130,28 @@ export async function register(formData: FormData) {
   }
 
   // 3. Create real user in unified db repository
-  const newUser = await db.user.create({
-    data: {
-      id: authUserId,
-      name,
-      email,
-      role,
-      password,
-      walletBalance: role === 'CLIENT' ? 5000 : 0,
-      verifiedStatus: 'UNSUBMITTED',
-      image: role === 'FREELANCER'
-        ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'
-        : 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
-    },
-  })
+  let newUser: any
+  try {
+    newUser = await db.user.create({
+      data: {
+        id: authUserId,
+        name,
+        email,
+        role,
+        password,
+        walletBalance: role === 'CLIENT' ? 5000 : 0,
+        verifiedStatus: 'UNSUBMITTED',
+        image: role === 'FREELANCER'
+          ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'
+          : 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
+      },
+    })
+  } catch (e: any) {
+    return { error: e?.message ?? 'Failed to create account. Please try again.' }
+  }
 
   // 4. Set session cookies for immediate access
-  const cookieStore = cookies()
+  const cookieStore = await cookies()
   cookieStore.set('demo_user_id', newUser.id, { path: '/' })
   cookieStore.set('demo_user_role', newUser.role, { path: '/' })
 
@@ -160,14 +164,10 @@ export async function forgotPassword(formData: FormData) {
   if (!email) return { error: 'Email address is required' }
 
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
     await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://asteria.tn'}/auth/reset-password`,
     })
-  } catch {}
-
-  try {
-    await sendPasswordResetEmail(email, 'User', 'https://asteria.tn/auth/reset-password?token=reset_token')
   } catch {}
 
   return { success: 'If an account exists with this email, password reset instructions have been sent.' }
@@ -186,7 +186,7 @@ export async function resetPassword(formData: FormData) {
   }
 
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
     const { error } = await supabase.auth.updateUser({ password })
     if (error) return { error: error.message }
   } catch {}
@@ -195,13 +195,13 @@ export async function resetPassword(formData: FormData) {
 }
 
 export async function logout() {
-  const cookieStore = cookies()
+  const cookieStore = await cookies()
   cookieStore.delete('demo_user_id')
   cookieStore.delete('demo_user_role')
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
     await supabase.auth.signOut()
-  } catch (e) {}
+  } catch {}
   revalidatePath('/', 'layout')
   return { success: true }
 }

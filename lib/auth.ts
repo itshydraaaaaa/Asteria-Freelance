@@ -25,7 +25,7 @@ export async function auth(): Promise<AuthSession | null> {
   try {
     // ── 1. Demo Auth (enabled by default unless explicitly disabled) ────────
     if (process.env.ENABLE_DEMO_AUTH !== 'false') {
-      const cookieStore = cookies()
+      const cookieStore = await cookies()
       const demoUserId = cookieStore.get('demo_user_id')?.value
       if (demoUserId) {
         // First check static pre-seeded demo users for instant zero-latency login
@@ -59,7 +59,7 @@ export async function auth(): Promise<AuthSession | null> {
     }
 
     // ── 2. Real Supabase Auth ────────────────────────────────────────────────
-    const supabase = createClient()
+    const supabase = await createClient()
     const { data: { user }, error } = await supabase.auth.getUser()
 
     if (error || !user) return null

@@ -13,7 +13,7 @@ export default async function GigEditPage({ params }: { params: { id: string } }
   try {
     gig = await db.gig.findUnique({ where: { id: params.id } })
     if (!gig) {
-      const supabase = createClient()
+      const supabase = await createClient()
       const { data } = await supabase
         .from('Gig')
         .select('*')

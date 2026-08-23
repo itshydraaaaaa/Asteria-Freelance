@@ -16,7 +16,7 @@ export default async function ProfilePage() {
   try {
     dbUser = await db.user.findUnique({ where: { id: userId } })
     if (!dbUser) {
-      const supabase = createClient()
+      const supabase = await createClient()
       const { data } = await supabase
         .from('User')
         .select('*')

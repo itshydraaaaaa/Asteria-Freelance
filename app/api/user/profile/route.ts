@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 
 export async function PATCH(req: NextRequest) {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
     
     // Securely identify the user through Supabase cookies
     const { data: { user } } = await supabase.auth.getUser()

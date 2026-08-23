@@ -35,7 +35,7 @@ async function getDbClient() {
 
   // 2. Try obtaining authenticated user session from Next.js request cookies
   try {
-    const userClient = createServerSupabaseClient()
+    const userClient = await createServerSupabaseClient()
     const { data: { session } } = await userClient.auth.getSession()
     if (session?.access_token) {
       return userClient
