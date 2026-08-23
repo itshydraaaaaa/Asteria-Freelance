@@ -105,18 +105,18 @@ export function Navbar() {
   const walletBalance = Number(user?.walletBalance ?? 0)
 
   const isHome = pathname === '/'
-  const showSolidNav = scrolled || !isHome
+  const showSolidNav = true // Always solid navbar
 
   return (
     <>
       <motion.header
         className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 lg:px-12"
-        animate={{ height: showSolidNav ? 64 : 80 }}
+        animate={{ height: scrolled ? 64 : 72 }}
         transition={{ duration: 0.3, ease: 'easeOut' }}
         style={{
-          background:     showSolidNav ? 'rgba(10,58,64,0.96)' : 'transparent',
-          backdropFilter: showSolidNav ? 'blur(20px)' : 'none',
-          borderBottom:   showSolidNav ? '1px solid rgba(96,200,212,0.15)' : 'none',
+          background:     'rgba(10,58,64,0.96)',
+          backdropFilter: 'blur(20px)',
+          borderBottom:   '1px solid rgba(96,200,212,0.15)',
         }}
       >
         {/* Brand Logo */}
@@ -158,9 +158,7 @@ export function Navbar() {
 
         {/* Desktop Right Actions */}
         <div className="hidden md:flex items-center gap-3">
-          {loading ? (
-            <div className="w-28 h-9 bg-white/10 rounded-full animate-pulse" />
-          ) : user ? (
+          {user ? (
             <>
               {/* Notifications Dropdown */}
               <NotificationDropdown />

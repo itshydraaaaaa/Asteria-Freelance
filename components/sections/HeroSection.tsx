@@ -235,7 +235,7 @@ export function HeroSection() {
           </div>
 
           {/* Right Column 3D Hologram Graphic */}
-          <div className="hidden lg:flex flex-1 max-w-md h-[460px] items-center justify-center relative">
+          <div className="hidden md:flex flex-1 max-w-md h-[400px] lg:h-[460px] items-center justify-center relative">
             <LogoModel />
           </div>
         </div>
