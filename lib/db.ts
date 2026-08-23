@@ -262,7 +262,43 @@ export const db = {
       }
       if (data.password) payload.password = data.password
 
-      const { data: created, error } = await supabase.from('User').insert(payload).select('*').single()
+      // Check if user with this email or id already exists
+      let existingUser: any = null
+      if (data.id) {
+        const { data: byId } = await supabase.from('User').select('*').eq('id', data.id).maybeSingle()
+        if (byId) existingUser = byId
+      }
+      if (!existingUser && data.email) {
+        const { data: byEmail } = await supabase.from('User').select('*').eq('email', (data.email ?? '').toLowerCase()).maybeSingle()
+        if (byEmail) existingUser = byEmail
+      }
+
+      let created: any = null
+      let error: any = null
+
+      if (existingUser) {
+        const { data: updated, error: updateErr } = await supabase
+          .from('User')
+          .update({
+            name: payload.name,
+            role: payload.role,
+            ...(payload.password ? { password: payload.password } : {}),
+          })
+          .eq('id', existingUser.id)
+          .select('*')
+          .single()
+        created = updated
+        error = updateErr
+      } else {
+        const { data: inserted, error: insertErr } = await supabase
+          .from('User')
+          .upsert(payload, { onConflict: 'id' })
+          .select('*')
+          .single()
+        created = inserted
+        error = insertErr
+      }
+
       if (error || !created) {
         throw new Error(error?.message || 'Failed to create user in database')
       }
