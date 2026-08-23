@@ -9,18 +9,20 @@ const STEPS = [
   {
     num: '01',
     title: 'Post Your Project',
-    body: 'Describe what you need, set your budget, and get matched with elite freelancers within hours. No long waiting periods.',
+    body: 'Describe what you need, set your budget, and get matched with skilled freelancers fast.',
     accent: 'text-ast-primary',
     border: 'border-ast-primary/30',
+    badgeLabel: 'Post in minutes',
     variant: 'post' as const,
     reverse: false,
   },
   {
     num: '02',
     title: 'Match with Talent',
-    body: 'Our intelligent matching system surfaces the best-fit freelancers based on skills, ratings, and availability.',
+    body: 'Our matching system surfaces the best-fit freelancers based on skills, ratings, and availability.',
     accent: 'text-ast-light-contrast',
     border: 'border-ast-light-contrast/30',
+    badgeLabel: 'Smart matching',
     variant: 'match' as const,
     reverse: true,
   },
@@ -30,6 +32,7 @@ const STEPS = [
     body: 'Work is delivered, reviewed, and payment released automatically from escrow. Safe, fast, and guaranteed.',
     accent: 'text-ast-sky-contrast',
     border: 'border-ast-sky-contrast/30',
+    badgeLabel: 'Escrow protected',
     variant: 'deliver' as const,
     reverse: false,
   },
@@ -66,7 +69,7 @@ export function HowItWorksSection() {
                   <div className={`mt-6 inline-flex items-center gap-2 border ${step.border} rounded-full px-4 py-2`}> 
                     <span className={`w-2 h-2 rounded-full ${step.accent.replace('text-', 'bg-')} animate-pulse`} />
                     <span className={`font-mono text-xs ${step.accent}`}>
-                      {step.variant === 'post' ? 'Post in minutes' : step.variant === 'match' ? 'AI-powered matching' : 'Escrow protected'}
+                      {step.badgeLabel}
                     </span>
                   </div>
                 </div>

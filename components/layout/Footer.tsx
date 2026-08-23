@@ -49,7 +49,7 @@ export function Footer() {
               <span className="font-heading font-bold text-white text-base tracking-wide">ASTERIA</span>
             </Link>
             <p className="text-ast-gray text-sm leading-relaxed max-w-xs">
-              The intelligent microjob marketplace connecting elite talent with ambitious clients across the MENA region.
+              The freelance marketplace connecting Tunisian talent with ambitious clients — expanding across the MENA region.
             </p>
           </div>
 
@@ -74,7 +74,7 @@ export function Footer() {
             © 2026 Asteria Freelance. All rights reserved.
           </p>
           <p className="font-mono text-ast-light/40 text-xs tracking-widest2">
-            MENA REGION — EST. 2024
+            TUNISIA — EST. 2024
           </p>
         </div>
       </div>

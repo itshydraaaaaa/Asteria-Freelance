@@ -96,7 +96,7 @@ export function HeroSection() {
     return () => mm.revert()
   }, [statsData])
 
-  const WORDS = ['HIRING', 'REDEFINED', 'WITH AI & ESCROW']
+  const WORDS = ['HIRING', 'REDEFINED', 'WITH ESCROW']
 
   const handleComplete = () => setShowLoader(false)
 
@@ -124,7 +124,7 @@ export function HeroSection() {
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 border border-white/15 backdrop-blur-md mb-8">
               <Sparkles size={14} className="text-ast-light animate-pulse" />
               <span className="font-mono text-ast-light text-[11px] tracking-[0.2em] uppercase font-semibold">
-                Asteria 3D AI Marketplace — MENA Region
+                ✨ Asteria — Escrow-Protected Freelance Marketplace, Made in Tunisia
               </span>
             </div>
 
@@ -142,7 +142,7 @@ export function HeroSection() {
             </h1>
 
             <p className="text-white/75 text-lg leading-relaxed mb-8 max-w-xl font-body">
-              Hire vetted Arabic & English developers, UI designers, and AI specialists with <strong>100% Escrow Protection</strong> and AI custom offer generation.
+              Hire vetted Tunisian developers, designers, and specialists — with escrow-protected payments on every project.
             </p>
 
             {/* Interactive Floating Search Bar */}
@@ -195,21 +195,40 @@ export function HeroSection() {
               </Link>
             </div>
 
-            {/* Live Platform Stats */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              {dynamicStats.map((s, i) => (
-                <Tilt3DCard key={i} className="rounded-2xl border border-white/12 bg-white/8 px-4 py-4 backdrop-blur-md shadow-lg">
-                  <p className="font-heading font-extrabold text-2xl text-ast-light">
-                    {s.prefix}
-                    <span
-                      ref={el => { if (el) statRefs.current[i] = el }}
-                      className="stat-num"
-                    >
-                      {s.compact ? '0' : '0'}
-                    </span>
-                    {s.suffix}
-                  </p>
-                  <p className="text-white/60 text-xs mt-1 leading-relaxed font-body">{s.label}</p>
+            {/* Feature Badges */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {[
+                {
+                  title: 'Escrow-Protected',
+                  desc: 'Funds held securely until work is approved',
+                  icon: ShieldCheck,
+                },
+                {
+                  title: 'KYC-Verified Talent',
+                  desc: 'Every freelancer identity-checked before they can bid',
+                  icon: Sparkles,
+                },
+                {
+                  title: 'Local & Fast',
+                  desc: 'TND payments, built for how Tunisian freelancers and clients actually work',
+                  icon: ArrowRight,
+                },
+                {
+                  title: 'Tunisia First',
+                  desc: 'Starting local, expanding across MENA',
+                  icon: Sparkles,
+                },
+              ].map((feat, i) => (
+                <Tilt3DCard key={i} className="rounded-2xl border border-white/12 bg-white/8 p-4 backdrop-blur-md shadow-lg hover:border-ast-light/40 transition-all">
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-xl bg-ast-light/15 border border-ast-light/30 flex items-center justify-center text-ast-light shrink-0 mt-0.5">
+                      <feat.icon size={16} />
+                    </div>
+                    <div>
+                      <p className="font-heading font-bold text-sm text-white">{feat.title}</p>
+                      <p className="text-white/60 text-xs mt-0.5 leading-relaxed font-body">{feat.desc}</p>
+                    </div>
+                  </div>
                 </Tilt3DCard>
               ))}
             </div>
