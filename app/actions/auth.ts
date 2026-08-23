@@ -52,26 +52,30 @@ export async function login(formData: FormData) {
 
 export async function loginAsAdminDemo() {
   try {
-    // Check if an ADMIN user already exists in Supabase
+    // 1. Find user with role: 'ADMIN' in Supabase database
     let admin = (await db.user.findMany({ where: { role: 'ADMIN' } }))[0]
+
+    // 2. If no admin exists yet, promote an existing user in Supabase
     if (!admin) {
-      // Create official admin user in Supabase database
-      admin = await db.user.create({
-        data: {
-          name: 'Asteria Master Admin',
-          email: 'admin.master@asteria.com',
-          role: 'ADMIN',
-          walletBalance: 10000,
-          verifiedStatus: 'APPROVED',
-        },
-      })
+      const existingUsers = await db.user.findMany()
+      const candidate = existingUsers.find(u => u.email === 'itshydraaaaaa@gmail.com') || existingUsers[0]
+      if (candidate) {
+        admin = (await db.user.update({
+          where: { id: candidate.id },
+          data: { role: 'ADMIN', verifiedStatus: 'APPROVED' },
+        })) as any
+      }
     }
 
-    const cookieStore = await cookies()
-    cookieStore.set('demo_user_id', admin.id, { path: '/' })
-    cookieStore.set('demo_user_role', 'ADMIN', { path: '/' })
-    revalidatePath('/', 'layout')
-    return { success: true }
+    if (admin) {
+      const cookieStore = await cookies()
+      cookieStore.set('demo_user_id', admin.id, { path: '/' })
+      cookieStore.set('demo_user_role', 'ADMIN', { path: '/' })
+      revalidatePath('/', 'layout')
+      return { success: true }
+    }
+
+    return { error: 'No admin user found in database.' }
   } catch (err: any) {
     console.error('loginAsAdminDemo error:', err)
     return { error: err.message || 'Failed to sign in as admin.' }
