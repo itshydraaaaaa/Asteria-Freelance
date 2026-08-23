@@ -28,7 +28,15 @@ export function Providers({ children }: { children: React.ReactNode }) {
     })
 
     lenisRef.current = lenis
-    lenis.on('scroll', ScrollTrigger.update)
+    let rafId: number | null = null
+    lenis.on('scroll', () => {
+      if (rafId === null) {
+        rafId = requestAnimationFrame(() => {
+          ScrollTrigger.update()
+          rafId = null
+        })
+      }
+    })
 
     const ticker = (time: number) => {
       lenis.raf(time * 1000)

@@ -25,6 +25,7 @@ const config = {
     ],
   },
   experimental: {
+    optimizePackageImports: ['lucide-react', 'framer-motion', '@supabase/supabase-js'],
     serverActions: {
       allowedOrigins: [
         'localhost:5000',

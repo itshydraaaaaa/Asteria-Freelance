@@ -72,15 +72,11 @@ export function HeroSection() {
   useEffect(() => {
     const mm = gsap.matchMedia()
     mm.add('(prefers-reduced-motion: no-preference)', () => {
-      gsap.from(wordsRef.current, {
-        yPercent: 110, opacity: 0, duration: 0.7,
-        stagger: 0.08, ease: 'power3.out', delay: 0.1,
-      })
       dynamicStats.forEach((s, i) => {
         const el = statRefs.current[i]
         if (!el) return
         gsap.to({ val: 0 }, {
-          val: s.value, duration: 1.6, delay: 0.4,
+          val: s.value, duration: 1.6, delay: 0.2,
           ease: 'power2.out', snap: { val: 0.1 },
           onUpdate() {
             const v = (this.targets()[0] as any).val
