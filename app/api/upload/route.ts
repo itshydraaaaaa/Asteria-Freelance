@@ -31,8 +31,11 @@ export async function POST(req: NextRequest) {
     try {
       const supabase = getServiceClient()
       if (supabase) {
+        const isPrivate = bucket === 'kyc-documents' || bucket === 'kyc'
+        const targetBucket = isPrivate ? 'kyc-documents' : bucket
+
         const { data: uploadData, error: uploadError } = await supabase.storage
-          .from(bucket)
+          .from(targetBucket)
           .upload(fileName, buffer, {
             contentType: mimeType,
             cacheControl: '3600',
@@ -40,8 +43,20 @@ export async function POST(req: NextRequest) {
           })
 
         if (!uploadError && uploadData) {
+          if (isPrivate) {
+            const { data: signedData } = await supabase.storage
+              .from(targetBucket)
+              .createSignedUrl(fileName, 900) // 15-minute access for uploader/admin
+            return NextResponse.json({
+              url: signedData?.signedUrl || uploadData.path,
+              path: uploadData.path,
+              fileName,
+              isPrivate: true,
+            }, { status: 200 })
+          }
+
           const { data: { publicUrl } } = supabase.storage
-            .from(bucket)
+            .from(targetBucket)
             .getPublicUrl(fileName)
 
           if (publicUrl) {

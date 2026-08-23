@@ -19,6 +19,46 @@ export async function GET(req: NextRequest) {
 
     const verifications = await db.verification.findMany({})
 
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    let supabase: any = null
+    if (supabaseUrl && serviceKey) {
+      const { createClient } = await import('@supabase/supabase-js')
+      supabase = createClient(supabaseUrl, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } })
+    }
+
+    const signedVerifications = await Promise.all(
+      verifications.map(async (v: any) => {
+        let front = v.idFrontUrl
+        let back = v.idBackUrl
+        let selfie = v.selfieUrl
+
+        if (supabase) {
+          try {
+            if (front && !front.startsWith('data:') && !front.startsWith('http')) {
+              const { data } = await supabase.storage.from('kyc-documents').createSignedUrl(front, 900)
+              if (data?.signedUrl) front = data.signedUrl
+            }
+            if (back && !back.startsWith('data:') && !back.startsWith('http')) {
+              const { data } = await supabase.storage.from('kyc-documents').createSignedUrl(back, 900)
+              if (data?.signedUrl) back = data.signedUrl
+            }
+            if (selfie && !selfie.startsWith('data:') && !selfie.startsWith('http')) {
+              const { data } = await supabase.storage.from('kyc-documents').createSignedUrl(selfie, 900)
+              if (data?.signedUrl) selfie = data.signedUrl
+            }
+          } catch {}
+        }
+
+        return {
+          ...v,
+          idFrontUrl: front,
+          idBackUrl: back,
+          selfieUrl: selfie,
+        }
+      })
+    )
+
     // Log that an admin listed KYC submissions
     await db.auditLog.create({
       data: {
@@ -29,7 +69,7 @@ export async function GET(req: NextRequest) {
       }
     }).catch(() => {})
 
-    return NextResponse.json({ verifications })
+    return NextResponse.json({ verifications: signedVerifications })
   } catch (err) {
     console.error('GET /api/admin/verification:', err)
     return NextResponse.json({ error: 'Failed to fetch verifications' }, { status: 500 })

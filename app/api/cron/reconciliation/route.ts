@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getReconciliationReport, getLedgerHistory } from '@/lib/ledger'
+import { getReconciliationReport, getLedgerHistory, processEscrowRelease } from '@/lib/ledger'
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
 
@@ -90,6 +90,35 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // 3. 7-Day Escrow Auto-Release for Delivered Orders
+    const sevenDaysAgoMs = now - (7 * 24 * 3600 * 1000)
+    const activeOrders = await db.order.findMany({ where: { status: 'DELIVERED' } })
+    const autoReleaseEligible = activeOrders.filter(o => {
+      const deliveredTime = new Date((o as any).deliveredAt || o.createdAt).getTime()
+      return deliveredTime < sevenDaysAgoMs
+    })
+
+    const autoReleasedOrders: string[] = []
+    for (const order of autoReleaseEligible) {
+      try {
+        await db.order.update({
+          where: { id: order.id },
+          data: { status: 'COMPLETED' },
+        })
+        const { sellerPayout, platformFee } = await processEscrowRelease(order.id, order.sellerId, order.amount)
+        autoReleasedOrders.push(order.id)
+        logger.audit('ESCROW_7_DAY_AUTO_RELEASE', `Order #${order.id} automatically released after 7 days in DELIVERED state`, {
+          orderId: order.id,
+          sellerId: order.sellerId,
+          amount: order.amount,
+          sellerPayout,
+          platformFee,
+        })
+      } catch (err: any) {
+        logger.error('AUTO_RELEASE_ORDER_ERROR', `Failed to auto-release order #${order.id}: ${err.message}`, { orderId: order.id, error: err })
+      }
+    }
+
     const hasAnomalies = !report.isBalanced || staleWithdrawals.length > 0 || stripeReconciliation.discrepancyUsd > 10.0
 
     if (hasAnomalies) {
@@ -98,6 +127,7 @@ export async function GET(req: NextRequest) {
         report,
         staleWithdrawalsCount: staleWithdrawals.length,
         stripeReconciliation,
+        autoReleasedCount: autoReleasedOrders.length,
         timestamp: new Date().toISOString(),
       })
 
@@ -107,20 +137,23 @@ export async function GET(req: NextRequest) {
         report,
         staleWithdrawals,
         stripeReconciliation,
+        autoReleasedOrders,
       }, { status: report.isBalanced ? 200 : 500 })
     }
 
     // Ledger is healthy
-    logger.audit('SCHEDULED_RECONCILIATION_SUCCESS', `Automated reconciliation audit passed. All ${report.activeOrdersCount} active orders verified with 0 SLA breaches.`, {
+    logger.audit('SCHEDULED_RECONCILIATION_SUCCESS', `Automated reconciliation audit passed. All ${report.activeOrdersCount} active orders verified with 0 SLA breaches. Auto-released: ${autoReleasedOrders.length}.`, {
       totalEscrowLocked: report.totalEscrowLocked,
       currency: 'TND',
       stripeReconciliation,
+      autoReleasedCount: autoReleasedOrders.length,
     })
 
     return NextResponse.json({
       status: 'HEALTHY',
       report,
       stripeReconciliation,
+      autoReleasedOrders,
       checkedAt: new Date().toISOString(),
     }, { status: 200 })
   } catch (err: any) {
