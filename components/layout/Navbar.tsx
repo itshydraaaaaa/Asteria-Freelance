@@ -120,17 +120,17 @@ export function Navbar() {
         }}
       >
         {/* Brand Logo */}
-        <Link href="/" className="flex items-center gap-2.5 md:gap-3 group z-10">
+        <Link href="/" className="flex items-center gap-2.5 group">
           <div className="relative">
-            <div className="absolute inset-0 bg-ast-light/25 blur-md rounded-full group-hover:bg-ast-light/50 group-hover:scale-110 transition-all duration-500" />
+            <div className="absolute inset-0 bg-ast-light/20 blur-md rounded-full group-hover:bg-ast-light/40 group-hover:scale-110 transition-all duration-500" />
             <img
               src="/logo.png"
               alt="Asteria Logo"
-              className="relative w-8 h-8 md:w-9 md:h-9 object-contain drop-shadow-[0_0_12px_rgba(96,200,212,0.6)] group-hover:drop-shadow-[0_0_22px_rgba(96,200,212,0.9)] transition-all duration-500 group-hover:rotate-[5deg]"
+              className="relative w-8 h-8 md:w-9 md:h-9 object-contain drop-shadow-[0_0_10px_rgba(96,200,212,0.5)] group-hover:drop-shadow-[0_0_20px_rgba(96,200,212,0.8)] transition-all duration-500 group-hover:rotate-[5deg]"
             />
           </div>
-          <span className="font-heading font-black text-lg md:text-xl tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-white via-white to-ast-light group-hover:to-ast-light transition-all duration-500 hidden sm:block">
-            ASTERIA
+          <span className="font-heading font-bold text-white text-lg tracking-wide">
+            A<span className="text-white/80">STERIA</span>
           </span>
         </Link>
 
@@ -142,14 +142,14 @@ export function Navbar() {
               href={link.href}
               aria-current={isActive(link.href) ? 'page' : undefined}
               className={`relative text-sm font-medium tracking-wide transition-colors ${
-                isActive(link.href) ? 'text-ast-light font-semibold drop-shadow-[0_0_10px_rgba(96,200,212,0.5)]' : 'text-white/70 hover:text-white'
+                isActive(link.href) ? 'text-white' : 'text-white/70 hover:text-white'
               }`}
             >
               {link.label}
               {isActive(link.href) && (
                 <motion.span
                   layoutId="nav-underline"
-                  className="absolute -bottom-1 left-0 right-0 h-0.5 bg-ast-light shadow-[0_0_8px_rgba(96,200,212,0.8)]"
+                  className="absolute -bottom-1 left-0 right-0 h-0.5 bg-ast-light"
                 />
               )}
             </Link>
@@ -158,7 +158,9 @@ export function Navbar() {
 
         {/* Desktop Right Actions */}
         <div className="hidden md:flex items-center gap-3">
-          {user ? (
+          {loading ? (
+            <div className="w-28 h-9 bg-white/10 rounded-full animate-pulse" />
+          ) : user ? (
             <>
               {/* Notifications Dropdown */}
               <NotificationDropdown />
@@ -315,13 +317,13 @@ export function Navbar() {
             <>
               <Link
                 href="/login"
-                className="text-xs font-bold uppercase tracking-widest px-4 py-2 rounded-xl text-white/90 hover:text-white bg-white/5 border border-white/15 hover:border-ast-light hover:bg-ast-light/10 hover:shadow-[0_0_20px_rgba(96,200,212,0.4)] transition-all duration-300"
+                className="text-sm font-medium text-white/80 hover:text-white px-3.5 py-1.5 rounded-full hover:bg-white/10 transition-all"
               >
                 Sign In
               </Link>
               <Link
                 href="/register"
-                className="text-xs font-bold uppercase tracking-widest px-5 py-2 rounded-xl bg-gradient-to-r from-ast-light to-sky-400 text-ast-dark hover:text-black font-extrabold hover:shadow-[0_0_25px_rgba(96,200,212,0.7)] hover:scale-105 active:scale-95 transition-all duration-300 shadow-md"
+                className="text-sm font-semibold text-ast-dark bg-ast-light hover:bg-ast-sky hover:scale-105 active:scale-95 rounded-full px-5 py-2 transition-all shadow-md"
               >
                 Join
               </Link>
