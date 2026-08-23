@@ -6,6 +6,7 @@
  */
 
 import 'server-only'
+import crypto from 'crypto'
 import { createClient } from '@supabase/supabase-js'
 import { createClient as createServerSupabaseClient } from '@/lib/supabase/server'
 
@@ -247,6 +248,7 @@ export const db = {
     create: async ({ data }: { data: Partial<UserRecord> & { password?: string } }): Promise<UserRecord> => {
       const supabase = await getDbClient()
       const payload: any = {
+        id: data.id || crypto.randomUUID(),
         name: data.name ?? 'New User',
         email: (data.email ?? '').toLowerCase(),
         role: data.role ?? 'CLIENT',
@@ -258,7 +260,6 @@ export const db = {
         rating: 5.0,
         reviewCount: 0,
       }
-      if (data.id) payload.id = data.id
       if (data.password) payload.password = data.password
 
       const { data: created, error } = await supabase.from('User').insert(payload).select('*').single()
@@ -388,6 +389,7 @@ export const db = {
     create: async ({ data }: { data: any }): Promise<any> => {
       const supabase = await getDbClient()
       const { data: created, error } = await supabase.from('Gig').insert({
+        id: data.id || crypto.randomUUID(),
         title: data.title,
         description: data.description,
         category: data.category,
@@ -518,6 +520,7 @@ export const db = {
     create: async ({ data }: { data: any }): Promise<JobRecord> => {
       const supabase = await getDbClient()
       const { data: created, error } = await supabase.from('Job').insert({
+        id: data.id || crypto.randomUUID(),
         title: data.title,
         description: data.description,
         category: data.category,
@@ -631,6 +634,7 @@ export const db = {
     create: async ({ data }: { data: any }): Promise<ProposalRecord> => {
       const supabase = await getDbClient()
       const { data: created, error } = await supabase.from('Proposal').insert({
+        id: data.id || crypto.randomUUID(),
         jobId: data.jobId,
         freelancerId: data.freelancerId,
         coverLetter: data.coverLetter,
@@ -753,7 +757,9 @@ export const db = {
 
     create: async ({ data }: { data: any }): Promise<OrderRecord> => {
       const supabase = await getDbClient()
+      const orderId = data.id || crypto.randomUUID()
       const { data: created, error } = await supabase.from('Order').insert({
+        id: orderId,
         gigId: data.gigId,
         buyerId: data.buyerId,
         sellerId: data.sellerId,
@@ -769,6 +775,7 @@ export const db = {
       // If milestones provided, insert them
       if (data.milestones && Array.isArray(data.milestones) && data.milestones.length > 0) {
         const mInsert = data.milestones.map((m: any, idx: number) => ({
+          id: m.id || crypto.randomUUID(),
           orderId: created.id,
           title: m.title || `Milestone ${idx + 1}`,
           percentage: Number(m.percentage || 100),
@@ -849,6 +856,7 @@ export const db = {
     create: async ({ data }: { data: any }): Promise<MilestoneItem> => {
       const supabase = await getDbClient()
       const { data: created, error } = await supabase.from('Milestone').insert({
+        id: data.id || crypto.randomUUID(),
         orderId: data.orderId,
         title: data.title || 'Milestone',
         percentage: Number(data.percentage || 100),
@@ -970,6 +978,7 @@ export const db = {
       const selfie = data.selfiePath || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400'
 
       const { data: created, error } = await supabase.from('Verification').insert({
+        id:             data.id || crypto.randomUUID(),
         userId:         data.userId,
         fullName:       data.fullName || 'Applicant',
         dob:            data.dob || '1995-01-01',
@@ -1064,6 +1073,7 @@ export const db = {
     create: async ({ data }: { data: any }): Promise<MessageRecord> => {
       const supabase = await getDbClient()
       const { data: created, error } = await supabase.from('Message').insert({
+        id: data.id || crypto.randomUUID(),
         senderId: data.senderId,
         receiverId: data.receiverId,
         content: data.content,
@@ -1115,6 +1125,7 @@ export const db = {
     create: async ({ data }: { data: any }): Promise<NotificationRecord> => {
       const supabase = await getDbClient()
       const { data: created, error } = await supabase.from('Notification').insert({
+        id: data.id || crypto.randomUUID(),
         userId: data.userId,
         title: data.title,
         message: data.message,
@@ -1184,6 +1195,7 @@ export const db = {
     create: async ({ data }: { data: any }): Promise<any> => {
       const supabase = await getDbClient()
       const { data: created, error } = await supabase.from('Review').insert({
+        id: data.id || crypto.randomUUID(),
         gigId: data.gigId,
         rating: Number(data.rating || 5.0),
         comment: data.comment,
@@ -1218,6 +1230,7 @@ export const db = {
     create: async ({ data }: { data: any }): Promise<AuditLogRecord> => {
       const supabase = await getDbClient()
       const { data: created, error } = await supabase.from('AuditLog').insert({
+        id: data.id || crypto.randomUUID(),
         adminId: data.adminId || 'system',
         adminName: data.adminName || 'Admin',
         action: data.action,

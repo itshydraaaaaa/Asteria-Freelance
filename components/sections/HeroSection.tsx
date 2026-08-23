@@ -5,7 +5,6 @@ import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import gsap from 'gsap'
 import { Search, Sparkles, ShieldCheck, ArrowRight } from 'lucide-react'
-import { LoadingScreen } from '@/components/loading/LoadingScreen'
 import { Tilt3DCard } from '@/components/ui/Tilt3DCard'
 
 import HeroCanvas from '@/components/3d/HeroCanvas'

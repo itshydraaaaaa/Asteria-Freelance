@@ -196,9 +196,7 @@ export function Navbar() {
 
           {/* Desktop Right Actions */}
           <div className="hidden md:flex items-center gap-2.5">
-            {loading ? (
-              <NavSkeleton />
-            ) : user ? (
+            {user ? (
               <>
                 <NotificationDropdown />
 
