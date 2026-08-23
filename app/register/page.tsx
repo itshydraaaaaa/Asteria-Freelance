@@ -29,13 +29,8 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-ast-dark flex items-center justify-center px-4 py-12">
-      <motion.div
-        variants={fadeUp}
-        initial="hidden"
-        animate="visible"
-        className="w-full max-w-md"
-      >
+    <div className="min-h-screen bg-ast-dark flex items-center justify-center px-4 pt-28 pb-16">
+      <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2 mb-6 group">
             <img
@@ -138,7 +133,7 @@ export default function RegisterPage() {
           Already have an account?{' '}
           <Link href="/login" className="text-ast-light font-medium hover:underline">Sign in</Link>
         </p>
-      </motion.div>
+      </div>
     </div>
   )
 }

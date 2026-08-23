@@ -34,13 +34,8 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-ast-dark flex items-center justify-center px-4 py-12">
-      <motion.div
-        variants={fadeUp}
-        initial="hidden"
-        animate="visible"
-        className="w-full max-w-md bg-white rounded-3xl p-8 shadow-2xl space-y-6"
-      >
+    <div className="min-h-screen bg-ast-dark flex items-center justify-center px-4 pt-28 pb-16">
+      <div className="w-full max-w-md bg-white rounded-3xl p-8 shadow-2xl space-y-6">
         <div className="text-center">
           <Link href="/" className="inline-flex items-center gap-2 mb-4 group">
             <img
@@ -109,7 +104,7 @@ export default function LoginPage() {
           Don&apos;t have an account?{' '}
           <Link href="/register" className="text-ast-primary font-semibold hover:underline">Create one free</Link>
         </p>
-      </motion.div>
+      </div>
     </div>
   )
 }
