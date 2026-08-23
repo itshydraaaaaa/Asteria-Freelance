@@ -30,10 +30,10 @@ export default function LogoModel() {
       className="relative w-full h-full flex items-center justify-center select-none"
     >
       {/* Ambient Neon Glow Aura */}
-      <div className="absolute w-80 h-80 rounded-full bg-ast-primary/20 blur-3xl pointer-events-none" />
+      <div className="absolute w-96 h-96 rounded-full bg-ast-primary/25 blur-3xl pointer-events-none" />
 
       {/* 3D Holographic Container */}
-      <div className="relative w-72 h-72 sm:w-80 sm:h-80 flex items-center justify-center">
+      <div className="relative w-80 h-80 sm:w-96 sm:h-96 min-w-[280px] min-h-[280px] flex items-center justify-center z-20">
         {/* Outer Orbit Ring */}
         <motion.div
           animate={reducedMotion ? {} : { rotate: 360 }}

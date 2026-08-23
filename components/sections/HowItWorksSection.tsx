@@ -1,9 +1,7 @@
 'use client'
 import { Suspense } from 'react'
-import dynamic from 'next/dynamic'
 import { StepConnector } from '@/components/sections/StepConnector'
-
-const StepModel = dynamic(() => import('@/components/3d/StepModel'), { ssr: false })
+import StepModel from '@/components/3d/StepModel'
 
 const STEPS = [
   {

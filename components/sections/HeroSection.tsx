@@ -8,8 +8,8 @@ import { Search, Sparkles, ShieldCheck, ArrowRight } from 'lucide-react'
 import { LoadingScreen } from '@/components/loading/LoadingScreen'
 import { Tilt3DCard } from '@/components/ui/Tilt3DCard'
 
-const HeroCanvas = dynamic(() => import('@/components/3d/HeroCanvas'), { ssr: false })
-const LogoModel  = dynamic(() => import('@/components/3d/LogoModel'),  { ssr: false })
+import HeroCanvas from '@/components/3d/HeroCanvas'
+import LogoModel from '@/components/3d/LogoModel'
 
 function formatCompact(v: number) {
   if (v >= 1000000) return (v / 1000000).toFixed(1) + 'M'
