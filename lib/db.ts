@@ -1194,43 +1194,63 @@ export const db = {
       // Insert into Supabase
       try {
         const supabase = await getDbClient()
+        const front = newVerif.idFrontPath || 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=600'
+        const back  = newVerif.idBackPath  || 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=600'
+        const selfie = newVerif.selfiePath || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400'
+
         const { data: dbCreated, error } = await supabase.from('Verification').insert({
-          userId: newVerif.userId,
-          fullName: newVerif.fullName,
-          dob: newVerif.dob,
-          country: newVerif.country,
-          documentType: newVerif.documentType,
+          userId:         newVerif.userId,
+          fullName:       newVerif.fullName,
+          dob:            newVerif.dob,
+          country:        newVerif.country,
+          documentType:   newVerif.documentType,
           documentNumber: newVerif.documentNumber,
-          idFrontUrl: newVerif.idFrontPath || 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=600',
-          idBackUrl: newVerif.idBackPath || 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=600',
-          selfieUrl: newVerif.selfiePath || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400',
-          status: 'PENDING',
+          idFrontPath:    front,
+          idFrontUrl:     front,
+          idBackPath:     back,
+          idBackUrl:      back,
+          selfiePath:     selfie,
+          selfieUrl:      selfie,
+          status:         'PENDING',
+          submittedAt:    new Date().toISOString(),
         }).select('*').single()
 
         if (!error && dbCreated) {
           newVerif.id = dbCreated.id
         }
+
+        // Immediately update User verifiedStatus in Supabase
+        await supabase.from('User').update({ verifiedStatus: 'PENDING' }).eq('id', newVerif.userId)
       } catch (e) {}
 
       let list = await db.verification.findMany()
       list.unshift(newVerif)
       ;(global as any).__AST_VERIFICATIONS__ = list
+
+      // Also update in-memory user
+      await db.user.update({
+        where: { id: newVerif.userId },
+        data: { verifiedStatus: 'PENDING' },
+      })
+
       return newVerif
     },
 
     update: async ({ where, data }: { where: { id: string }; data: Partial<VerificationRecord> }): Promise<VerificationRecord | null> => {
       let list = await db.verification.findMany()
       const idx = list.findIndex(v => v.id === where.id)
+      const targetUserId = list[idx]?.userId
+
       if (idx !== -1) {
         list[idx] = { ...list[idx], ...data, reviewedAt: new Date() }
         ;(global as any).__AST_VERIFICATIONS__ = list
+      }
 
-        if (data.status) {
-          await db.user.update({
-            where: { id: list[idx].userId },
-            data: { verifiedStatus: data.status },
-          })
-        }
+      if (data.status && targetUserId) {
+        await db.user.update({
+          where: { id: targetUserId },
+          data: { verifiedStatus: data.status },
+        })
       }
 
       try {
@@ -1238,8 +1258,14 @@ export const db = {
         await supabase.from('Verification').update({
           status: data.status,
           rejectionReason: data.rejectionReason,
-          reviewedAt: new Date(),
+          reviewedAt: new Date().toISOString(),
         }).eq('id', where.id)
+
+        if (data.status && targetUserId) {
+          await supabase.from('User').update({
+            verifiedStatus: data.status,
+          }).eq('id', targetUserId)
+        }
       } catch (e) {}
 
       return list[idx] ?? null
