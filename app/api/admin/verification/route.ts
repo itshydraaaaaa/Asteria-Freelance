@@ -116,13 +116,13 @@ export async function POST(req: NextRequest) {
     // Write to audit log
     await db.auditLog.create({
       data: {
-        adminId:   session!.user.id,
-        adminName: session!.user.name || 'Admin',
+        adminId:   session?.user?.id || 'admin',
+        adminName: session?.user?.name || 'Admin',
         action:    `KYC_${status}`,
         targetId:  id,
         details:   `KYC for user ${updated.userId} ${status.toLowerCase()}${rejectionReason ? `: ${rejectionReason}` : ''}`,
       }
-    })
+    }).catch(() => {})
 
     // Send transactional notification email
     if (user?.email) {

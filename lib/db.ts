@@ -1008,19 +1008,19 @@ export const db = {
       }
     },
 
-    update: async ({ where, data }: { where: { id: string }; data: Partial<VerificationRecord> }): Promise<VerificationRecord | null> => {
+    update: async ({ where, data }: { where: { id?: string; userId?: string }; data: Partial<VerificationRecord> }): Promise<VerificationRecord | null> => {
       try {
         const supabase = await getDbClient()
-        const { data: updated, error } = await supabase
-          .from('Verification')
-          .update({
-            status: data.status,
-            rejectionReason: data.rejectionReason,
-            reviewedAt: new Date().toISOString(),
-          })
-          .eq('id', where.id)
-          .select('*')
-          .single()
+        let q = supabase.from('Verification').update({
+          status: data.status,
+          rejectionReason: data.rejectionReason,
+          reviewedAt: new Date().toISOString(),
+        })
+
+        if (where.id) q = q.eq('id', where.id)
+        else if (where.userId) q = q.eq('userId', where.userId)
+
+        const { data: updated, error } = await q.select('*').single()
 
         if (error || !updated) return null
 
