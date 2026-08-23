@@ -3,6 +3,8 @@ import { HowItWorksSection }  from '@/components/sections/HowItWorksSection'
 import { FeaturedGigsSection} from '@/components/sections/FeaturedGigsSection'
 import { CategoriesSection }  from '@/components/sections/CategoriesSection'
 
+export const dynamic = 'force-dynamic'
+
 export default function HomePage() {
   return (
     <>

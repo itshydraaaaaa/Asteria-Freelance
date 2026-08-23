@@ -28,7 +28,6 @@ const NAV_LINKS = [
   { label: 'About',        href: '/about' },
 ]
 
-// Skeleton shown only on first load
 function NavSkeleton() {
   return (
     <div className="flex items-center gap-3 animate-pulse">
@@ -43,23 +42,60 @@ export function Navbar() {
   const router   = useRouter()
 
   const [user, setUser]                 = useState<any>(null)
-  const [loading, setLoading]           = useState(true)  // true only until first fetch
+  const [loading, setLoading]           = useState(true)
   const hasFetchedOnce                  = useRef(false)
   const [scrolled, setScrolled]         = useState(false)
   const [open, setOpen]                 = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
 
+  // 1. Instant client-side check on mount to prevent any flicker
+  useEffect(() => {
+    try {
+      // Check cached session in sessionStorage
+      const cached = sessionStorage.getItem('ast_cached_user')
+      if (cached) {
+        const parsed = JSON.parse(cached)
+        if (parsed?.id) {
+          setUser(parsed)
+          setLoading(false)
+        }
+      } else if (typeof document !== 'undefined') {
+        const cookieMatch = document.cookie.match(/(?:^|;\s*)demo_user_id=([^;]+)/)
+        if (cookieMatch && decodeURIComponent(cookieMatch[1]) === 'admin1') {
+          setUser({
+            id: 'admin1',
+            name: 'Admin Master',
+            email: 'admin.master@asteria.com',
+            role: 'ADMIN',
+            image: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80',
+            walletBalance: 0,
+            verifiedStatus: 'APPROVED',
+          })
+          setLoading(false)
+        }
+      }
+    } catch {}
+  }, [])
+
+  // 2. Fetch authoritative session from server
   const fetchSession = async () => {
     try {
       const res = await fetch('/api/auth/session', { cache: 'no-store' })
       if (res.ok) {
         const data = await res.json()
-        setUser(data.user ?? null)
+        if (data.user) {
+          setUser(data.user)
+          try { sessionStorage.setItem('ast_cached_user', JSON.stringify(data.user)) } catch {}
+        } else {
+          setUser(null)
+          try { sessionStorage.removeItem('ast_cached_user') } catch {}
+        }
       } else {
         setUser(null)
+        try { sessionStorage.removeItem('ast_cached_user') } catch {}
       }
     } catch {
-      setUser(null)
+      // Keep cached user if network fails
     } finally {
       setLoading(false)
       hasFetchedOnce.current = true
@@ -67,12 +103,7 @@ export function Navbar() {
   }
 
   useEffect(() => {
-    // Only show skeleton on the very first fetch; re-fetch silently on navigation
-    if (!hasFetchedOnce.current) {
-      setLoading(true)
-    }
     fetchSession()
-
     const handleFocus = () => fetchSession()
     window.addEventListener('focus', handleFocus)
     return () => window.removeEventListener('focus', handleFocus)
@@ -102,6 +133,7 @@ export function Navbar() {
   const handleSignOut = async () => {
     setUserMenuOpen(false)
     setOpen(false)
+    try { sessionStorage.removeItem('ast_cached_user') } catch {}
     if (typeof document !== 'undefined') {
       document.cookie = 'demo_user_id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT;'
       document.cookie = 'demo_user_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT;'
@@ -112,7 +144,11 @@ export function Navbar() {
     router.refresh()
   }
 
-  const isActive = (href: string) => (href === '/#how-it-works' ? pathname === '/' : pathname === href)
+  // Active check: hash anchors like /#how-it-works shouldn't mark as active on /
+  const isActive = (href: string) => {
+    if (href.startsWith('/#')) return false
+    return pathname === href
+  }
 
   const displayName   = user?.name ?? user?.email?.split('@')[0] ?? 'Account'
   const initials      = displayName[0]?.toUpperCase() ?? 'U'
@@ -181,7 +217,7 @@ export function Navbar() {
               <>
                 <NotificationDropdown />
 
-                {/* Wallet */}
+                {/* Wallet Balance Pill */}
                 <Link
                   href="/dashboard/wallet"
                   className="flex items-center gap-1.5 bg-white/8 hover:bg-white/15 border border-white/12 hover:border-ast-light/40 text-white rounded-full px-3 py-1.5 text-xs font-semibold transition-all hover:scale-105"
@@ -202,7 +238,7 @@ export function Navbar() {
                   </Link>
                 )}
 
-                {/* Dashboard */}
+                {/* Dashboard Button */}
                 <Link
                   href="/dashboard"
                   className="flex items-center gap-1.5 bg-ast-primary hover:bg-ast-dark text-white rounded-full px-4 py-1.5 text-xs font-semibold transition-all hover:scale-105 active:scale-95 shadow-sm"

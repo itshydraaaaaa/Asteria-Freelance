@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════════════
--- Asteria Migration 005: Fix schema gaps
+-- Asteria Migration: Fix schema gaps & add missing tables
 -- Run in Supabase Dashboard > SQL Editor > New Query
 -- https://supabase.com/dashboard/project/tvuktwtartbqmggndinu/sql/new
 -- ═══════════════════════════════════════════════════════════════════
@@ -29,10 +29,10 @@ ALTER TABLE "Order"
   ADD COLUMN IF NOT EXISTS "requiresSecondApproval"  BOOLEAN NOT NULL DEFAULT false,
   ADD COLUMN IF NOT EXISTS "updatedAt"               TIMESTAMPTZ NOT NULL DEFAULT now();
 
--- 4. Create "Milestone" table (was missing from live DB)
+-- 4. Create "Milestone" table (orderId is UUID matching Order.id)
 CREATE TABLE IF NOT EXISTS "Milestone" (
-  "id"         TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-  "orderId"    TEXT NOT NULL REFERENCES "Order"("id") ON DELETE CASCADE,
+  "id"         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  "orderId"    UUID NOT NULL REFERENCES "Order"("id") ON DELETE CASCADE,
   "title"      TEXT NOT NULL,
   "percentage" INTEGER NOT NULL DEFAULT 100,
   "amount"     FLOAT NOT NULL DEFAULT 0,
@@ -41,9 +41,9 @@ CREATE TABLE IF NOT EXISTS "Milestone" (
   "createdAt"  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- 5. Create "AuditLog" table (was missing from live DB)
+-- 5. Create "AuditLog" table
 CREATE TABLE IF NOT EXISTS "AuditLog" (
-  "id"        TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  "id"        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   "adminId"   TEXT NOT NULL,
   "adminName" TEXT NOT NULL DEFAULT '',
   "action"    TEXT NOT NULL,
@@ -79,8 +79,8 @@ CREATE POLICY "public_read_users" ON "User"
 DROP POLICY IF EXISTS "users_update_own" ON "User";
 CREATE POLICY "users_update_own" ON "User"
   FOR UPDATE TO authenticated
-  USING ((select auth.uid())::text = id)
-  WITH CHECK ((select auth.uid())::text = id);
+  USING ((select auth.uid())::text = id::text)
+  WITH CHECK ((select auth.uid())::text = id::text);
 
 -- Gig: anyone reads, freelancer manages own
 DROP POLICY IF EXISTS "public_read_gigs" ON "Gig";
@@ -90,8 +90,8 @@ CREATE POLICY "public_read_gigs" ON "Gig"
 DROP POLICY IF EXISTS "owner_write_gigs" ON "Gig";
 CREATE POLICY "owner_write_gigs" ON "Gig"
   FOR ALL TO authenticated
-  USING ((select auth.uid())::text = "freelancerId")
-  WITH CHECK ((select auth.uid())::text = "freelancerId");
+  USING ((select auth.uid())::text = "freelancerId"::text)
+  WITH CHECK ((select auth.uid())::text = "freelancerId"::text);
 
 -- Job: anyone reads, client manages own
 DROP POLICY IF EXISTS "public_read_jobs" ON "Job";
@@ -101,23 +101,23 @@ CREATE POLICY "public_read_jobs" ON "Job"
 DROP POLICY IF EXISTS "owner_write_jobs" ON "Job";
 CREATE POLICY "owner_write_jobs" ON "Job"
   FOR ALL TO authenticated
-  USING ((select auth.uid())::text = "clientId")
-  WITH CHECK ((select auth.uid())::text = "clientId");
+  USING ((select auth.uid())::text = "clientId"::text)
+  WITH CHECK ((select auth.uid())::text = "clientId"::text);
 
 -- Order: buyer and seller see their own orders
 DROP POLICY IF EXISTS "party_read_orders" ON "Order";
 CREATE POLICY "party_read_orders" ON "Order"
   FOR SELECT TO authenticated
   USING (
-    (select auth.uid())::text = "buyerId" OR
-    (select auth.uid())::text = "sellerId"
+    (select auth.uid())::text = "buyerId"::text OR
+    (select auth.uid())::text = "sellerId"::text
   );
 
 -- Notification: user sees own
 DROP POLICY IF EXISTS "own_notifications" ON "Notification";
 CREATE POLICY "own_notifications" ON "Notification"
   FOR SELECT TO authenticated
-  USING ((select auth.uid())::text = "userId");
+  USING ((select auth.uid())::text = "userId"::text);
 
 -- Review: public reads
 DROP POLICY IF EXISTS "public_read_reviews" ON "Review";
@@ -128,15 +128,15 @@ CREATE POLICY "public_read_reviews" ON "Review"
 DROP POLICY IF EXISTS "proposal_access" ON "Proposal";
 CREATE POLICY "proposal_access" ON "Proposal"
   FOR SELECT TO authenticated
-  USING ((select auth.uid())::text = "freelancerId");
+  USING ((select auth.uid())::text = "freelancerId"::text);
 
 -- Message: sender or receiver
 DROP POLICY IF EXISTS "message_parties" ON "Message";
 CREATE POLICY "message_parties" ON "Message"
   FOR SELECT TO authenticated
   USING (
-    (select auth.uid())::text = "senderId" OR
-    (select auth.uid())::text = "receiverId"
+    (select auth.uid())::text = "senderId"::text OR
+    (select auth.uid())::text = "receiverId"::text
   );
 
 -- Milestone: parties of the related order
@@ -146,17 +146,17 @@ CREATE POLICY "milestone_access" ON "Milestone"
   USING (
     EXISTS (
       SELECT 1 FROM "Order" o
-      WHERE o.id = "orderId"
-        AND ((select auth.uid())::text = o."buyerId"
-          OR (select auth.uid())::text = o."sellerId")
+      WHERE o.id = "Milestone"."orderId"
+        AND ((select auth.uid())::text = o."buyerId"::text
+          OR (select auth.uid())::text = o."sellerId"::text)
     )
   );
 
--- Verification: owner sees own, admins see all (via service role)
+-- Verification: owner sees own
 DROP POLICY IF EXISTS "own_verification" ON "Verification";
 CREATE POLICY "own_verification" ON "Verification"
   FOR SELECT TO authenticated
-  USING ((select auth.uid())::text = "userId");
+  USING ((select auth.uid())::text = "userId"::text);
 
 -- AuditLog: no direct client access (service role only)
 DROP POLICY IF EXISTS "no_client_auditlog" ON "AuditLog";
