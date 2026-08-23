@@ -37,9 +37,10 @@ const FREELANCER_NAV = [
 ]
 
 const CLIENT_NAV = [
-  { label: 'Explore Gigs',  href: '/explore',            Icon: Star },
-  { label: 'Post a Job',    href: '/post-job',           Icon: Briefcase },
-  { label: 'Wallet',        href: '/dashboard/wallet',     Icon: Wallet },
+  { label: 'My Posted Jobs', href: '/dashboard/jobs',       Icon: Briefcase },
+  { label: 'Post a Job',     href: '/post-job',              Icon: Briefcase },
+  { label: 'Explore Gigs',   href: '/explore',               Icon: Star },
+  { label: 'Wallet',         href: '/dashboard/wallet',      Icon: Wallet },
 ]
 
 export function DashboardNav({ name, email, role, initials, image, isMobileDrawer, onClose }: Props) {

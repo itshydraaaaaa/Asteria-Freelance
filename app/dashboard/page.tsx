@@ -18,6 +18,7 @@ export default async function DashboardPage() {
   let orders: any[] = []
   let gigs: any[] = []
   let jobs: any[] = []
+  let myProposals: any[] = []
   let earnings = 0
 
   if (userId) {
@@ -27,11 +28,11 @@ export default async function DashboardPage() {
       })
       earnings = orders.filter(o => o.status === 'COMPLETED').reduce((sum, o) => sum + Number(o.amount || 0), 0)
 
-      if (role === 'FREELANCER') {
-        gigs = await db.gig.findMany({ where: { freelancerId: userId } })
-      } else {
-        jobs = await db.job.findMany({ where: { clientId: userId } })
-      }
+      gigs = await db.gig.findMany({ where: { freelancerId: userId } })
+      jobs = await db.job.findMany({
+        where: role === 'ADMIN' ? undefined : { clientId: userId },
+      })
+      myProposals = await db.proposal.findMany({ where: { freelancerId: userId } })
     } catch {
       orders = []
     }
@@ -165,16 +166,21 @@ export default async function DashboardPage() {
       </div>
 
       {/* Client Posted Jobs Section */}
-      {role !== 'FREELANCER' && (
+      {(jobs.length > 0 || role === 'CLIENT' || role === 'ADMIN') && (
         <div className="bg-white rounded-3xl border border-black/8 p-6 shadow-sm">
           <div className="flex items-center justify-between mb-5">
             <div>
-              <h3 className="font-semibold text-black text-lg">My Posted Projects & Applications</h3>
+              <h3 className="font-semibold text-black text-lg">My Posted Projects & Received Applications</h3>
               <p className="text-ast-gray text-xs">Manage your job listings and browse received freelancer proposals</p>
             </div>
-            <Link href="/post-job" className="bg-ast-primary text-white text-xs font-semibold px-4 py-2 rounded-xl hover:bg-ast-dark transition-colors flex items-center gap-1.5 shadow-xs">
-              <Plus size={14} /> Post New Job
-            </Link>
+            <div className="flex items-center gap-2">
+              <Link href="/dashboard/jobs" className="border border-black/15 text-black text-xs font-semibold px-4 py-2 rounded-xl hover:bg-ast-surface transition-colors flex items-center gap-1.5 shadow-2xs">
+                View Full Applications Hub →
+              </Link>
+              <Link href="/post-job" className="bg-ast-primary text-white text-xs font-semibold px-4 py-2 rounded-xl hover:bg-ast-dark transition-colors flex items-center gap-1.5 shadow-xs">
+                <Plus size={14} /> Post New Job
+              </Link>
+            </div>
           </div>
 
           {jobs.length === 0 ? (
@@ -222,7 +228,7 @@ export default async function DashboardPage() {
                           href={`/jobs/${j.id}`}
                           className="px-3.5 py-1.5 bg-ast-surface border border-black/10 rounded-xl text-xs font-bold text-ast-primary hover:bg-ast-primary hover:text-white transition-colors inline-block"
                         >
-                          Manage Applications →
+                          Review Applications →
                         </Link>
                       </td>
                     </tr>
@@ -231,6 +237,69 @@ export default async function DashboardPage() {
               </table>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Freelancer Submitted Proposals Section */}
+      {myProposals.length > 0 && (
+        <div className="bg-white rounded-3xl border border-black/8 p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h3 className="font-semibold text-black text-lg">My Submitted Job Applications</h3>
+              <p className="text-ast-gray text-xs">Track status of jobs you've applied to as a freelancer</p>
+            </div>
+            <Link href="/jobs" className="text-xs font-semibold text-ast-primary flex items-center gap-1 hover:underline">
+              Browse More Jobs <ArrowRight size={13} />
+            </Link>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-black/8 text-left text-ast-gray text-xs uppercase tracking-wider bg-ast-surface/50">
+                  <th className="px-4 py-3 font-medium">Job Reference</th>
+                  <th className="px-4 py-3 font-medium">My Bid</th>
+                  <th className="px-4 py-3 font-medium">Delivery</th>
+                  <th className="px-4 py-3 font-medium">Status</th>
+                  <th className="px-4 py-3 font-medium">Date</th>
+                  <th className="px-4 py-3 font-medium text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-black/5">
+                {myProposals.map(p => (
+                  <tr key={p.id} className="hover:bg-ast-surface/40 transition-colors">
+                    <td className="px-4 py-4 font-semibold text-black">
+                      <Link href={`/jobs/${p.jobId}`} className="hover:text-ast-primary transition-colors">
+                        Project #{p.jobId.slice(0, 8)}
+                      </Link>
+                    </td>
+                    <td className="px-4 py-4 text-black font-bold">{p.price} TND</td>
+                    <td className="px-4 py-4 text-xs text-ast-gray">{p.deliveryDays} days</td>
+                    <td className="px-4 py-4">
+                      <span className={`inline-block text-[11px] rounded-full px-2.5 py-0.5 font-bold ${
+                        p.status === 'ACCEPTED'
+                          ? 'bg-emerald-100 text-emerald-800'
+                          : p.status === 'REJECTED'
+                          ? 'bg-gray-100 text-gray-700'
+                          : 'bg-amber-50 text-amber-800 border border-amber-200'
+                      }`}>
+                        {p.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4 text-ast-gray text-xs">{new Date(p.createdAt).toLocaleDateString()}</td>
+                    <td className="px-4 py-4 text-right">
+                      <Link
+                        href={`/jobs/${p.jobId}`}
+                        className="text-xs font-bold text-ast-primary hover:underline"
+                      >
+                        View Job →
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
