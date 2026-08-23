@@ -112,12 +112,13 @@ export function HeroSection() {
           <HeroCanvas />
         </div>
 
-        {/* Ambient Dark Gradient & Radial Glow Overlays */}
-        <div className="absolute inset-0 z-10 bg-gradient-to-r from-ast-dark/95 via-ast-dark/85 to-ast-dark/40" />
-        <div className="absolute top-1/4 left-10 w-96 h-96 bg-ast-primary/15 rounded-full blur-[120px] pointer-events-none" />
+        {/* Subtle Ambient Radial Glow Overlays - Allows 3D canvas to shine through */}
+        <div className="absolute inset-0 z-10 bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(10,58,64,0.65)_100%)] pointer-events-none" />
+        <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-ast-light/10 rounded-full blur-[140px] pointer-events-none animate-pulse" />
+        <div className="absolute bottom-10 right-1/4 w-[400px] h-[400px] bg-ast-primary/15 rounded-full blur-[120px] pointer-events-none" />
 
         {/* Main Content Area */}
-        <div className="relative z-20 max-w-7xl mx-auto px-6 lg:px-12 w-full flex flex-col lg:flex-row items-center gap-12 py-32">
+        <div className="relative z-20 max-w-7xl mx-auto px-6 lg:px-12 w-full flex flex-col lg:flex-row items-center justify-between gap-12 py-28 lg:py-36">
           
           {/* Left Column Text & Controls */}
           <div className="flex-1 max-w-2xl">
@@ -235,7 +236,7 @@ export function HeroSection() {
           </div>
 
           {/* Right Column 3D Hologram Graphic */}
-          <div className="hidden md:flex flex-1 max-w-md h-[400px] lg:h-[460px] items-center justify-center relative">
+          <div className="flex flex-1 w-full max-w-lg h-[360px] sm:h-[420px] lg:h-[480px] items-center justify-center relative">
             <LogoModel />
           </div>
         </div>

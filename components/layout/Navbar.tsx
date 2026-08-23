@@ -110,32 +110,33 @@ export function Navbar() {
   return (
     <>
       <motion.header
-        className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 lg:px-12"
-        animate={{ height: scrolled ? 64 : 72 }}
+        className="fixed top-0 left-0 right-0 z-50 transition-all duration-300"
+        animate={{ height: scrolled ? 70 : 82 }}
         transition={{ duration: 0.3, ease: 'easeOut' }}
         style={{
           background:     'rgba(10,58,64,0.96)',
-          backdropFilter: 'blur(20px)',
-          borderBottom:   '1px solid rgba(96,200,212,0.15)',
+          backdropFilter: 'blur(24px)',
+          borderBottom:   '1px solid rgba(96,200,212,0.18)',
         }}
       >
-        {/* Brand Logo */}
-        <Link href="/" className="flex items-center gap-2.5 group">
-          <div className="relative">
-            <div className="absolute inset-0 bg-ast-light/20 blur-md rounded-full group-hover:bg-ast-light/40 group-hover:scale-110 transition-all duration-500" />
-            <img
-              src="/logo.png"
-              alt="Asteria Logo"
-              className="relative w-8 h-8 md:w-9 md:h-9 object-contain drop-shadow-[0_0_10px_rgba(96,200,212,0.5)] group-hover:drop-shadow-[0_0_20px_rgba(96,200,212,0.8)] transition-all duration-500 group-hover:rotate-[5deg]"
-            />
-          </div>
-          <span className="font-heading font-bold text-white text-lg tracking-wide">
-            A<span className="text-white/80">STERIA</span>
-          </span>
-        </Link>
+        <div className="max-w-7xl mx-auto h-full px-6 sm:px-8 lg:px-12 flex items-center justify-between">
+          {/* Brand Logo */}
+          <Link href="/" className="flex items-center gap-3 group">
+            <div className="relative">
+              <div className="absolute inset-0 bg-ast-light/25 blur-md rounded-full group-hover:bg-ast-light/45 group-hover:scale-110 transition-all duration-500" />
+              <img
+                src="/logo.png"
+                alt="Asteria Logo"
+                className="relative w-8 h-8 md:w-9 md:h-9 object-contain drop-shadow-[0_0_12px_rgba(96,200,212,0.6)] group-hover:drop-shadow-[0_0_20px_rgba(96,200,212,0.9)] transition-all duration-500 group-hover:rotate-[5deg]"
+              />
+            </div>
+            <span className="font-heading font-bold text-white text-lg tracking-wide">
+              A<span className="text-white/80">STERIA</span>
+            </span>
+          </Link>
 
-        {/* Main Desktop Navigation */}
-        <nav className="hidden md:flex items-center gap-8" aria-label="Main navigation">
+          {/* Main Desktop Navigation */}
+          <nav className="hidden md:flex items-center gap-8" aria-label="Main navigation">
           {NAV_LINKS.map(link => (
             <Link
               key={link.href}
@@ -329,14 +330,15 @@ export function Navbar() {
           )}
         </div>
 
-        {/* Mobile Menu Button */}
-        <button
-          className="md:hidden text-white p-2"
-          onClick={() => setOpen(o => !o)}
-          aria-label="Toggle navigation menu"
-        >
-          {open ? <X size={22} /> : <Menu size={22} />}
-        </button>
+          {/* Mobile Menu Button */}
+          <button
+            className="md:hidden text-white p-2"
+            onClick={() => setOpen(o => !o)}
+            aria-label="Toggle navigation menu"
+          >
+            {open ? <X size={22} /> : <Menu size={22} />}
+          </button>
+        </div>
       </motion.header>
 
       {/* Mobile Drawer Menu */}

@@ -90,20 +90,20 @@ export default function HeroCanvas() {
 
       // Render 3D Perspective Wave Grid Floor
       ctx.save()
-      ctx.strokeStyle = 'rgba(96, 200, 212, 0.08)'
-      ctx.lineWidth = 1
+      ctx.strokeStyle = 'rgba(96, 200, 212, 0.22)'
+      ctx.lineWidth = 1.2
 
-      const gridY = height * 0.65
-      for (let z = 100; z < 900; z += isMobile ? 80 : 50) {
+      const gridY = height * 0.62
+      for (let z = 100; z < 900; z += isMobile ? 70 : 45) {
         const perspectiveScale = focalLength / z
-        const y = gridY + (z - 100) * 0.35 * perspectiveScale
+        const y = gridY + (z - 100) * 0.38 * perspectiveScale
         ctx.beginPath()
         ctx.moveTo(0, y)
         ctx.lineTo(width, y)
         ctx.stroke()
       }
 
-      const gridStep = isMobile ? 100 : 60
+      const gridStep = isMobile ? 80 : 50
       for (let x = -width; x < width * 2; x += gridStep) {
         ctx.beginPath()
         ctx.moveTo(x, gridY)
@@ -126,15 +126,15 @@ export default function HeroCanvas() {
         const scale = focalLength / p.z
         const projX = (p.x + (mouseX - centerX) * 0.1) * scale + centerX
         const projY = (p.y + (mouseY - centerY) * 0.1) * scale + centerY
-        const projRadius = Math.max(0.5, p.r * scale * 0.8)
+        const projRadius = Math.max(1, p.r * scale * 1.1)
 
         if (projX > 0 && projX < width && projY > 0 && projY < height) {
           ctx.beginPath()
           ctx.arc(projX, projY, projRadius, 0, Math.PI * 2)
-          ctx.fillStyle = `hsla(${p.hue}, 80%, 75%, ${p.baseAlpha * Math.min(1, scale)})`
+          ctx.fillStyle = `hsla(${p.hue}, 85%, 70%, ${p.baseAlpha * Math.min(1, scale * 1.2)})`
           if (!isMobile) {
-            ctx.shadowBlur = 10
-            ctx.shadowColor = `hsla(${p.hue}, 80%, 65%, 0.8)`
+            ctx.shadowBlur = 12
+            ctx.shadowColor = `hsla(${p.hue}, 85%, 65%, 0.9)`
           }
           ctx.fill()
           if (!isMobile) {
@@ -142,7 +142,7 @@ export default function HeroCanvas() {
           }
 
           // Constellation connection lines (only check a subset for performance)
-          const connectionStep = isMobile ? 10 : 6
+          const connectionStep = isMobile ? 8 : 4
           for (let j = i + 1; j < particles.length; j += connectionStep) {
             const p2 = particles[j]
             const scale2 = focalLength / p2.z
@@ -150,13 +150,13 @@ export default function HeroCanvas() {
             const projY2 = (p2.y + (mouseY - centerY) * 0.1) * scale2 + centerY
 
             const distSq = (projX - projX2) ** 2 + (projY - projY2) ** 2
-            if (distSq < 100 * 100) {
-              const alpha = (1 - Math.sqrt(distSq) / 100) * 0.15 * scale
+            if (distSq < 130 * 130) {
+              const alpha = (1 - Math.sqrt(distSq) / 130) * 0.35 * scale
               ctx.beginPath()
               ctx.moveTo(projX, projY)
               ctx.lineTo(projX2, projY2)
               ctx.strokeStyle = `rgba(96, 200, 212, ${alpha})`
-              ctx.lineWidth = 0.8
+              ctx.lineWidth = 1
               ctx.stroke()
             }
           }
