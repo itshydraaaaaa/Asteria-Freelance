@@ -1,10 +1,10 @@
 -- ═══════════════════════════════════════════════════════════════════
--- Asteria Migration: Fix schema gaps & add missing tables
--- Run in Supabase Dashboard > SQL Editor > New Query
+-- Asteria Database Migration: Complete Schema Synchronization
+-- Run this in Supabase Dashboard > SQL Editor > New Query
 -- https://supabase.com/dashboard/project/tvuktwtartbqmggndinu/sql/new
 -- ═══════════════════════════════════════════════════════════════════
 
--- 1. Add missing columns to "User" table
+-- 1. Synchronize "User" table columns
 ALTER TABLE "User"
   ADD COLUMN IF NOT EXISTS "password"       TEXT,
   ADD COLUMN IF NOT EXISTS "verifiedStatus" TEXT NOT NULL DEFAULT 'UNSUBMITTED',
@@ -14,14 +14,14 @@ ALTER TABLE "User"
 -- Backfill: admins are pre-approved
 UPDATE "User" SET "verifiedStatus" = 'APPROVED' WHERE role = 'ADMIN';
 
--- 2. Add missing columns to "Gig" table
+-- 2. Synchronize "Gig" table columns
 ALTER TABLE "Gig"
   ADD COLUMN IF NOT EXISTS "status"      TEXT NOT NULL DEFAULT 'ACTIVE',
   ADD COLUMN IF NOT EXISTS "rating"      FLOAT NOT NULL DEFAULT 5.0,
   ADD COLUMN IF NOT EXISTS "reviewCount" INTEGER NOT NULL DEFAULT 0,
   ADD COLUMN IF NOT EXISTS "gallery"     TEXT[];
 
--- 3. Add missing columns to "Order" table
+-- 3. Synchronize "Order" table columns
 ALTER TABLE "Order"
   ADD COLUMN IF NOT EXISTS "escrowStatus"            TEXT NOT NULL DEFAULT 'HELD',
   ADD COLUMN IF NOT EXISTS "deliveryNote"            TEXT,
@@ -29,7 +29,43 @@ ALTER TABLE "Order"
   ADD COLUMN IF NOT EXISTS "requiresSecondApproval"  BOOLEAN NOT NULL DEFAULT false,
   ADD COLUMN IF NOT EXISTS "updatedAt"               TIMESTAMPTZ NOT NULL DEFAULT now();
 
--- 4. Create "Milestone" table (orderId is UUID matching Order.id)
+-- 4. Synchronize "Message" table columns (adds receiverId, msgType, offerData, isRead)
+ALTER TABLE "Message"
+  ADD COLUMN IF NOT EXISTS "receiverId"  TEXT,
+  ADD COLUMN IF NOT EXISTS "msgType"     TEXT NOT NULL DEFAULT 'TEXT',
+  ADD COLUMN IF NOT EXISTS "offerData"   JSONB,
+  ADD COLUMN IF NOT EXISTS "isRead"      BOOLEAN NOT NULL DEFAULT false;
+
+-- 5. Synchronize "Notification" table columns
+ALTER TABLE "Notification"
+  ADD COLUMN IF NOT EXISTS "link"   TEXT,
+  ADD COLUMN IF NOT EXISTS "isRead" BOOLEAN NOT NULL DEFAULT false;
+
+-- 6. Synchronize "Proposal" table columns
+ALTER TABLE "Proposal"
+  ADD COLUMN IF NOT EXISTS "deliveryDays" INTEGER NOT NULL DEFAULT 3;
+
+-- 7. Synchronize "Review" table columns
+ALTER TABLE "Review"
+  ADD COLUMN IF NOT EXISTS "authorId" TEXT,
+  ADD COLUMN IF NOT EXISTS "orderId"  TEXT;
+
+-- 8. Synchronize "Verification" table columns
+ALTER TABLE "Verification"
+  ADD COLUMN IF NOT EXISTS "fullName"        TEXT,
+  ADD COLUMN IF NOT EXISTS "dob"             TEXT,
+  ADD COLUMN IF NOT EXISTS "country"         TEXT,
+  ADD COLUMN IF NOT EXISTS "documentType"    TEXT,
+  ADD COLUMN IF NOT EXISTS "documentNumber"  TEXT,
+  ADD COLUMN IF NOT EXISTS "idFrontPath"     TEXT,
+  ADD COLUMN IF NOT EXISTS "idBackPath"      TEXT,
+  ADD COLUMN IF NOT EXISTS "selfiePath"      TEXT,
+  ADD COLUMN IF NOT EXISTS "rejectionReason" TEXT,
+  ADD COLUMN IF NOT EXISTS "reviewedBy"      TEXT,
+  ADD COLUMN IF NOT EXISTS "reviewedAt"      TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS "submittedAt"     TIMESTAMPTZ DEFAULT now();
+
+-- 9. Create "Milestone" table if not exists (orderId is UUID matching Order.id)
 CREATE TABLE IF NOT EXISTS "Milestone" (
   "id"         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   "orderId"    UUID NOT NULL REFERENCES "Order"("id") ON DELETE CASCADE,
@@ -41,7 +77,7 @@ CREATE TABLE IF NOT EXISTS "Milestone" (
   "createdAt"  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- 5. Create "AuditLog" table
+-- 10. Create "AuditLog" table if not exists
 CREATE TABLE IF NOT EXISTS "AuditLog" (
   "id"        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   "adminId"   TEXT NOT NULL,
@@ -53,7 +89,7 @@ CREATE TABLE IF NOT EXISTS "AuditLog" (
 );
 
 -- ═══════════════════════════════════════════════════════════════════
--- 6. Enable RLS on all public tables
+-- 11. Enable Row Level Security (RLS) on all tables
 -- ═══════════════════════════════════════════════════════════════════
 ALTER TABLE "User"         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "Gig"          ENABLE ROW LEVEL SECURITY;
@@ -68,10 +104,10 @@ ALTER TABLE "Milestone"    ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "AuditLog"     ENABLE ROW LEVEL SECURITY;
 
 -- ═══════════════════════════════════════════════════════════════════
--- 7. RLS Policies
+-- 12. Security & RLS Policies
 -- ═══════════════════════════════════════════════════════════════════
 
--- User: public profiles readable, owner can update own
+-- User policies
 DROP POLICY IF EXISTS "public_read_users" ON "User";
 CREATE POLICY "public_read_users" ON "User"
   FOR SELECT TO anon, authenticated USING (true);
@@ -82,7 +118,7 @@ CREATE POLICY "users_update_own" ON "User"
   USING ((select auth.uid())::text = id::text)
   WITH CHECK ((select auth.uid())::text = id::text);
 
--- Gig: anyone reads, freelancer manages own
+-- Gig policies
 DROP POLICY IF EXISTS "public_read_gigs" ON "Gig";
 CREATE POLICY "public_read_gigs" ON "Gig"
   FOR SELECT TO anon, authenticated USING (true);
@@ -93,7 +129,7 @@ CREATE POLICY "owner_write_gigs" ON "Gig"
   USING ((select auth.uid())::text = "freelancerId"::text)
   WITH CHECK ((select auth.uid())::text = "freelancerId"::text);
 
--- Job: anyone reads, client manages own
+-- Job policies
 DROP POLICY IF EXISTS "public_read_jobs" ON "Job";
 CREATE POLICY "public_read_jobs" ON "Job"
   FOR SELECT TO anon, authenticated USING (true);
@@ -104,7 +140,7 @@ CREATE POLICY "owner_write_jobs" ON "Job"
   USING ((select auth.uid())::text = "clientId"::text)
   WITH CHECK ((select auth.uid())::text = "clientId"::text);
 
--- Order: buyer and seller see their own orders
+-- Order policies
 DROP POLICY IF EXISTS "party_read_orders" ON "Order";
 CREATE POLICY "party_read_orders" ON "Order"
   FOR SELECT TO authenticated
@@ -113,24 +149,24 @@ CREATE POLICY "party_read_orders" ON "Order"
     (select auth.uid())::text = "sellerId"::text
   );
 
--- Notification: user sees own
+-- Notification policies
 DROP POLICY IF EXISTS "own_notifications" ON "Notification";
 CREATE POLICY "own_notifications" ON "Notification"
   FOR SELECT TO authenticated
   USING ((select auth.uid())::text = "userId"::text);
 
--- Review: public reads
+-- Review policies
 DROP POLICY IF EXISTS "public_read_reviews" ON "Review";
 CREATE POLICY "public_read_reviews" ON "Review"
   FOR SELECT TO anon, authenticated USING (true);
 
--- Proposal: freelancer sees own proposals
+-- Proposal policies
 DROP POLICY IF EXISTS "proposal_access" ON "Proposal";
 CREATE POLICY "proposal_access" ON "Proposal"
   FOR SELECT TO authenticated
   USING ((select auth.uid())::text = "freelancerId"::text);
 
--- Message: sender or receiver
+-- Message policies
 DROP POLICY IF EXISTS "message_parties" ON "Message";
 CREATE POLICY "message_parties" ON "Message"
   FOR SELECT TO authenticated
@@ -139,7 +175,7 @@ CREATE POLICY "message_parties" ON "Message"
     (select auth.uid())::text = "receiverId"::text
   );
 
--- Milestone: parties of the related order
+-- Milestone policies
 DROP POLICY IF EXISTS "milestone_access" ON "Milestone";
 CREATE POLICY "milestone_access" ON "Milestone"
   FOR SELECT TO authenticated
@@ -152,13 +188,13 @@ CREATE POLICY "milestone_access" ON "Milestone"
     )
   );
 
--- Verification: owner sees own
+-- Verification policies
 DROP POLICY IF EXISTS "own_verification" ON "Verification";
 CREATE POLICY "own_verification" ON "Verification"
   FOR SELECT TO authenticated
   USING ((select auth.uid())::text = "userId"::text);
 
--- AuditLog: no direct client access (service role only)
+-- AuditLog policies (service role only)
 DROP POLICY IF EXISTS "no_client_auditlog" ON "AuditLog";
 CREATE POLICY "no_client_auditlog" ON "AuditLog"
   FOR SELECT TO authenticated USING (false);
