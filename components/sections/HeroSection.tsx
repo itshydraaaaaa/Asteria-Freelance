@@ -53,18 +53,20 @@ export function HeroSection() {
   ]
 
   useEffect(() => {
-    const mm = gsap.matchMedia()
-    mm.add('(prefers-reduced-motion: no-preference)', () => {
-      gsap.from(wordsRef.current, {
-        yPercent: 100,
-        opacity: 0,
-        duration: 0.8,
-        stagger: 0.1,
-        ease: 'power3.out',
-        delay: 0.1,
+    try {
+      const mm = gsap.matchMedia()
+      mm.add('(prefers-reduced-motion: no-preference)', () => {
+        const validEls = wordsRef.current.filter(Boolean)
+        if (validEls.length > 0) {
+          gsap.fromTo(
+            validEls,
+            { y: 20, opacity: 0 },
+            { y: 0, opacity: 1, duration: 0.8, stagger: 0.1, ease: 'power3.out' }
+          )
+        }
       })
-    })
-    return () => mm.revert()
+      return () => mm.revert()
+    } catch {}
   }, [])
 
   useEffect(() => {

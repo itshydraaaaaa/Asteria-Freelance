@@ -2,7 +2,7 @@ const isDev = process.env.NODE_ENV !== 'production'
 
 const cspHeader = `
   default-src 'self';
-  script-src 'self' 'unsafe-inline' ${isDev ? "'unsafe-eval'" : ''} https://js.stripe.com https://cdn.jsdelivr.net https://sandbox.flouci.com;
+  script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://cdn.jsdelivr.net https://sandbox.flouci.com;
   style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
   img-src 'self' blob: data: https://utfs.io https://avatars.githubusercontent.com https://lh3.googleusercontent.com https://images.unsplash.com https://*.stripe.com https://*.supabase.co;
   font-src 'self' https://fonts.gstatic.com;
