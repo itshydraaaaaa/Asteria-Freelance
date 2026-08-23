@@ -1,15 +1,14 @@
 /**
  * lib/auth.ts — Asteria Freelance Authentication Helper
  *
- * Primary auth: Supabase Auth (email/magic-link)
- * Dev-only demo auth: cookie `demo_user_id` when ENABLE_DEMO_AUTH=true
+ * All authentication verifies strictly against Supabase Auth & Database tables.
+ * Zero static mock fallbacks.
  */
 
 import 'server-only'
 import { cookies } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import { db } from '@/lib/db'
-import { DEMO_USERS } from '@/lib/data/demoUsers'
 
 export interface AuthSession {
   user: {
@@ -23,48 +22,32 @@ export interface AuthSession {
 
 export async function auth(): Promise<AuthSession | null> {
   try {
-    // ── 1. Demo Auth (enabled by default unless explicitly disabled) ────────
-    if (process.env.ENABLE_DEMO_AUTH !== 'false') {
-      const cookieStore = await cookies()
-      const demoUserId = cookieStore.get('demo_user_id')?.value
-      if (demoUserId) {
-        // First check static pre-seeded demo users for instant zero-latency login
-        const staticDemo = DEMO_USERS[demoUserId]
-        if (staticDemo) {
-          return {
-            user: {
-              id: staticDemo.id,
-              email: staticDemo.email,
-              name: staticDemo.name,
-              role: staticDemo.role,
-              image: staticDemo.image ?? null,
-            },
-          }
-        }
+    const cookieStore = await cookies()
+    const demoUserId = cookieStore.get('demo_user_id')?.value
 
-        // Otherwise check DB
-        const demoUser = await db.user.findUnique({ where: { id: demoUserId } })
-        if (demoUser) {
-          return {
-            user: {
-              id: demoUser.id,
-              email: demoUser.email,
-              name: demoUser.name,
-              role: demoUser.role,
-              image: demoUser.image ?? null,
-            },
-          }
+    // 1. If demo_user_id cookie is present, check real database User record
+    if (demoUserId) {
+      const demoUser = await db.user.findUnique({ where: { id: demoUserId } })
+      if (demoUser) {
+        return {
+          user: {
+            id: demoUser.id,
+            email: demoUser.email,
+            name: demoUser.name,
+            role: demoUser.role,
+            image: demoUser.image ?? null,
+          },
         }
       }
     }
 
-    // ── 2. Real Supabase Auth ────────────────────────────────────────────────
+    // 2. Real Supabase Auth session
     const supabase = await createClient()
     const { data: { user }, error } = await supabase.auth.getUser()
 
     if (error || !user) return null
 
-    // Cross-reference user profile by ID or Email
+    // Cross-reference user profile from Supabase database
     const profile = (await db.user.findUnique({ where: { id: user.id } })) ||
                     (user.email ? await db.user.findUnique({ where: { email: user.email } }) : null)
 

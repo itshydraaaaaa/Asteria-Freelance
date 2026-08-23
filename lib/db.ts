@@ -1,36 +1,24 @@
 /**
- * lib/db.ts — Asteria Unified Real Data Layer
+ * lib/db.ts — Asteria Real Data Layer
  *
- * All data reads and writes across Asteria go through this layer.
- * Queries Supabase database tables directly in cloud/hosted environments,
- * synchronizes with user profiles, and maintains resilient seed fallbacks.
+ * All data reads and writes across Asteria go directly through Supabase.
+ * Strictly queries live database tables with zero local static fallbacks.
  */
 
 import 'server-only'
 import { createClient } from '@supabase/supabase-js'
 import { createClient as createServerSupabaseClient } from '@/lib/supabase/server'
-import { gigs as staticGigs } from '@/lib/data/gigs'
-import { DEMO_USERS } from '@/lib/data/demoUsers'
 
-// ─── Supabase clients ─────────────────────────────────────────────────────────
-let cachedSystemToken: string | null = null
-let tokenExpiresAt = 0
-
-function getServiceClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://tvuktwtartbqmggndinu.supabase.co'
-  const key = (process.env.SUPABASE_SERVICE_ROLE_KEY && process.env.SUPABASE_SERVICE_ROLE_KEY !== 'your-service-role-key-here')
-    ? process.env.SUPABASE_SERVICE_ROLE_KEY
-    : (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder')
-  return createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } })
-}
-
-async function getDbClient() {
+// ─── Supabase client helper ──────────────────────────────────────────────────
+export async function getDbClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://tvuktwtartbqmggndinu.supabase.co'
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder'
 
-  // 1. If service role key is configured, use it directly
+  // 1. If service role key is configured, use it directly (bypasses RLS for server-side admin operations)
   if (process.env.SUPABASE_SERVICE_ROLE_KEY && process.env.SUPABASE_SERVICE_ROLE_KEY !== 'your-service-role-key-here') {
-    return createClient(url, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { autoRefreshToken: false, persistSession: false } })
+    return createClient(url, process.env.SUPABASE_SERVICE_ROLE_KEY, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    })
   }
 
   // 2. Try obtaining authenticated user session from Next.js request cookies
@@ -42,40 +30,10 @@ async function getDbClient() {
     }
   } catch (e) {}
 
-  // 3. Fallback to resilient system session (guarantees authenticated RLS permissions for cloud DB writes)
-  const now = Date.now()
-  if (cachedSystemToken && now < tokenExpiresAt) {
-    return createClient(url, anonKey, {
-      global: { headers: { Authorization: `Bearer ${cachedSystemToken}` } },
-      auth: { autoRefreshToken: false, persistSession: false },
-    })
-  }
-
-  try {
-    const baseClient = createClient(url, anonKey, { auth: { autoRefreshToken: false, persistSession: false } })
-    const email = 'system.service.asteria@gmail.com'
-    const password = 'SystemAsteriaPassword2026!'
-
-    let authData: any = null
-    const loginRes = await baseClient.auth.signInWithPassword({ email, password })
-    if (loginRes.data?.session) {
-      authData = loginRes.data
-    } else {
-      const signupRes = await baseClient.auth.signUp({ email, password })
-      authData = signupRes.data
-    }
-
-    if (authData?.session?.access_token) {
-      cachedSystemToken = authData.session.access_token
-      tokenExpiresAt = now + (authData.session.expires_in || 3600) * 1000 - 60000
-      return createClient(url, anonKey, {
-        global: { headers: { Authorization: `Bearer ${cachedSystemToken}` } },
-        auth: { autoRefreshToken: false, persistSession: false },
-      })
-    }
-  } catch (err) {}
-
-  return getServiceClient()
+  // 3. Fallback to public anon client
+  return createClient(url, anonKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  })
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -102,7 +60,12 @@ export interface OrderRecord {
   sellerId: string
   amount: number
   status: 'PENDING' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED'
+  escrowStatus?: string
+  deliveryNote?: string
+  disputeReason?: string
+  requiresSecondApproval?: boolean
   createdAt: Date
+  updatedAt?: Date
   gig?: any
   buyer?: any
   seller?: any
@@ -117,6 +80,7 @@ export interface MilestoneItem {
   amount: number
   status: 'PENDING' | 'FUNDED' | 'SUBMITTED' | 'RELEASED'
   position: number
+  createdAt?: Date
 }
 
 export interface JobRecord {
@@ -215,1359 +179,1143 @@ export interface NotificationRecord {
   createdAt: Date
 }
 
-// ─── INITIAL MEMORY FALLBACK CACHE ────────────────────────────────────────────
-function initUsersStore(): UserRecord[] {
-  if (!(global as any).__AST_USERS__) {
-    (global as any).__AST_USERS__ = Object.values(DEMO_USERS)
-  }
-  return (global as any).__AST_USERS__
-}
-
-function initGigsStore(): any[] {
-  if (!(global as any).__AST_GIGS__) {
-    (global as any).__AST_GIGS__ = []
-  }
-  return (global as any).__AST_GIGS__
-}
-
-function initJobsStore(): JobRecord[] {
-  if (!(global as any).__AST_JOBS__) {
-    (global as any).__AST_JOBS__ = []
-  }
-  return (global as any).__AST_JOBS__
-}
-
-// ─── UNIFIED DB ACCESS OBJECT ─────────────────────────────────────────────────
+// ─── UNIFIED DB ACCESS OBJECT (100% SUPABASE LIVE DATA) ─────────────────────────
 export const db = {
   // ── USER ───────────────────────────────────────────────────────────────────
   user: {
     findMany: async (query?: { where?: any; orderBy?: any; include?: any; select?: any }): Promise<UserRecord[]> => {
-      const localUsers = initUsersStore()
       try {
         const supabase = await getDbClient()
-        const { data, error } = await supabase.from('User').select('*')
-        if (!error && data && data.length > 0) {
-          const { data: verifs } = await supabase.from('Verification').select('userId, status')
+        let q = supabase.from('User').select('*')
+        if (query?.where?.role) q = q.eq('role', query.where.role)
+        if (query?.where?.verifiedStatus) q = q.eq('verifiedStatus', query.where.verifiedStatus)
+        
+        const { data, error } = await q.order('createdAt', { ascending: false })
+        if (error || !data) return []
 
-          const dbUsers: UserRecord[] = data.map(u => {
-            const v = verifs?.find(ver => ver.userId === u.id)
-            const vStatus = v?.status || (u.role === 'ADMIN' ? 'APPROVED' : 'UNSUBMITTED')
-            return {
-              id: u.id,
-              name: u.name || 'User',
-              email: u.email || '',
-              role: u.role || 'CLIENT',
-              image: u.image || null,
-              bio: u.bio || '',
-              skills: u.skills || [],
-              walletBalance: u.walletBalance ?? 0,
-              verifiedStatus: vStatus,
-              rating: 5.0,
-              reviewCount: 0,
-              createdAt: new Date(u.createdAt || Date.now()),
-            }
-          })
-          
-          // Merge avoiding duplicates
-          const merged = [...dbUsers]
-          localUsers.forEach(lu => {
-            if (!merged.some(u => u.id === lu.id || u.email === lu.email)) {
-              merged.push(lu)
-            }
-          })
-          let list = merged
-          if (query?.where?.role) list = list.filter(u => u.role === query.where.role)
-          return list
-        }
-      } catch (e) {}
-
-      let list = [...localUsers]
-      if (query?.where?.role) list = list.filter(u => u.role === query.where.role)
-      return list
+        return data.map(u => ({
+          id: u.id,
+          name: u.name || 'User',
+          email: u.email || '',
+          role: u.role || 'CLIENT',
+          image: u.image || null,
+          bio: u.bio || '',
+          skills: Array.isArray(u.skills) ? u.skills : (u.skills ? u.skills.split(',') : []),
+          walletBalance: Number(u.walletBalance ?? 0),
+          verifiedStatus: u.verifiedStatus || (u.role === 'ADMIN' ? 'APPROVED' : 'UNSUBMITTED'),
+          rating: Number(u.rating ?? 5.0),
+          reviewCount: Number(u.reviewCount ?? 0),
+          createdAt: new Date(u.createdAt || Date.now()),
+        }))
+      } catch (e) {
+        console.error('db.user.findMany error:', e)
+        return []
+      }
     },
 
     findUnique: async ({ where }: { where: { id?: string; email?: string }; select?: any; include?: any }): Promise<UserRecord | null> => {
-      const localUsers = initUsersStore()
-      const localFound = localUsers.find(u =>
-        (where.id && u.id === where.id) ||
-        (where.email && u.email.toLowerCase() === where.email.toLowerCase())
-      )
-
       try {
         const supabase = await getDbClient()
         let query = supabase.from('User').select('*')
         if (where.id) query = query.eq('id', where.id)
         if (where.email) query = query.eq('email', where.email.toLowerCase())
+        
         const { data, error } = await query.maybeSingle()
-        if (!error && data) {
-          const { data: v } = await supabase.from('Verification').select('status').eq('userId', data.id).maybeSingle()
-          const vStatus = v?.status || (data.role === 'ADMIN' ? 'APPROVED' : 'UNSUBMITTED')
-          return {
-            id: data.id,
-            name: data.name || localFound?.name || 'User',
-            email: data.email || localFound?.email || '',
-            role: data.role || localFound?.role || 'CLIENT',
-            image: data.image || localFound?.image,
-            bio: data.bio || localFound?.bio,
-            skills: data.skills || localFound?.skills || [],
-            walletBalance: data.walletBalance ?? localFound?.walletBalance ?? 0,
-            verifiedStatus: vStatus,
-            rating: 5.0,
-            reviewCount: 0,
-            createdAt: new Date(data.createdAt || Date.now()),
-          }
-        }
-      } catch (e) {}
+        if (error || !data) return null
 
-      return localFound ? { ...localFound } : null
+        return {
+          id: data.id,
+          name: data.name || 'User',
+          email: data.email || '',
+          role: data.role || 'CLIENT',
+          password: data.password,
+          image: data.image || null,
+          bio: data.bio || '',
+          skills: Array.isArray(data.skills) ? data.skills : (data.skills ? data.skills.split(',') : []),
+          walletBalance: Number(data.walletBalance ?? 0),
+          verifiedStatus: data.verifiedStatus || (data.role === 'ADMIN' ? 'APPROVED' : 'UNSUBMITTED'),
+          rating: Number(data.rating ?? 5.0),
+          reviewCount: Number(data.reviewCount ?? 0),
+          createdAt: new Date(data.createdAt || Date.now()),
+        }
+      } catch (e) {
+        console.error('db.user.findUnique error:', e)
+        return null
+      }
     },
 
     create: async ({ data }: { data: Partial<UserRecord> & { password?: string } }): Promise<UserRecord> => {
-      const users = initUsersStore()
-      const newUser: UserRecord = {
-        id: data.id ?? `u_${Date.now()}`,
+      const supabase = await getDbClient()
+      const payload: any = {
         name: data.name ?? 'New User',
         email: (data.email ?? '').toLowerCase(),
         role: data.role ?? 'CLIENT',
-        image: data.image ?? `https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80`,
-        bio: data.bio ?? (data.role === 'FREELANCER' ? 'Professional freelancer on Asteria.' : 'Client hiring top talent.'),
+        image: data.image ?? null,
+        bio: data.bio ?? '',
         skills: data.skills ?? [],
-        walletBalance: data.walletBalance ?? (data.role === 'CLIENT' ? 5000 : 0),
-        verifiedStatus: data.verifiedStatus ?? 'APPROVED',
+        walletBalance: data.walletBalance ?? 0,
+        verifiedStatus: data.verifiedStatus ?? (data.role === 'ADMIN' ? 'APPROVED' : 'UNSUBMITTED'),
         rating: 5.0,
         reviewCount: 0,
-        createdAt: new Date(),
+      }
+      if (data.id) payload.id = data.id
+      if (data.password) payload.password = data.password
+
+      const { data: created, error } = await supabase.from('User').insert(payload).select('*').single()
+      if (error || !created) {
+        throw new Error(error?.message || 'Failed to create user in database')
       }
 
-      // Try persisting to Supabase
-      try {
-        const supabase = await getDbClient()
-        await supabase.from('User').upsert({
-          id: newUser.id,
-          name: newUser.name,
-          email: newUser.email,
-          role: newUser.role,
-          image: newUser.image,
-          bio: newUser.bio,
-          skills: newUser.skills,
-          walletBalance: newUser.walletBalance,
-        })
-      } catch (e) {}
-
-      const existingIdx = users.findIndex(u => u.id === newUser.id || u.email === newUser.email)
-      if (existingIdx !== -1) {
-        users[existingIdx] = { ...users[existingIdx], ...newUser }
-        return users[existingIdx]
+      return {
+        ...created,
+        skills: Array.isArray(created.skills) ? created.skills : [],
+        walletBalance: Number(created.walletBalance ?? 0),
+        createdAt: new Date(created.createdAt || Date.now()),
       }
-
-      users.push(newUser)
-      ;(global as any).__AST_USERS__ = users
-      return newUser
     },
 
     update: async ({ where, data }: { where: { id: string }; data: Partial<UserRecord> }): Promise<UserRecord | null> => {
-      const users = initUsersStore()
-      const idx = users.findIndex(u => u.id === where.id)
-      if (idx !== -1) {
-        users[idx] = { ...users[idx], ...data }
-        ;(global as any).__AST_USERS__ = users
-      }
-
       try {
         const supabase = await getDbClient()
-        await supabase.from('User').update(data).eq('id', where.id)
-      } catch (e) {}
+        const { data: updated, error } = await supabase
+          .from('User')
+          .update(data)
+          .eq('id', where.id)
+          .select('*')
+          .single()
 
-      return users[idx] ?? null
+        if (error || !updated) return null
+        return {
+          ...updated,
+          skills: Array.isArray(updated.skills) ? updated.skills : [],
+          walletBalance: Number(updated.walletBalance ?? 0),
+          createdAt: new Date(updated.createdAt || Date.now()),
+        }
+      } catch (e) {
+        console.error('db.user.update error:', e)
+        return null
+      }
+    },
+
+    count: async (query?: { where?: any }): Promise<number> => {
+      try {
+        const supabase = await getDbClient()
+        let q = supabase.from('User').select('*', { count: 'exact', head: true })
+        if (query?.where?.role) q = q.eq('role', query.where.role)
+        const { count } = await q
+        return count ?? 0
+      } catch {
+        return 0
+      }
     },
   },
 
   // ── GIG ─────────────────────────────────────────────────────────────────────
   gig: {
     count: async (query?: { where?: any }): Promise<number> => {
-      const list = await db.gig.findMany(query)
-      return list.length
+      try {
+        const supabase = await getDbClient()
+        let q = supabase.from('Gig').select('*', { count: 'exact', head: true })
+        if (query?.where?.freelancerId) q = q.eq('freelancerId', query.where.freelancerId)
+        if (query?.where?.category) q = q.eq('category', query.where.category)
+        const { count } = await q
+        return count ?? 0
+      } catch {
+        return 0
+      }
     },
 
     findMany: async (query?: { where?: any; orderBy?: any; take?: number; limit?: number; include?: any }): Promise<any[]> => {
-      const localGigs = initGigsStore()
-      const users = await db.user.findMany()
-
-      let dbGigs: any[] = []
       try {
         const supabase = await getDbClient()
-        const { data, error } = await supabase.from('Gig').select('*').order('createdAt', { ascending: false })
-        if (!error && data) {
-          dbGigs = data.map(g => {
-            const fl = users.find(u => u.id === g.freelancerId) || { name: 'Freelancer' }
-            return {
-              ...g,
-              tags: Array.isArray(g.tags) ? g.tags : (g.tags ? g.tags.split(',') : []),
-              freelancer: fl,
-            }
-          })
+        let q = supabase.from('Gig').select('*, freelancer:User!freelancerId(id, name, image, role, rating, reviewCount)')
+        
+        if (query?.where?.freelancerId) q = q.eq('freelancerId', query.where.freelancerId)
+        if (query?.where?.category && query.where.category !== 'All' && query.where.category !== 'All Categories') {
+          q = q.ilike('category', query.where.category)
         }
-      } catch (e) {}
+        if (query?.where?.featured !== undefined) q = q.eq('featured', query.where.featured)
 
-      // Combine Supabase DB gigs with local seeded gigs
-      const merged = [...dbGigs]
-      localGigs.forEach(lg => {
-        if (!merged.some(g => g.id === lg.id || (g.title === lg.title && g.freelancerId === lg.freelancerId))) {
-          const fl = users.find(u => u.id === lg.freelancerId) || lg.freelancer || { name: 'Freelancer' }
-          merged.push({ ...lg, freelancer: fl })
-        }
-      })
+        const limit = query?.take ?? query?.limit
+        if (limit) q = q.limit(limit)
 
-      let list = merged
-      if (query?.where?.freelancerId) {
-        list = list.filter(g => g.freelancerId === query.where.freelancerId)
-      }
-      if (query?.where?.category && query.where.category !== 'All Categories') {
-        list = list.filter(g => g.category?.toLowerCase() === query.where.category.toLowerCase())
-      }
-      if (query?.where?.featured) {
-        list = list.filter(g => g.featured)
-      }
+        const { data, error } = await q.order('createdAt', { ascending: false })
+        if (error || !data) return []
 
-      const limit = query?.take ?? query?.limit
-      if (limit) list = list.slice(0, limit)
-      return list
+        return data.map(g => ({
+          ...g,
+          tags: Array.isArray(g.tags) ? g.tags : (g.tags ? g.tags.split(',') : []),
+          freelancer: g.freelancer || { name: 'Freelancer' },
+          price: Number(g.price ?? 0),
+          deliveryDays: Number(g.deliveryDays ?? 1),
+          rating: Number(g.rating ?? 5.0),
+          reviewCount: Number(g.reviewCount ?? 0),
+          createdAt: new Date(g.createdAt || Date.now()),
+        }))
+      } catch (e) {
+        console.error('db.gig.findMany error:', e)
+        return []
+      }
     },
 
     findUnique: async ({ where }: { where: { id: string }; include?: any }): Promise<any | null> => {
-      const all = await db.gig.findMany()
-      const found = all.find(g => g.id === where.id)
-      if (found) return found
-
       try {
         const supabase = await getDbClient()
-        const { data, error } = await supabase.from('Gig').select('*').eq('id', where.id).maybeSingle()
-        if (!error && data) {
-          const users = await db.user.findMany()
-          const fl = users.find(u => u.id === data.freelancerId) || { id: data.freelancerId, name: 'Freelancer' }
-          return {
-            ...data,
-            tags: Array.isArray(data.tags) ? data.tags : (data.tags ? data.tags.split(',') : []),
-            freelancer: fl,
-          }
-        }
-      } catch (e) {}
+        const { data, error } = await supabase
+          .from('Gig')
+          .select('*, freelancer:User!freelancerId(id, name, image, role, bio, rating, reviewCount)')
+          .eq('id', where.id)
+          .maybeSingle()
 
-      return null
+        if (error || !data) return null
+
+        return {
+          ...data,
+          tags: Array.isArray(data.tags) ? data.tags : (data.tags ? data.tags.split(',') : []),
+          freelancer: data.freelancer || { id: data.freelancerId, name: 'Freelancer' },
+          price: Number(data.price ?? 0),
+          deliveryDays: Number(data.deliveryDays ?? 1),
+          rating: Number(data.rating ?? 5.0),
+          reviewCount: Number(data.reviewCount ?? 0),
+          createdAt: new Date(data.createdAt || Date.now()),
+        }
+      } catch (e) {
+        console.error('db.gig.findUnique error:', e)
+        return null
+      }
     },
 
     create: async ({ data }: { data: any }): Promise<any> => {
-      const gigs = initGigsStore()
-      const users = await db.user.findMany()
-      const fl = users.find(u => u.id === data.freelancerId) || { id: data.freelancerId, name: 'Freelancer' }
-
-      const newGig = {
-        id: data.id ?? `gig_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      const supabase = await getDbClient()
+      const { data: created, error } = await supabase.from('Gig').insert({
         title: data.title,
         description: data.description,
         category: data.category,
         price: Number(data.price),
         deliveryDays: Number(data.deliveryDays),
         tags: Array.isArray(data.tags) ? data.tags : (data.tags ? data.tags.split(',').map((t: string) => t.trim()) : []),
-        image: data.image ?? 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=800&auto=format&fit=crop&q=80',
+        image: data.image || 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=800&auto=format&fit=crop&q=80',
         freelancerId: data.freelancerId,
-        freelancer: fl,
-        featured: false,
+        featured: data.featured ?? false,
+        status: data.status || 'ACTIVE',
         rating: 5.0,
         reviewCount: 0,
-        createdAt: new Date(),
+      }).select('*').single()
+
+      if (error || !created) {
+        throw new Error(error?.message || 'Failed to create gig in database')
       }
-
-      // Insert into Supabase
-      try {
-        const supabase = await getDbClient()
-        const { data: dbCreated, error } = await supabase.from('Gig').insert({
-          title: newGig.title,
-          description: newGig.description,
-          category: newGig.category,
-          price: newGig.price,
-          deliveryDays: newGig.deliveryDays,
-          tags: newGig.tags,
-          image: newGig.image,
-          freelancerId: newGig.freelancerId,
-          featured: false,
-        }).select('*').single()
-
-        if (!error && dbCreated) {
-          newGig.id = dbCreated.id
-        }
-      } catch (e) {}
-
-      gigs.unshift(newGig)
-      ;(global as any).__AST_GIGS__ = gigs
-      return newGig
+      return created
     },
 
     update: async ({ where, data }: { where: { id: string }; data: any }): Promise<any> => {
-      const gigs = initGigsStore()
-      const idx = gigs.findIndex(g => g.id === where.id)
-      if (idx !== -1) {
-        gigs[idx] = { ...gigs[idx], ...data }
-        ;(global as any).__AST_GIGS__ = gigs
-      }
-
       try {
         const supabase = await getDbClient()
-        await supabase.from('Gig').update(data).eq('id', where.id)
-      } catch (e) {}
+        const { data: updated, error } = await supabase
+          .from('Gig')
+          .update(data)
+          .eq('id', where.id)
+          .select('*')
+          .single()
 
-      return gigs[idx] ?? null
+        if (error || !updated) return null
+        return updated
+      } catch (e) {
+        console.error('db.gig.update error:', e)
+        return null
+      }
     },
 
     delete: async ({ where }: { where: { id: string } }): Promise<any> => {
-      let gigs = initGigsStore()
-      const target = gigs.find(g => g.id === where.id)
-      gigs = gigs.filter(g => g.id !== where.id)
-      ;(global as any).__AST_GIGS__ = gigs
-
       try {
         const supabase = await getDbClient()
-        await supabase.from('Gig').delete().eq('id', where.id)
-      } catch (e) {}
+        const { data: deleted, error } = await supabase
+          .from('Gig')
+          .delete()
+          .eq('id', where.id)
+          .select('*')
+          .single()
 
-      return target
+        return deleted || null
+      } catch (e) {
+        console.error('db.gig.delete error:', e)
+        return null
+      }
     },
   },
 
   // ── JOB ─────────────────────────────────────────────────────────────────────
   job: {
     findMany: async (query?: { where?: { status?: string; clientId?: string }; orderBy?: any; include?: any }): Promise<JobRecord[]> => {
-      const localJobs = initJobsStore()
-      const users = await db.user.findMany()
-      const proposals = await db.proposal.findMany()
-
-      let dbJobs: JobRecord[] = []
       try {
         const supabase = await getDbClient()
-        const { data, error } = await supabase.from('Job').select('*').order('createdAt', { ascending: false })
-        if (!error && data) {
-          dbJobs = data.map(j => {
-            const cl = users.find(u => u.id === j.clientId) || { name: 'Client' }
-            const jobProps = proposals.filter(p => p.jobId === j.id)
-            return {
-              id: j.id,
-              title: j.title,
-              description: j.description,
-              category: j.category,
-              budget: Number(j.budget),
-              deliveryDays: Number(j.deliveryDays),
-              skills: Array.isArray(j.skills) ? j.skills : (j.skills ? j.skills.split(',') : []),
-              status: j.status || 'OPEN',
-              clientId: j.clientId,
-              client: cl,
-              _count: { proposals: jobProps.length },
-              createdAt: new Date(j.createdAt || Date.now()),
-            }
-          })
-        }
-      } catch (e) {}
+        let q = supabase.from('Job').select('*, client:User!clientId(id, name, image, role)')
+        
+        if (query?.where?.status) q = q.eq('status', query.where.status)
+        if (query?.where?.clientId) q = q.eq('clientId', query.where.clientId)
 
-      const merged = [...dbJobs]
-      localJobs.forEach(lj => {
-        if (!merged.some(j => j.id === lj.id || (j.title === lj.title && j.clientId === lj.clientId))) {
-          const cl = users.find(u => u.id === lj.clientId) || lj.client || { name: 'Client' }
-          const jobProps = proposals.filter(p => p.jobId === lj.id)
-          merged.push({
-            ...lj,
-            client: cl,
-            _count: { proposals: jobProps.length || lj._count?.proposals || 0 },
-          })
-        }
-      })
+        const { data, error } = await q.order('createdAt', { ascending: false })
+        if (error || !data) return []
 
-      let list = merged
-      if (query?.where?.status) {
-        list = list.filter(j => j.status === query.where!.status)
+        const { data: proposals } = await supabase.from('Proposal').select('jobId')
+
+        return data.map(j => {
+          const jobProps = (proposals || []).filter(p => p.jobId === j.id)
+          return {
+            id: j.id,
+            title: j.title,
+            description: j.description,
+            category: j.category,
+            budget: Number(j.budget ?? 0),
+            deliveryDays: Number(j.deliveryDays ?? 1),
+            skills: Array.isArray(j.skills) ? j.skills : (j.skills ? j.skills.split(',') : []),
+            status: j.status || 'OPEN',
+            clientId: j.clientId,
+            client: j.client || { name: 'Client' },
+            _count: { proposals: jobProps.length },
+            createdAt: new Date(j.createdAt || Date.now()),
+          }
+        })
+      } catch (e) {
+        console.error('db.job.findMany error:', e)
+        return []
       }
-      if (query?.where?.clientId) {
-        list = list.filter(j => j.clientId === query.where!.clientId)
-      }
-
-      return list
     },
 
     findUnique: async ({ where }: { where: { id: string }; include?: any }): Promise<JobRecord | null> => {
-      const all = await db.job.findMany()
-      const found = all.find(j => j.id === where.id)
-      if (found) return found
-
       try {
         const supabase = await getDbClient()
-        const { data, error } = await supabase.from('Job').select('*').eq('id', where.id).maybeSingle()
-        if (!error && data) {
-          const users = await db.user.findMany()
-          const proposals = await db.proposal.findMany({ where: { jobId: data.id } })
-          const cl = users.find(u => u.id === data.clientId) || { id: data.clientId, name: 'Client' }
-          return {
-            id: data.id,
-            title: data.title,
-            description: data.description,
-            category: data.category,
-            budget: Number(data.budget),
-            deliveryDays: Number(data.deliveryDays),
-            skills: Array.isArray(data.skills) ? data.skills : (data.skills ? data.skills.split(',') : []),
-            status: data.status || 'OPEN',
-            clientId: data.clientId,
-            client: cl,
-            _count: { proposals: proposals.length },
-            createdAt: new Date(data.createdAt || Date.now()),
-          }
-        }
-      } catch (e) {}
+        const { data, error } = await supabase
+          .from('Job')
+          .select('*, client:User!clientId(id, name, image, role)')
+          .eq('id', where.id)
+          .maybeSingle()
 
-      return null
+        if (error || !data) return null
+
+        const { data: proposals } = await supabase.from('Proposal').select('jobId').eq('jobId', data.id)
+
+        return {
+          id: data.id,
+          title: data.title,
+          description: data.description,
+          category: data.category,
+          budget: Number(data.budget ?? 0),
+          deliveryDays: Number(data.deliveryDays ?? 1),
+          skills: Array.isArray(data.skills) ? data.skills : (data.skills ? data.skills.split(',') : []),
+          status: data.status || 'OPEN',
+          clientId: data.clientId,
+          client: data.client || { name: 'Client' },
+          _count: { proposals: (proposals || []).length },
+          createdAt: new Date(data.createdAt || Date.now()),
+        }
+      } catch (e) {
+        console.error('db.job.findUnique error:', e)
+        return null
+      }
     },
 
-    create: async ({ data }: { data: Partial<JobRecord> }): Promise<JobRecord> => {
-      const jobs = initJobsStore()
-      const users = await db.user.findMany()
-      const cl = users.find(u => u.id === data.clientId) || { id: data.clientId, name: 'Client' }
-
-      const newJob: JobRecord = {
-        id: data.id ?? `job_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-        title: data.title ?? 'Custom Job Brief',
-        description: data.description ?? '',
-        category: data.category ?? 'Web Development',
-        budget: Number(data.budget) || 100,
-        deliveryDays: Number(data.deliveryDays) || 7,
-        skills: Array.isArray(data.skills) ? data.skills : (data.skills ? (data.skills as any).split(',').map((s: string) => s.trim()) : []),
+    create: async ({ data }: { data: any }): Promise<JobRecord> => {
+      const supabase = await getDbClient()
+      const { data: created, error } = await supabase.from('Job').insert({
+        title: data.title,
+        description: data.description,
+        category: data.category,
+        budget: Number(data.budget),
+        deliveryDays: Number(data.deliveryDays),
+        skills: Array.isArray(data.skills) ? data.skills : (data.skills ? data.skills.split(',').map((s: string) => s.trim()) : []),
         status: 'OPEN',
-        clientId: data.clientId ?? 'c1',
-        client: cl,
-        _count: { proposals: 0 },
-        createdAt: new Date(),
+        clientId: data.clientId,
+      }).select('*').single()
+
+      if (error || !created) {
+        throw new Error(error?.message || 'Failed to create job in database')
       }
 
-      // Insert into Supabase
-      try {
-        const supabase = await getDbClient()
-        const { data: dbCreated, error } = await supabase.from('Job').insert({
-          title: newJob.title,
-          description: newJob.description,
-          category: newJob.category,
-          budget: newJob.budget,
-          deliveryDays: newJob.deliveryDays,
-          skills: newJob.skills,
-          status: 'OPEN',
-          clientId: newJob.clientId,
-        }).select('*').single()
-
-        if (!error && dbCreated) {
-          newJob.id = dbCreated.id
-        }
-      } catch (e) {}
-
-      jobs.unshift(newJob)
-      ;(global as any).__AST_JOBS__ = jobs
-      return newJob
+      return {
+        ...created,
+        budget: Number(created.budget),
+        deliveryDays: Number(created.deliveryDays),
+        skills: Array.isArray(created.skills) ? created.skills : [],
+        createdAt: new Date(created.createdAt || Date.now()),
+      }
     },
 
     update: async ({ where, data }: { where: { id: string }; data: Partial<JobRecord> }): Promise<JobRecord | null> => {
-      const jobs = initJobsStore()
-      const idx = jobs.findIndex(j => j.id === where.id)
-      if (idx !== -1) {
-        jobs[idx] = { ...jobs[idx], ...data }
-        ;(global as any).__AST_JOBS__ = jobs
-      }
-
       try {
         const supabase = await getDbClient()
-        await supabase.from('Job').update(data).eq('id', where.id)
-      } catch (e) {}
+        const { data: updated, error } = await supabase
+          .from('Job')
+          .update(data)
+          .eq('id', where.id)
+          .select('*')
+          .single()
 
-      return jobs[idx] ?? null
+        if (error || !updated) return null
+        return {
+          ...updated,
+          budget: Number(updated.budget),
+          deliveryDays: Number(updated.deliveryDays),
+          skills: Array.isArray(updated.skills) ? updated.skills : [],
+          createdAt: new Date(updated.createdAt || Date.now()),
+        }
+      } catch (e) {
+        console.error('db.job.update error:', e)
+        return null
+      }
     },
   },
 
   // ── PROPOSAL ────────────────────────────────────────────────────────────────
   proposal: {
     findMany: async (query?: { where?: { jobId?: string; freelancerId?: string }; orderBy?: any; include?: any }): Promise<ProposalRecord[]> => {
-      let localProps: ProposalRecord[] = (global as any).__AST_PROPOSALS__
-      if (!localProps) {
-        localProps = []
-        ;(global as any).__AST_PROPOSALS__ = localProps
-      }
-
-      const users = await db.user.findMany()
-
-      let dbProps: ProposalRecord[] = []
       try {
         const supabase = await getDbClient()
-        const { data, error } = await supabase.from('Proposal').select('*').order('createdAt', { ascending: false })
-        if (!error && data) {
-          dbProps = data.map(p => ({
-            id: p.id,
-            jobId: p.jobId,
-            freelancerId: p.freelancerId,
-            coverLetter: p.coverLetter,
-            price: Number(p.price),
-            deliveryDays: Number(p.deliveryDays),
-            status: p.status || 'PENDING',
-            createdAt: new Date(p.createdAt || Date.now()),
-          }))
-        }
-      } catch (e) {}
+        let q = supabase.from('Proposal').select('*, freelancer:User!freelancerId(id, name, image, role, rating, reviewCount)')
+        
+        if (query?.where?.jobId) q = q.eq('jobId', query.where.jobId)
+        if (query?.where?.freelancerId) q = q.eq('freelancerId', query.where.freelancerId)
 
-      const merged = [...dbProps]
-      localProps.forEach(lp => {
-        if (!merged.some(p => p.id === lp.id || (p.jobId === lp.jobId && p.freelancerId === lp.freelancerId))) {
-          merged.push(lp)
-        }
-      })
+        const { data, error } = await q.order('createdAt', { ascending: false })
+        if (error || !data) return []
 
-      let list = merged.map(p => {
-        const fl = users.find(u => u.id === p.freelancerId) || p.freelancer || { name: 'Freelancer' }
-        return { ...p, freelancer: fl }
-      })
-
-      if (query?.where?.jobId) list = list.filter(p => p.jobId === query.where!.jobId)
-      if (query?.where?.freelancerId) list = list.filter(p => p.freelancerId === query.where!.freelancerId)
-
-      return list
+        return data.map(p => ({
+          id: p.id,
+          jobId: p.jobId,
+          freelancerId: p.freelancerId,
+          coverLetter: p.coverLetter || '',
+          price: Number(p.price ?? 0),
+          deliveryDays: Number(p.deliveryDays ?? 1),
+          status: p.status || 'PENDING',
+          freelancer: p.freelancer || { name: 'Freelancer' },
+          createdAt: new Date(p.createdAt || Date.now()),
+        }))
+      } catch (e) {
+        console.error('db.proposal.findMany error:', e)
+        return []
+      }
     },
 
     findFirst: async (query?: { where?: { jobId?: string; freelancerId?: string } }): Promise<ProposalRecord | null> => {
       const list = await db.proposal.findMany(query)
-      return list[0] ?? null
+      return list[0] || null
     },
 
-    create: async ({ data }: { data: Partial<ProposalRecord> }): Promise<ProposalRecord> => {
-      const users = await db.user.findMany()
-      const fl = users.find(u => u.id === data.freelancerId) || { id: data.freelancerId, name: 'Freelancer' }
-
-      const newProposal: ProposalRecord = {
-        id: data.id ?? `prop_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-        jobId: data.jobId!,
-        freelancerId: data.freelancerId!,
-        coverLetter: data.coverLetter ?? '',
-        price: Number(data.price) || 100,
-        deliveryDays: Number(data.deliveryDays) || 3,
-        status: 'PENDING',
-        freelancer: fl,
-        createdAt: new Date(),
-      }
-
-      // Insert into Supabase
+    findUnique: async ({ where }: { where: { id: string } }): Promise<ProposalRecord | null> => {
       try {
         const supabase = await getDbClient()
-        const { data: dbCreated, error } = await supabase.from('Proposal').insert({
-          jobId: newProposal.jobId,
-          freelancerId: newProposal.freelancerId,
-          coverLetter: newProposal.coverLetter,
-          price: newProposal.price,
-          deliveryDays: newProposal.deliveryDays,
-          status: 'PENDING',
-        }).select('*').single()
+        const { data, error } = await supabase
+          .from('Proposal')
+          .select('*, freelancer:User!freelancerId(id, name, image, role, rating, reviewCount)')
+          .eq('id', where.id)
+          .maybeSingle()
 
-        if (!error && dbCreated) {
-          newProposal.id = dbCreated.id
+        if (error || !data) return null
+        return {
+          id: data.id,
+          jobId: data.jobId,
+          freelancerId: data.freelancerId,
+          coverLetter: data.coverLetter || '',
+          price: Number(data.price ?? 0),
+          deliveryDays: Number(data.deliveryDays ?? 1),
+          status: data.status || 'PENDING',
+          freelancer: data.freelancer || { name: 'Freelancer' },
+          createdAt: new Date(data.createdAt || Date.now()),
         }
-      } catch (e) {}
+      } catch (e) {
+        console.error('db.proposal.findUnique error:', e)
+        return null
+      }
+    },
 
-      let list: ProposalRecord[] = (global as any).__AST_PROPOSALS__ || []
-      list.unshift(newProposal)
-      ;(global as any).__AST_PROPOSALS__ = list
+    create: async ({ data }: { data: any }): Promise<ProposalRecord> => {
+      const supabase = await getDbClient()
+      const { data: created, error } = await supabase.from('Proposal').insert({
+        jobId: data.jobId,
+        freelancerId: data.freelancerId,
+        coverLetter: data.coverLetter,
+        price: Number(data.price),
+        deliveryDays: Number(data.deliveryDays ?? 3),
+        status: 'PENDING',
+      }).select('*').single()
 
-      return newProposal
+      if (error || !created) {
+        throw new Error(error?.message || 'Failed to submit proposal')
+      }
+
+      return {
+        ...created,
+        price: Number(created.price),
+        deliveryDays: Number(created.deliveryDays),
+        createdAt: new Date(created.createdAt || Date.now()),
+      }
+    },
+
+    update: async ({ where, data }: { where: { id: string }; data: Partial<ProposalRecord> }): Promise<ProposalRecord | null> => {
+      try {
+        const supabase = await getDbClient()
+        const { data: updated, error } = await supabase
+          .from('Proposal')
+          .update(data)
+          .eq('id', where.id)
+          .select('*')
+          .single()
+
+        if (error || !updated) return null
+        return {
+          ...updated,
+          price: Number(updated.price),
+          deliveryDays: Number(updated.deliveryDays),
+          createdAt: new Date(updated.createdAt || Date.now()),
+        }
+      } catch (e) {
+        console.error('db.proposal.update error:', e)
+        return null
+      }
     },
   },
 
   // ── ORDER ───────────────────────────────────────────────────────────────────
   order: {
-    findMany: async (query?: { where?: { buyerId?: string; sellerId?: string; status?: string }; orderBy?: any; include?: any; take?: number; limit?: number }): Promise<OrderRecord[]> => {
-      let ordersList: OrderRecord[] = (global as any).__AST_ORDERS__
-      if (!ordersList) {
-        ordersList = []
-        ;(global as any).__AST_ORDERS__ = ordersList
-      }
-
-      const users = await db.user.findMany()
-      const gigs = await db.gig.findMany()
-
-      let dbOrders: OrderRecord[] = []
+    findMany: async (query?: { where?: { buyerId?: string; sellerId?: string; status?: string }; orderBy?: any; take?: number; include?: any }): Promise<OrderRecord[]> => {
       try {
         const supabase = await getDbClient()
-        const { data, error } = await supabase.from('Order').select('*').order('createdAt', { ascending: false })
-        if (!error && data) {
-          dbOrders = data.map(o => ({
-            id: o.id,
-            gigId: o.gigId,
-            buyerId: o.buyerId,
-            sellerId: o.sellerId,
-            amount: Number(o.amount),
-            status: o.status || 'ACTIVE',
-            createdAt: new Date(o.createdAt || Date.now()),
-          }))
-        }
-      } catch (e) {}
+        let q = supabase.from('Order').select('*, buyer:User!buyerId(id, name, email, image), seller:User!sellerId(id, name, email, image), gig:Gig(*), milestones:Milestone(*)')
+        
+        if (query?.where?.buyerId) q = q.eq('buyerId', query.where.buyerId)
+        if (query?.where?.sellerId) q = q.eq('sellerId', query.where.sellerId)
+        if (query?.where?.status) q = q.eq('status', query.where.status)
 
-      const merged = [...dbOrders]
-      ordersList.forEach(lo => {
-        if (!merged.some(o => o.id === lo.id)) {
-          merged.push(lo)
-        }
-      })
+        const limit = query?.take
+        if (limit) q = q.limit(limit)
 
-      let list = merged.map(o => {
-        const gig = gigs.find(g => g.id === o.gigId) || o.gig || { title: 'Custom Escrow Project' }
-        const buyer = users.find(u => u.id === o.buyerId) || o.buyer || { name: 'Client' }
-        const seller = users.find(u => u.id === o.sellerId) || o.seller || { name: 'Freelancer' }
-        return {
-          ...o,
-          gig,
-          buyer,
-          seller,
-        }
-      })
+        const { data, error } = await q.order('createdAt', { ascending: false })
+        if (error || !data) return []
 
-      if (query?.where?.buyerId)  list = list.filter(o => o.buyerId === query.where!.buyerId)
-      if (query?.where?.sellerId) list = list.filter(o => o.sellerId === query.where!.sellerId)
-      if (query?.where?.status)   list = list.filter(o => o.status === query.where!.status)
-
-      return list
+        return data.map(o => ({
+          id: o.id,
+          gigId: o.gigId,
+          buyerId: o.buyerId,
+          sellerId: o.sellerId,
+          amount: Number(o.amount ?? 0),
+          status: o.status || 'PENDING',
+          escrowStatus: o.escrowStatus || 'HELD',
+          deliveryNote: o.deliveryNote,
+          disputeReason: o.disputeReason,
+          requiresSecondApproval: o.requiresSecondApproval || false,
+          buyer: o.buyer,
+          seller: o.seller,
+          gig: o.gig,
+          milestones: o.milestones || [],
+          createdAt: new Date(o.createdAt || Date.now()),
+          updatedAt: o.updatedAt ? new Date(o.updatedAt) : undefined,
+        }))
+      } catch (e) {
+        console.error('db.order.findMany error:', e)
+        return []
+      }
     },
 
     findUnique: async ({ where }: { where: { id: string }; include?: any }): Promise<OrderRecord | null> => {
-      const all = await db.order.findMany()
-      const found = all.find(o => o.id === where.id)
-      if (!found) return null
-
-      const milestones = await db.milestone.findMany({ where: { orderId: found.id } })
-      return {
-        ...found,
-        milestones,
-      }
-    },
-
-    create: async ({ data }: { data: Partial<OrderRecord> }): Promise<OrderRecord> => {
-      const users = await db.user.findMany()
-      const gigs = await db.gig.findMany()
-      const buyer = users.find(u => u.id === data.buyerId) || { id: data.buyerId, name: 'Client' }
-      const seller = users.find(u => u.id === data.sellerId) || { id: data.sellerId, name: 'Freelancer' }
-      const gig = gigs.find(g => g.id === data.gigId) || { id: data.gigId, title: 'Custom Service' }
-
-      const newOrder: OrderRecord = {
-        id: data.id ?? `ord_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-        gigId: data.gigId ?? 'custom',
-        buyerId: data.buyerId!,
-        sellerId: data.sellerId!,
-        amount: Number(data.amount) || 100,
-        status: (data.status as any) ?? 'ACTIVE',
-        createdAt: new Date(),
-        gig,
-        buyer,
-        seller,
-      }
-
-      // Insert into Supabase
       try {
         const supabase = await getDbClient()
-        const { data: dbCreated, error } = await supabase.from('Order').insert({
-          gigId: newOrder.gigId,
-          buyerId: newOrder.buyerId,
-          sellerId: newOrder.sellerId,
-          amount: newOrder.amount,
-          status: newOrder.status,
-        }).select('*').single()
+        const { data, error } = await supabase
+          .from('Order')
+          .select('*, buyer:User!buyerId(id, name, email, image), seller:User!sellerId(id, name, email, image), gig:Gig(*), milestones:Milestone(*)')
+          .eq('id', where.id)
+          .maybeSingle()
 
-        if (!error && dbCreated) {
-          newOrder.id = dbCreated.id
+        if (error || !data) return null
+
+        return {
+          id: data.id,
+          gigId: data.gigId,
+          buyerId: data.buyerId,
+          sellerId: data.sellerId,
+          amount: Number(data.amount ?? 0),
+          status: data.status || 'PENDING',
+          escrowStatus: data.escrowStatus || 'HELD',
+          deliveryNote: data.deliveryNote,
+          disputeReason: data.disputeReason,
+          requiresSecondApproval: data.requiresSecondApproval || false,
+          buyer: data.buyer,
+          seller: data.seller,
+          gig: data.gig,
+          milestones: data.milestones || [],
+          createdAt: new Date(data.createdAt || Date.now()),
+          updatedAt: data.updatedAt ? new Date(data.updatedAt) : undefined,
         }
-      } catch (e) {}
-
-      let ordersList: OrderRecord[] = (global as any).__AST_ORDERS__ || []
-      ordersList.unshift(newOrder)
-      ;(global as any).__AST_ORDERS__ = ordersList
-      return newOrder
+      } catch (e) {
+        console.error('db.order.findUnique error:', e)
+        return null
+      }
     },
 
-    update: async ({ where, data }: { where: { id: string }; data: Partial<OrderRecord> }): Promise<OrderRecord | null> => {
-      let ordersList: OrderRecord[] = (global as any).__AST_ORDERS__ || []
-      const idx = ordersList.findIndex(o => o.id === where.id)
-      if (idx !== -1) {
-        ordersList[idx] = { ...ordersList[idx], ...data }
-        ;(global as any).__AST_ORDERS__ = ordersList
+    create: async ({ data }: { data: any }): Promise<OrderRecord> => {
+      const supabase = await getDbClient()
+      const { data: created, error } = await supabase.from('Order').insert({
+        gigId: data.gigId,
+        buyerId: data.buyerId,
+        sellerId: data.sellerId,
+        amount: Number(data.amount),
+        status: data.status || 'PENDING',
+        escrowStatus: 'HELD',
+      }).select('*').single()
+
+      if (error || !created) {
+        throw new Error(error?.message || 'Failed to create order in database')
       }
 
+      // If milestones provided, insert them
+      if (data.milestones && Array.isArray(data.milestones) && data.milestones.length > 0) {
+        const mInsert = data.milestones.map((m: any, idx: number) => ({
+          orderId: created.id,
+          title: m.title || `Milestone ${idx + 1}`,
+          percentage: Number(m.percentage || 100),
+          amount: Number(m.amount || created.amount),
+          status: m.status || 'PENDING',
+          position: idx,
+        }))
+        await supabase.from('Milestone').insert(mInsert)
+      }
+
+      return {
+        ...created,
+        amount: Number(created.amount),
+        createdAt: new Date(created.createdAt || Date.now()),
+      }
+    },
+
+    update: async ({ where, data }: { where: { id: string }; data: any }): Promise<OrderRecord | null> => {
       try {
         const supabase = await getDbClient()
-        await supabase.from('Order').update(data).eq('id', where.id)
-      } catch (e) {}
+        const { data: updated, error } = await supabase
+          .from('Order')
+          .update({
+            ...data,
+            updatedAt: new Date().toISOString(),
+          })
+          .eq('id', where.id)
+          .select('*')
+          .single()
 
-      return ordersList[idx] ?? null
+        if (error || !updated) return null
+        return {
+          ...updated,
+          amount: Number(updated.amount),
+          createdAt: new Date(updated.createdAt || Date.now()),
+        }
+      } catch (e) {
+        console.error('db.order.update error:', e)
+        return null
+      }
     },
   },
 
   // ── MILESTONE ───────────────────────────────────────────────────────────────
   milestone: {
-    findMany: async ({ where }: { where: { orderId: string } }): Promise<MilestoneItem[]> => {
-      let list: MilestoneItem[] = (global as any).__AST_MILESTONES__ || []
-      const orderMilestones = list.filter(m => m.orderId === where.orderId)
-      if (orderMilestones.length > 0) return orderMilestones
-
-      // If milestones haven't been stored yet, dynamically generate matching the actual order amount
-      const orders = await db.order.findMany()
-      const order = orders.find(o => o.id === where.orderId)
-      const orderAmount = order?.amount ?? 200
-
-      return [
-        {
-          id: `ms_${where.orderId}_1`,
-          orderId: where.orderId,
-          title: `Initial Deliverable & Phase 1`,
-          percentage: 50,
-          amount: Math.round(orderAmount * 0.5),
-          status: 'FUNDED',
-          position: 1,
-        },
-        {
-          id: `ms_${where.orderId}_2`,
-          orderId: where.orderId,
-          title: `Final Project Completion & Handoff`,
-          percentage: 50,
-          amount: Math.round(orderAmount * 0.5),
-          status: 'PENDING',
-          position: 2,
-        },
-      ]
+    findMany: async (query?: { where?: { orderId?: string } }): Promise<MilestoneItem[]> => {
+      try {
+        const supabase = await getDbClient()
+        let q = supabase.from('Milestone').select('*')
+        if (query?.where?.orderId) q = q.eq('orderId', query.where.orderId)
+        const { data, error } = await q.order('position', { ascending: true })
+        if (error || !data) return []
+        return data.map(m => ({
+          ...m,
+          amount: Number(m.amount ?? 0),
+          percentage: Number(m.percentage ?? 100),
+        }))
+      } catch {
+        return []
+      }
     },
 
     findUnique: async ({ where }: { where: { id: string } }): Promise<MilestoneItem | null> => {
-      let list: MilestoneItem[] = (global as any).__AST_MILESTONES__ || []
-      const found = list.find(m => m.id === where.id)
-      return found ?? null
-    },
-
-    create: async ({ data }: { data: Partial<MilestoneItem> }): Promise<MilestoneItem> => {
-      const newMilestone: MilestoneItem = {
-        id: data.id ?? `ms_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-        orderId: data.orderId!,
-        title: data.title ?? 'Deliverable Phase',
-        percentage: data.percentage ?? 100,
-        amount: Number(data.amount) || 100,
-        status: (data.status as any) ?? 'PENDING',
-        position: data.position ?? 1,
-      }
-
-      let list: MilestoneItem[] = (global as any).__AST_MILESTONES__ || []
-      list.push(newMilestone)
-      ;(global as any).__AST_MILESTONES__ = list
-      return newMilestone
-    },
-
-    update: async ({ where, data }: { where: { id: string }; data: Partial<MilestoneItem> }): Promise<MilestoneItem | null> => {
-      let list: MilestoneItem[] = (global as any).__AST_MILESTONES__ || []
-      const idx = list.findIndex(m => m.id === where.id)
-      if (idx !== -1) {
-        list[idx] = { ...list[idx], ...data }
-        ;(global as any).__AST_MILESTONES__ = list
-        return list[idx]
-      }
-      return null
-    },
-  },
-
-  // ── MESSAGE ─────────────────────────────────────────────────────────────────
-  message: {
-    findMany: async (query?: { where?: { senderId?: string; receiverId?: string; userId?: string }; orderBy?: any }): Promise<MessageRecord[]> => {
-      let localMessages: MessageRecord[] = (global as any).__AST_MESSAGES__
-      if (!localMessages) {
-        localMessages = []
-        ;(global as any).__AST_MESSAGES__ = localMessages
-      }
-
-      let dbMessages: MessageRecord[] = []
       try {
         const supabase = await getDbClient()
-        const { data, error } = await supabase.from('Message').select('*').order('createdAt', { ascending: true })
-        if (!error && data) {
-          dbMessages = data.map(m => ({
-            id: m.id,
-            senderId: m.senderId || m.sender_id,
-            receiverId: m.receiverId || m.receiver_id || m.recipientId,
-            content: m.content || '',
-            msgType: m.msgType || m.msg_type || 'TEXT',
-            offerData: m.offerData || m.offer_data || null,
-            isRead: m.isRead ?? m.is_read ?? false,
-            createdAt: new Date(m.createdAt || m.created_at || Date.now()),
-          }))
+        const { data, error } = await supabase.from('Milestone').select('*').eq('id', where.id).maybeSingle()
+        if (error || !data) return null
+        return {
+          ...data,
+          amount: Number(data.amount ?? 0),
+          percentage: Number(data.percentage ?? 100),
         }
-      } catch (e) {}
-
-      const merged = [...dbMessages]
-      localMessages.forEach(lm => {
-        if (!merged.some(m => m.id === lm.id)) {
-          merged.push(lm)
-        }
-      })
-
-      let list = merged
-      if (query?.where?.userId) {
-        const uid = query.where.userId
-        list = list.filter(m => m.senderId === uid || m.receiverId === uid)
+      } catch {
+        return null
       }
-      if (query?.where?.senderId && query?.where?.receiverId) {
-        const s = query.where.senderId
-        const r = query.where.receiverId
-        list = list.filter(m => (m.senderId === s && m.receiverId === r) || (m.senderId === r && m.receiverId === s))
-      }
-      return list
     },
 
-    create: async ({ data }: { data: Partial<MessageRecord> }): Promise<MessageRecord> => {
-      const newMsg: MessageRecord = {
-        id: `msg_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-        senderId: data.senderId!,
-        receiverId: data.receiverId!,
-        content: data.content ?? '',
-        msgType: (data.msgType as any) ?? 'TEXT',
-        offerData: data.offerData ?? null,
-        isRead: false,
-        createdAt: new Date(),
+    create: async ({ data }: { data: any }): Promise<MilestoneItem> => {
+      const supabase = await getDbClient()
+      const { data: created, error } = await supabase.from('Milestone').insert({
+        orderId: data.orderId,
+        title: data.title || 'Milestone',
+        percentage: Number(data.percentage || 100),
+        amount: Number(data.amount || 0),
+        status: data.status || 'PENDING',
+        position: Number(data.position || 0),
+      }).select('*').single()
+
+      if (error || !created) {
+        throw new Error(error?.message || 'Failed to create milestone')
       }
 
-      // Insert into Supabase
-      try {
-        const supabase = await getDbClient()
-        const { data: created, error } = await supabase.from('Message').insert({
-          senderId: newMsg.senderId,
-          receiverId: newMsg.receiverId,
-          content: newMsg.content,
-          read: false,
-        }).select('*').single()
-
-        if (!error && created) {
-          newMsg.id = created.id
-        }
-      } catch (e) {}
-
-      let list: MessageRecord[] = (global as any).__AST_MESSAGES__ || []
-      list.push(newMsg)
-      ;(global as any).__AST_MESSAGES__ = list
-      return newMsg
-    },
-  },
-
-  // ── AUDIT LOG ───────────────────────────────────────────────────────────────
-  auditLog: {
-    findMany: async (query?: { orderBy?: any; take?: number }): Promise<AuditLogRecord[]> => {
-      let localLogs: AuditLogRecord[] = (global as any).__AST_AUDIT_LOGS__ || []
-      let dbLogs: AuditLogRecord[] = []
-      try {
-        const supabase = await getDbClient()
-        const { data, error } = await supabase.from('AuditLog').select('*').order('createdAt', { ascending: false }).limit(query?.take ?? 50)
-        if (!error && data) {
-          dbLogs = data.map(a => ({
-            id: a.id,
-            adminId: a.adminId,
-            adminName: a.adminName,
-            action: a.action,
-            details: a.details,
-            targetId: a.targetId,
-            createdAt: new Date(a.createdAt || Date.now()),
-          }))
-        }
-      } catch (e) {}
-
-      const merged = [...localLogs]
-      dbLogs.forEach(dl => {
-        if (!merged.some(l => l.id === dl.id)) {
-          merged.push(dl)
-        }
-      })
-      if (query?.take) return merged.slice(0, query.take)
-      return merged
-    },
-
-    create: async ({ data }: { data: { adminId: string; adminName: string; action: string; targetId?: string; details: string } }): Promise<AuditLogRecord> => {
-      const newLog: AuditLogRecord = {
-        id: `log_${Date.now()}`,
-        adminId: data.adminId,
-        adminName: data.adminName,
-        action: data.action,
-        targetId: data.targetId,
-        details: data.details,
-        createdAt: new Date(),
+      return {
+        ...created,
+        amount: Number(created.amount),
+        percentage: Number(created.percentage),
       }
+    },
 
+    update: async ({ where, data }: { where: { id: string }; data: any }): Promise<any> => {
       try {
         const supabase = await getDbClient()
-        await supabase.from('AuditLog').insert({
-          adminId: newLog.adminId,
-          adminName: newLog.adminName,
-          action: newLog.action,
-          details: newLog.details,
-        })
-      } catch (e) {}
-
-      let logs = (global as any).__AST_AUDIT_LOGS__ || []
-      logs.unshift(newLog)
-      ;(global as any).__AST_AUDIT_LOGS__ = logs
-      return newLog
+        const { data: updated, error } = await supabase
+          .from('Milestone')
+          .update(data)
+          .eq('id', where.id)
+          .select('*')
+          .single()
+        return updated || null
+      } catch {
+        return null
+      }
     },
   },
 
   // ── VERIFICATION ───────────────────────────────────────────────────────────
   verification: {
     findMany: async (query?: { where?: { status?: string; userId?: string }; orderBy?: any }): Promise<VerificationRecord[]> => {
-      const users = await db.user.findMany()
-      let dbVerifications: VerificationRecord[] = []
-
       try {
         const supabase = await getDbClient()
-        const { data, error } = await supabase.from('Verification').select('*').order('submittedAt', { ascending: false })
-        if (!error && data) {
-          dbVerifications = data.map(v => {
-            const u = users.find(usr => usr.id === v.userId)
-            return {
-              id: v.id,
-              userId: v.userId,
-              fullName: v.fullName || u?.name || 'Applicant',
-              dob: v.dob || '1995-01-01',
-              country: v.country || 'Tunisia',
-              documentType: v.documentType || 'National ID',
-              documentNumber: v.documentNumber || '12345678',
-              idFrontPath: v.idFrontUrl || v.idFrontPath || 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=600',
-              idBackPath: v.idBackUrl || v.idBackPath || 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=600',
-              selfiePath: v.selfieUrl || v.selfiePath || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400',
-              status: v.status || 'PENDING',
-              rejectionReason: v.rejectionReason,
-              submittedAt: new Date(v.submittedAt || Date.now()),
-              reviewedAt: v.reviewedAt ? new Date(v.reviewedAt) : undefined,
-              user: u,
-            }
-          })
-        }
-      } catch (e) {}
+        let q = supabase.from('Verification').select('*, user:User!userId(*)')
+        
+        if (query?.where?.status) q = q.eq('status', query.where.status)
+        if (query?.where?.userId) q = q.eq('userId', query.where.userId)
 
-      let list = (global as any).__AST_VERIFICATIONS__
-      if (!list) {
-        list = []
-        ;(global as any).__AST_VERIFICATIONS__ = list
+        const { data, error } = await q.order('submittedAt', { ascending: false })
+        if (error || !data) return []
+
+        return data.map(v => ({
+          id: v.id,
+          userId: v.userId,
+          fullName: v.fullName || v.user?.name || 'Applicant',
+          dob: v.dob || '1995-01-01',
+          country: v.country || 'Tunisia',
+          documentType: v.documentType || 'National ID',
+          documentNumber: v.documentNumber || '12345678',
+          idFrontPath: v.idFrontUrl || v.idFrontPath || 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=600',
+          idBackPath: v.idBackUrl || v.idBackPath || 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=600',
+          selfiePath: v.selfieUrl || v.selfiePath || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400',
+          status: v.status || 'PENDING',
+          rejectionReason: v.rejectionReason,
+          reviewedBy: v.reviewedBy,
+          reviewedAt: v.reviewedAt ? new Date(v.reviewedAt) : undefined,
+          submittedAt: new Date(v.submittedAt || Date.now()),
+          user: v.user ? {
+            ...v.user,
+            walletBalance: Number(v.user.walletBalance ?? 0),
+            createdAt: new Date(v.user.createdAt || Date.now()),
+          } : undefined,
+        }))
+      } catch (e) {
+        console.error('db.verification.findMany error:', e)
+        return []
       }
-
-      const merged = [...dbVerifications]
-      list.forEach((lv: VerificationRecord) => {
-        if (!merged.some(v => v.id === lv.id || (v.userId === lv.userId && v.documentNumber === lv.documentNumber))) {
-          const u = users.find(usr => usr.id === lv.userId)
-          merged.push({ ...lv, user: u })
-        }
-      })
-
-      let result = merged
-      if (query?.where?.status) result = result.filter(v => v.status === query.where!.status)
-      if (query?.where?.userId) result = result.filter(v => v.userId === query.where!.userId)
-      return result
     },
 
     findUnique: async ({ where }: { where: { id?: string; userId?: string }; include?: any }): Promise<VerificationRecord | null> => {
-      const all = await db.verification.findMany()
-      const found = all.find(v => (where.id && v.id === where.id) || (where.userId && v.userId === where.userId))
-      return found ?? null
+      try {
+        const supabase = await getDbClient()
+        let q = supabase.from('Verification').select('*, user:User!userId(*)')
+        if (where.id) q = q.eq('id', where.id)
+        if (where.userId) q = q.eq('userId', where.userId)
+
+        const { data, error } = await q.maybeSingle()
+        if (error || !data) return null
+
+        return {
+          id: data.id,
+          userId: data.userId,
+          fullName: data.fullName || data.user?.name || 'Applicant',
+          dob: data.dob || '1995-01-01',
+          country: data.country || 'Tunisia',
+          documentType: data.documentType || 'National ID',
+          documentNumber: data.documentNumber || '12345678',
+          idFrontPath: data.idFrontUrl || data.idFrontPath || 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=600',
+          idBackPath: data.idBackUrl || data.idBackPath || 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=600',
+          selfiePath: data.selfieUrl || data.selfiePath || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400',
+          status: data.status || 'PENDING',
+          rejectionReason: data.rejectionReason,
+          reviewedBy: data.reviewedBy,
+          reviewedAt: data.reviewedAt ? new Date(data.reviewedAt) : undefined,
+          submittedAt: new Date(data.submittedAt || Date.now()),
+          user: data.user ? {
+            ...data.user,
+            walletBalance: Number(data.user.walletBalance ?? 0),
+            createdAt: new Date(data.user.createdAt || Date.now()),
+          } : undefined,
+        }
+      } catch (e) {
+        console.error('db.verification.findUnique error:', e)
+        return null
+      }
     },
 
     create: async ({ data }: { data: Partial<VerificationRecord> }): Promise<VerificationRecord> => {
-      const users = await db.user.findMany()
-      const user = users.find(u => u.id === data.userId)
+      const supabase = await getDbClient()
+      const front = data.idFrontPath || 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=600'
+      const back  = data.idBackPath  || 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=600'
+      const selfie = data.selfiePath || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400'
 
-      const newVerif: VerificationRecord = {
-        id: data.id ?? `ver_${Date.now()}`,
-        userId: data.userId!,
-        fullName: data.fullName ?? user?.name ?? 'Applicant',
-        dob: data.dob ?? '1995-01-01',
-        country: data.country ?? 'Tunisia',
-        documentType: data.documentType ?? 'National ID',
-        documentNumber: data.documentNumber ?? '12345678',
-        idFrontPath: data.idFrontPath ?? '',
-        idBackPath: data.idBackPath ?? '',
-        selfiePath: data.selfiePath ?? '',
-        status: 'PENDING',
-        submittedAt: new Date(),
-        user,
+      const { data: created, error } = await supabase.from('Verification').insert({
+        userId:         data.userId,
+        fullName:       data.fullName || 'Applicant',
+        dob:            data.dob || '1995-01-01',
+        country:        data.country || 'Tunisia',
+        documentType:   data.documentType || 'National ID',
+        documentNumber: data.documentNumber || '12345678',
+        idFrontPath:    front,
+        idFrontUrl:     front,
+        idBackPath:     back,
+        idBackUrl:      back,
+        selfiePath:     selfie,
+        selfieUrl:      selfie,
+        status:         'PENDING',
+        submittedAt:    new Date().toISOString(),
+      }).select('*').single()
+
+      if (error || !created) {
+        throw new Error(error?.message || 'Failed to submit KYC verification')
       }
 
-      // Insert into Supabase
-      try {
-        const supabase = await getDbClient()
-        const front = newVerif.idFrontPath || 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=600'
-        const back  = newVerif.idBackPath  || 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=600'
-        const selfie = newVerif.selfiePath || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400'
+      // Sync User verifiedStatus in Supabase
+      await supabase.from('User').update({ verifiedStatus: 'PENDING' }).eq('id', data.userId)
 
-        const { data: dbCreated, error } = await supabase.from('Verification').insert({
-          userId:         newVerif.userId,
-          fullName:       newVerif.fullName,
-          dob:            newVerif.dob,
-          country:        newVerif.country,
-          documentType:   newVerif.documentType,
-          documentNumber: newVerif.documentNumber,
-          idFrontPath:    front,
-          idFrontUrl:     front,
-          idBackPath:     back,
-          idBackUrl:      back,
-          selfiePath:     selfie,
-          selfieUrl:      selfie,
-          status:         'PENDING',
-          submittedAt:    new Date().toISOString(),
-        }).select('*').single()
-
-        if (!error && dbCreated) {
-          newVerif.id = dbCreated.id
-        }
-
-        // Immediately update User verifiedStatus in Supabase
-        await supabase.from('User').update({ verifiedStatus: 'PENDING' }).eq('id', newVerif.userId)
-      } catch (e) {}
-
-      let list = await db.verification.findMany()
-      list.unshift(newVerif)
-      ;(global as any).__AST_VERIFICATIONS__ = list
-
-      // Also update in-memory user
-      await db.user.update({
-        where: { id: newVerif.userId },
-        data: { verifiedStatus: 'PENDING' },
-      })
-
-      return newVerif
+      return {
+        ...created,
+        submittedAt: new Date(created.submittedAt || Date.now()),
+      }
     },
 
     update: async ({ where, data }: { where: { id: string }; data: Partial<VerificationRecord> }): Promise<VerificationRecord | null> => {
-      let list = await db.verification.findMany()
-      const idx = list.findIndex(v => v.id === where.id)
-      const targetUserId = list[idx]?.userId
-
-      if (idx !== -1) {
-        list[idx] = { ...list[idx], ...data, reviewedAt: new Date() }
-        ;(global as any).__AST_VERIFICATIONS__ = list
-      }
-
-      if (data.status && targetUserId) {
-        await db.user.update({
-          where: { id: targetUserId },
-          data: { verifiedStatus: data.status },
-        })
-      }
-
       try {
         const supabase = await getDbClient()
-        await supabase.from('Verification').update({
-          status: data.status,
-          rejectionReason: data.rejectionReason,
-          reviewedAt: new Date().toISOString(),
-        }).eq('id', where.id)
+        const { data: updated, error } = await supabase
+          .from('Verification')
+          .update({
+            status: data.status,
+            rejectionReason: data.rejectionReason,
+            reviewedAt: new Date().toISOString(),
+          })
+          .eq('id', where.id)
+          .select('*')
+          .single()
 
-        if (data.status && targetUserId) {
+        if (error || !updated) return null
+
+        if (data.status && updated.userId) {
           await supabase.from('User').update({
             verifiedStatus: data.status,
-          }).eq('id', targetUserId)
+          }).eq('id', updated.userId)
         }
-      } catch (e) {}
 
-      return list[idx] ?? null
+        return {
+          ...updated,
+          submittedAt: new Date(updated.submittedAt || Date.now()),
+        }
+      } catch (e) {
+        console.error('db.verification.update error:', e)
+        return null
+      }
     },
   },
 
-  // ── REPORT ──────────────────────────────────────────────────────────────────
-  report: {
-    findMany: async (query?: { where?: { status?: string }; orderBy?: any }): Promise<ReportRecord[]> => {
-      let list: ReportRecord[] = (global as any).__AST_REPORTS__
-      if (!list) {
-        list = [
-          {
-            id: 'rep1',
-            targetId: 'ord1',
-            targetType: 'ORDER',
-            targetTitle: 'Escrow Order #ord1',
-            reporterId: 'c1',
-            reporterName: 'Sami Mansour',
-            reason: 'Scope Disagreement',
-            description: 'Dispute regarding milestone 2 deliverable requirements.',
-            status: 'UNRESOLVED',
-            orderId: 'ord1',
-            createdAt: new Date(Date.now() - 3600000 * 5),
-          },
-        ]
-        ;(global as any).__AST_REPORTS__ = list
-      }
+  // ── MESSAGE ─────────────────────────────────────────────────────────────────
+  message: {
+    findMany: async (query?: { where?: { userId?: string; partnerId?: string } }): Promise<MessageRecord[]> => {
+      try {
+        const supabase = await getDbClient()
+        let q = supabase.from('Message').select('*')
 
-      if (query?.where?.status) list = list.filter(r => r.status === query.where!.status)
-      return list
+        if (query?.where?.userId) {
+          q = q.or(`senderId.eq.${query.where.userId},receiverId.eq.${query.where.userId}`)
+        }
+
+        const { data, error } = await q.order('createdAt', { ascending: true })
+        if (error || !data) return []
+
+        return data.map(m => ({
+          id: m.id,
+          senderId: m.senderId,
+          receiverId: m.receiverId,
+          content: m.content || '',
+          msgType: m.msgType || 'TEXT',
+          offerData: m.offerData,
+          isRead: m.isRead ?? false,
+          createdAt: new Date(m.createdAt || Date.now()),
+        }))
+      } catch {
+        return []
+      }
     },
 
-    findUnique: async ({ where }: { where: { id: string }; include?: any }): Promise<ReportRecord | null> => {
-      const all = await db.report.findMany()
-      return all.find(r => r.id === where.id) ?? null
-    },
+    create: async ({ data }: { data: any }): Promise<MessageRecord> => {
+      const supabase = await getDbClient()
+      const { data: created, error } = await supabase.from('Message').insert({
+        senderId: data.senderId,
+        receiverId: data.receiverId,
+        content: data.content,
+        msgType: data.msgType || 'TEXT',
+        offerData: data.offerData,
+        isRead: false,
+      }).select('*').single()
 
-    create: async ({ data }: { data: Partial<ReportRecord> }): Promise<ReportRecord> => {
-      const newRep: ReportRecord = {
-        id: `rep_${Date.now()}`,
-        targetId: data.targetId ?? '',
-        targetType: data.targetType ?? 'ORDER',
-        targetTitle: data.targetTitle ?? 'Dispute Report',
-        reporterId: data.reporterId ?? 'c1',
-        reporterName: data.reporterName ?? 'Client',
-        reason: data.reason ?? 'General Issue',
-        description: data.description,
-        status: (data.status as any) ?? 'UNRESOLVED',
-        orderId: data.orderId,
-        createdAt: new Date(),
+      if (error || !created) {
+        throw new Error(error?.message || 'Failed to send message')
       }
 
-      let list = await db.report.findMany()
-      list.unshift(newRep)
-      ;(global as any).__AST_REPORTS__ = list
-      return newRep
+      return {
+        ...created,
+        createdAt: new Date(created.createdAt || Date.now()),
+      }
+    },
+  },
+
+  // ── NOTIFICATION ────────────────────────────────────────────────────────────
+  notification: {
+    findMany: async (query?: { where?: { userId?: string; isRead?: boolean }; orderBy?: any; take?: number }): Promise<NotificationRecord[]> => {
+      try {
+        const supabase = await getDbClient()
+        let q = supabase.from('Notification').select('*')
+        if (query?.where?.userId) q = q.eq('userId', query.where.userId)
+        if (query?.where?.isRead !== undefined) q = q.eq('isRead', query.where.isRead)
+
+        if (query?.take) q = q.limit(query.take)
+
+        const { data, error } = await q.order('createdAt', { ascending: false })
+        if (error || !data) return []
+
+        return data.map(n => ({
+          id: n.id,
+          userId: n.userId,
+          title: n.title || 'Notification',
+          message: n.message || '',
+          type: n.type || 'INFO',
+          link: n.link,
+          isRead: n.isRead ?? false,
+          createdAt: new Date(n.createdAt || Date.now()),
+        }))
+      } catch {
+        return []
+      }
     },
 
-    update: async ({ where, data }: { where: { id: string }; data: Partial<ReportRecord> }): Promise<ReportRecord | null> => {
-      let list = await db.report.findMany()
-      const idx = list.findIndex(r => r.id === where.id)
-      if (idx !== -1) {
-        list[idx] = { ...list[idx], ...data }
-        ;(global as any).__AST_REPORTS__ = list
-        return list[idx]
+    create: async ({ data }: { data: any }): Promise<NotificationRecord> => {
+      const supabase = await getDbClient()
+      const { data: created, error } = await supabase.from('Notification').insert({
+        userId: data.userId,
+        title: data.title,
+        message: data.message,
+        type: data.type || 'SYSTEM',
+        link: data.link,
+        isRead: false,
+      }).select('*').single()
+
+      if (error || !created) {
+        throw new Error(error?.message || 'Failed to create notification')
       }
-      return null
+
+      return {
+        ...created,
+        createdAt: new Date(created.createdAt || Date.now()),
+      }
+    },
+
+    update: async ({ where, data }: { where: { id: string }; data: Partial<NotificationRecord> }): Promise<any> => {
+      try {
+        const supabase = await getDbClient()
+        const { data: updated, error } = await supabase
+          .from('Notification')
+          .update(data)
+          .eq('id', where.id)
+          .select('*')
+          .single()
+        return updated || null
+      } catch {
+        return null
+      }
+    },
+
+    markAllAsRead: async (userId: string): Promise<void> => {
+      try {
+        const supabase = await getDbClient()
+        await supabase
+          .from('Notification')
+          .update({ isRead: true })
+          .eq('userId', userId)
+      } catch {}
     },
   },
 
   // ── REVIEW ──────────────────────────────────────────────────────────────────
   review: {
-    findMany: async (query?: { where?: { freelancerId?: string; gigId?: string; reviewerId?: string }; orderBy?: any }): Promise<any[]> => {
-      const users = await db.user.findMany()
-      let dbReviews: any[] = []
-
+    findMany: async (query?: { where?: { gigId?: string; authorId?: string; freelancerId?: string } }): Promise<any[]> => {
       try {
         const supabase = await getDbClient()
-        const { data, error } = await supabase.from('Review').select('*').order('createdAt', { ascending: false })
-        if (!error && data) {
-          dbReviews = data.map(r => {
-            const u = users.find(usr => usr.id === r.reviewerId) || { name: 'Client' }
-            return {
-              id: r.id,
-              gigId: r.gigId,
-              reviewerId: r.reviewerId,
-              name: u.name,
-              initials: (u.name || 'C').split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase(),
-              rating: Number(r.rating) || 5,
-              comment: r.comment || '',
-              date: 'Verified Client',
-              createdAt: new Date(r.createdAt || Date.now()),
-            }
-          })
-        }
-      } catch (e) {}
+        let q = supabase.from('Review').select('*')
+        if (query?.where?.gigId) q = q.eq('gigId', query.where.gigId)
+        if (query?.where?.authorId) q = q.eq('authorId', query.where.authorId)
 
-      let list = [...dbReviews]
-      if (query?.where?.gigId) list = list.filter(r => r.gigId === query.where!.gigId)
-      if (query?.where?.reviewerId) list = list.filter(r => r.reviewerId === query.where!.reviewerId)
-      return list
+        const { data, error } = await q.order('createdAt', { ascending: false })
+        if (error || !data) return []
+
+        return data.map(r => ({
+          ...r,
+          rating: Number(r.rating ?? 5.0),
+          createdAt: new Date(r.createdAt || Date.now()),
+        }))
+      } catch {
+        return []
+      }
     },
 
     create: async ({ data }: { data: any }): Promise<any> => {
-      const users = await db.user.findMany()
-      const u = users.find(usr => usr.id === data.reviewerId || usr.id === data.userId) || { id: data.reviewerId || data.userId || 'u1', name: 'Client' }
-
-      const newRev = {
-        id: data.id ?? `rev_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      const supabase = await getDbClient()
+      const { data: created, error } = await supabase.from('Review').insert({
         gigId: data.gigId,
-        reviewerId: data.reviewerId || data.userId || u.id,
-        name: u.name,
-        initials: (u.name || 'C').split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase(),
-        rating: Number(data.rating) || 5,
-        comment: data.comment ?? '',
-        date: 'Verified Client',
-        createdAt: new Date(),
+        rating: Number(data.rating || 5.0),
+        comment: data.comment,
+        authorId: data.authorId,
+        orderId: data.orderId,
+      }).select('*').single()
+
+      if (error || !created) {
+        throw new Error(error?.message || 'Failed to create review')
       }
 
+      return created
+    },
+  },
+
+  // ── AUDIT LOG ───────────────────────────────────────────────────────────────
+  auditLog: {
+    findMany: async (query?: any): Promise<AuditLogRecord[]> => {
       try {
         const supabase = await getDbClient()
-        const { data: created, error } = await supabase.from('Review').insert({
-          gigId: newRev.gigId,
-          reviewerId: newRev.reviewerId,
-          rating: newRev.rating,
-          comment: newRev.comment,
-        }).select('*').single()
+        const { data, error } = await supabase.from('AuditLog').select('*').order('createdAt', { ascending: false })
+        if (error || !data) return []
+        return data.map(l => ({
+          ...l,
+          createdAt: new Date(l.createdAt || Date.now()),
+        }))
+      } catch {
+        return []
+      }
+    },
 
-        if (!error && created) {
-          newRev.id = created.id
+    create: async ({ data }: { data: any }): Promise<AuditLogRecord> => {
+      const supabase = await getDbClient()
+      const { data: created, error } = await supabase.from('AuditLog').insert({
+        adminId: data.adminId || 'system',
+        adminName: data.adminName || 'Admin',
+        action: data.action,
+        targetId: data.targetId,
+        details: data.details || '',
+      }).select('*').single()
+
+      if (error || !created) {
+        throw new Error(error?.message || 'Failed to write audit log')
+      }
+
+      return {
+        ...created,
+        createdAt: new Date(created.createdAt || Date.now()),
+      }
+    },
+  },
+
+  // ── REPORT ──────────────────────────────────────────────────────────────────
+  report: {
+    findMany: async (query?: any): Promise<ReportRecord[]> => {
+      try {
+        const supabase = await getDbClient()
+        const { data, error } = await supabase.from('AuditLog').select('*').like('action', 'REPORT_%').order('createdAt', { ascending: false })
+        if (error || !data) return []
+        return data.map(l => ({
+          id: l.id,
+          targetId: l.targetId || '',
+          reporterId: l.adminId,
+          reason: l.action,
+          description: l.details,
+          status: 'UNRESOLVED',
+          createdAt: new Date(l.createdAt || Date.now()),
+        }))
+      } catch {
+        return []
+      }
+    },
+
+    findUnique: async ({ where }: { where: { id: string } }): Promise<ReportRecord | null> => {
+      return null
+    },
+
+    create: async ({ data }: { data: any }): Promise<any> => {
+      return db.auditLog.create({
+        data: {
+          adminId: data.reporterId || 'system',
+          adminName: data.reporterName || 'User',
+          action: `REPORT_${data.reason || 'DISPUTE'}`,
+          targetId: data.targetId,
+          details: data.description || '',
         }
-      } catch (e) {}
+      })
+    },
 
-      let list = (global as any).__AST_REVIEWS__ || []
-      list.unshift(newRev)
-      ;(global as any).__AST_REVIEWS__ = list
-      return newRev
+    update: async ({ where, data }: { where: { id: string }; data: any }): Promise<any> => {
+      return null
     },
   },
 
   // ── WITHDRAWAL ──────────────────────────────────────────────────────────────
   withdrawal: {
-    findMany: async (query?: { where?: { userId?: string; status?: string }; orderBy?: any }): Promise<any[]> => {
-      let list: any[] = (global as any).__AST_WITHDRAWALS__
-      if (!list) {
-        list = []
-        ;(global as any).__AST_WITHDRAWALS__ = list
+    findMany: async (query?: any): Promise<any[]> => {
+      try {
+        const supabase = await getDbClient()
+        const { data, error } = await supabase.from('AuditLog').select('*').like('action', 'WITHDRAWAL_%').order('createdAt', { ascending: false })
+        if (error || !data) return []
+        return data.map(w => ({
+          id: w.id,
+          userId: w.targetId || w.adminId,
+          amount: 0,
+          status: 'PENDING',
+          details: w.details,
+          createdAt: new Date(w.createdAt || Date.now()),
+        }))
+      } catch {
+        return []
       }
-
-      const users = await db.user.findMany()
-      let mapped = list.map(w => ({
-        ...w,
-        user: users.find(u => u.id === w.userId) || w.user || { name: 'Freelancer' },
-      }))
-
-      if (query?.where?.userId) mapped = mapped.filter(w => w.userId === query.where!.userId)
-      if (query?.where?.status) mapped = mapped.filter(w => w.status === query.where!.status)
-      return mapped
     },
 
     findUnique: async ({ where }: { where: { id: string } }): Promise<any | null> => {
-      const all = await db.withdrawal.findMany()
-      return all.find((w: any) => w.id === where.id) ?? null
+      return null
     },
 
     create: async ({ data }: { data: any }): Promise<any> => {
-      const users = await db.user.findMany()
-      const user = users.find(u => u.id === data.userId) || { name: 'Freelancer' }
-
-      const newW = {
-        id: `w_${Date.now()}`,
-        ...data,
-        status: data.status ?? 'PENDING',
-        user,
-        createdAt: new Date(),
-      }
-
-      let list = (global as any).__AST_WITHDRAWALS__ || []
-      list.unshift(newW)
-      ;(global as any).__AST_WITHDRAWALS__ = list
-      return newW
+      return db.auditLog.create({
+        data: {
+          adminId: data.userId,
+          adminName: 'User',
+          action: 'WITHDRAWAL_REQUESTED',
+          targetId: data.userId,
+          details: `Withdrawal request for ${data.amount} TND via ${data.method}`,
+        }
+      })
     },
 
     update: async ({ where, data }: { where: { id: string }; data: any }): Promise<any> => {
-      let list = (global as any).__AST_WITHDRAWALS__ || []
-      const idx = list.findIndex((w: any) => w.id === where.id)
-      if (idx !== -1) {
-        list[idx] = { ...list[idx], ...data }
-        ;(global as any).__AST_WITHDRAWALS__ = list
-        return list[idx]
-      }
       return null
-    },
-  },
-
-  // ── NOTIFICATION ───────────────────────────────────────────────────────────
-  notification: {
-    findMany: async (query?: { where?: { userId?: string; isRead?: boolean }; orderBy?: any; take?: number }): Promise<NotificationRecord[]> => {
-      let dbNotifs: NotificationRecord[] = []
-      try {
-        const supabase = await getDbClient()
-        let q = supabase.from('Notification').select('*').order('createdAt', { ascending: false })
-        if (query?.where?.userId) q = q.eq('userId', query.where.userId)
-        if (typeof query?.where?.isRead === 'boolean') q = q.eq('read', query.where.isRead)
-        if (query?.take) q = q.limit(query.take)
-
-        const { data, error } = await q
-        if (!error && data && data.length > 0) {
-          dbNotifs = data.map(n => ({
-            id: n.id,
-            userId: n.userId,
-            title: n.title,
-            message: n.message || '',
-            type: n.type || 'INFO',
-            link: n.link || '/dashboard',
-            isRead: n.read ?? false,
-            createdAt: new Date(n.createdAt || Date.now()),
-          }))
-          return dbNotifs
-        }
-      } catch (e) {}
-
-      let list: NotificationRecord[] = (global as any).__AST_NOTIFICATIONS__ || []
-      let filtered = [...list]
-      if (query?.where?.userId) filtered = filtered.filter(n => n.userId === query.where!.userId)
-      if (typeof query?.where?.isRead === 'boolean') filtered = filtered.filter(n => n.isRead === query.where!.isRead)
-      if (query?.take) filtered = filtered.slice(0, query.take)
-      return filtered
-    },
-
-    create: async ({ data }: { data: Partial<NotificationRecord> }): Promise<NotificationRecord> => {
-      const newNotif: NotificationRecord = {
-        id: data.id ?? `notif_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-        userId: data.userId!,
-        title: data.title ?? 'New Notification',
-        message: data.message ?? '',
-        type: data.type ?? 'INFO',
-        link: data.link ?? '/dashboard',
-        isRead: false,
-        createdAt: new Date(),
-      }
-
-      try {
-        const supabase = await getDbClient()
-        const { data: created, error } = await supabase.from('Notification').insert({
-          userId: newNotif.userId,
-          title: newNotif.title,
-          message: newNotif.message,
-          type: newNotif.type,
-          link: newNotif.link,
-          read: false,
-        }).select('*').single()
-
-        if (!error && created) {
-          newNotif.id = created.id
-        }
-      } catch (e) {}
-
-      let list: NotificationRecord[] = (global as any).__AST_NOTIFICATIONS__ || []
-      list.unshift(newNotif)
-      ;(global as any).__AST_NOTIFICATIONS__ = list
-      return newNotif
-    },
-
-    update: async ({ where, data }: { where: { id: string }; data: Partial<NotificationRecord> }): Promise<NotificationRecord | null> => {
-      let list: NotificationRecord[] = (global as any).__AST_NOTIFICATIONS__ || []
-      const idx = list.findIndex(n => n.id === where.id)
-      if (idx !== -1) {
-        list[idx] = { ...list[idx], ...data }
-        ;(global as any).__AST_NOTIFICATIONS__ = list
-      }
-
-      try {
-        const supabase = await getDbClient()
-        await supabase.from('Notification').update({
-          read: data.isRead,
-          title: data.title,
-          message: data.message,
-        }).eq('id', where.id)
-      } catch (e) {}
-
-      return list[idx] || null
-    },
-
-    markAllAsRead: async (userId: string): Promise<number> => {
-      let list: NotificationRecord[] = (global as any).__AST_NOTIFICATIONS__ || []
-      let updatedCount = 0
-      list.forEach(n => {
-        if (n.userId === userId && !n.isRead) {
-          n.isRead = true
-          updatedCount++
-        }
-      })
-      ;(global as any).__AST_NOTIFICATIONS__ = list
-
-      try {
-        const supabase = await getDbClient()
-        await supabase.from('Notification').update({ read: true }).eq('userId', userId)
-      } catch (e) {}
-
-      return updatedCount
     },
   },
 }

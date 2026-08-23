@@ -48,29 +48,14 @@ export function Navbar() {
   const [open, setOpen]                 = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
 
-  // 1. Instant client-side check on mount to prevent any flicker
+  // 1. Check cached session on mount to prevent layout shift
   useEffect(() => {
     try {
-      // Check cached session in sessionStorage
       const cached = sessionStorage.getItem('ast_cached_user')
       if (cached) {
         const parsed = JSON.parse(cached)
         if (parsed?.id) {
           setUser(parsed)
-          setLoading(false)
-        }
-      } else if (typeof document !== 'undefined') {
-        const cookieMatch = document.cookie.match(/(?:^|;\s*)demo_user_id=([^;]+)/)
-        if (cookieMatch && decodeURIComponent(cookieMatch[1]) === 'admin1') {
-          setUser({
-            id: 'admin1',
-            name: 'Admin Master',
-            email: 'admin.master@asteria.com',
-            role: 'ADMIN',
-            image: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80',
-            walletBalance: 0,
-            verifiedStatus: 'APPROVED',
-          })
           setLoading(false)
         }
       }

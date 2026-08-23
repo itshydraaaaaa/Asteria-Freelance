@@ -4,8 +4,8 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { Mail, Lock, Shield, Eye, EyeOff } from 'lucide-react'
-import { login, loginAsTestUser } from '@/app/actions/auth'
+import { Mail, Lock, Eye, EyeOff } from 'lucide-react'
+import { login } from '@/app/actions/auth'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -23,18 +23,6 @@ export default function LoginPage() {
     } else if (res?.success) {
       router.push('/dashboard')
       router.refresh()
-    }
-  }
-
-  const handleTestLogin = async (userId: string) => {
-    setLoading(true)
-    setError('')
-    const res = await loginAsTestUser(userId)
-    if (res?.success) {
-      router.push('/dashboard')
-      router.refresh()
-    } else {
-      setLoading(false)
     }
   }
 
@@ -71,29 +59,6 @@ export default function LoginPage() {
         </div>
 
         <div className="bg-white rounded-3xl p-8 shadow-2xl space-y-5">
-          {/* ⚡ Quick Admin Demo Login */}
-          <div className="bg-ast-surface p-4 rounded-2xl border border-ast-primary/20 space-y-2.5">
-            <p className="text-[11px] font-semibold text-ast-dark uppercase tracking-wider text-center">
-              ⚡ Quick Demo Login (1-Click)
-            </p>
-            <button
-              onClick={() => handleTestLogin('admin1')}
-              type="button"
-              disabled={loading}
-              className="w-full flex items-center justify-center gap-2 p-3 bg-ast-dark text-white rounded-xl text-xs font-semibold hover:bg-black transition-colors shadow-sm disabled:opacity-60"
-            >
-              <Shield size={16} className="text-ast-light" />
-              Sign in as Platform Administrator
-            </button>
-          </div>
-
-          {/* Divider */}
-          <div className="flex items-center gap-3">
-            <div className="flex-1 h-px bg-black/10" />
-            <span className="text-xs text-ast-gray font-medium">or sign in with email</span>
-            <div className="flex-1 h-px bg-black/10" />
-          </div>
-
           {error && (
             <motion.div
               initial={{ opacity: 0, y: -8 }}
