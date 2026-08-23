@@ -73,14 +73,17 @@ export function DashboardNav({ name, email, role, initials, image, isMobileDrawe
   return (
     <aside className={asideClasses}>
       <div className="mb-8 px-2 flex items-center justify-between">
-        <Link href="/" onClick={onClose} className="flex items-center gap-2 group">
-          <svg width="24" height="24" viewBox="0 0 64 64" fill="none">
-            <path d="M32 4 L60 56 L4 56 Z" stroke="#111" strokeWidth="2.5" fill="none" />
-            <path d="M32 20 L48 52 L16 52 Z" stroke="#60c8d4" strokeWidth="1.5" fill="none" />
-            <circle cx="32" cy="38" r="4" fill="#111" />
-          </svg>
-          <span className="font-heading font-bold text-black text-lg tracking-wide">
-            A<span className="text-black/80">STERIA</span>
+        <Link href="/" onClick={onClose} className="flex items-center gap-2.5 group">
+          <div className="relative">
+            <div className="absolute inset-0 bg-ast-light/30 blur-sm rounded-full group-hover:scale-110 transition-all duration-300" />
+            <img
+              src="/logo.png"
+              alt="Asteria Logo"
+              className="relative w-8 h-8 object-contain drop-shadow-sm transition-transform group-hover:scale-105"
+            />
+          </div>
+          <span className="font-heading font-bold text-black text-base tracking-wide">
+            ASTERIA
           </span>
         </Link>
         {isMobileDrawer && (

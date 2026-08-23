@@ -80,11 +80,18 @@ export function HeroSection() {
         ease: 'power3.out',
         delay: 0.1,
       })
+    })
+    return () => mm.revert()
+  }, [])
+
+  useEffect(() => {
+    const mm = gsap.matchMedia()
+    mm.add('(prefers-reduced-motion: no-preference)', () => {
       dynamicStats.forEach((s, i) => {
         const el = statRefs.current[i]
         if (!el) return
         gsap.to({ val: 0 }, {
-          val: s.value, duration: 1.6, delay: 0.3,
+          val: s.value, duration: 1.4, delay: 0.2,
           ease: 'power2.out', snap: { val: 0.1 },
           onUpdate() {
             const v = (this.targets()[0] as any).val

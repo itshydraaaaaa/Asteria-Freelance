@@ -49,13 +49,16 @@ export function ResponsiveDashboardWrapper({ name, email, role, initials, image,
           <Menu size={20} />
         </button>
 
-        <Link href="/" className="flex items-center gap-2">
-          <svg width="20" height="20" viewBox="0 0 64 64" fill="none">
-            <path d="M32 4 L60 56 L4 56 Z" stroke="#111" strokeWidth="3" fill="none" />
-            <path d="M32 20 L48 52 L16 52 Z" stroke="#60c8d4" strokeWidth="2.0" fill="none" />
-            <circle cx="32" cy="38" r="4" fill="#111" />
-          </svg>
-          <span className="font-heading font-extrabold text-black text-sm tracking-wider">ASTERIA</span>
+        <Link href="/" className="flex items-center gap-2.5 group">
+          <div className="relative">
+            <div className="absolute inset-0 bg-ast-light/30 blur-sm rounded-full group-hover:scale-110 transition-all duration-300" />
+            <img
+              src="/logo.png"
+              alt="Asteria Logo"
+              className="relative w-7 h-7 object-contain drop-shadow-sm transition-transform group-hover:scale-105"
+            />
+          </div>
+          <span className="font-heading font-bold text-black text-sm tracking-wider">ASTERIA</span>
         </Link>
 
         <div>
