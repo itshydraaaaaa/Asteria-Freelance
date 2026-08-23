@@ -26,6 +26,11 @@
   }
   ::selection { background: #60c8d4; color: #0a3a40; }
 
+  @keyframes shimmer {
+    0%   { transform: translateX(-100%) skewX(-20deg); }
+    60%  { transform: translateX(200%)  skewX(-20deg); }
+    100% { transform: translateX(200%)  skewX(-20deg); }
+  }
   @keyframes float {
     0%, 100% { transform: translateY(0px); }
     50%       { transform: translateY(-12px); }
