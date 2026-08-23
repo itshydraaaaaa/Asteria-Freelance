@@ -42,7 +42,7 @@ export function Navbar() {
   const router   = useRouter()
 
   const [user, setUser]                 = useState<any>(null)
-  const [loading, setLoading]           = useState(true)
+  const [loading, setLoading]           = useState(false)
   const hasFetchedOnce                  = useRef(false)
   const [scrolled, setScrolled]         = useState(false)
   const [open, setOpen]                 = useState(false)

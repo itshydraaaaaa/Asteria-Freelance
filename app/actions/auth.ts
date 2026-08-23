@@ -50,6 +50,34 @@ export async function login(formData: FormData) {
   return { error: 'Invalid email or password.' }
 }
 
+export async function loginAsAdminDemo() {
+  try {
+    // Check if an ADMIN user already exists in Supabase
+    let admin = (await db.user.findMany({ where: { role: 'ADMIN' } }))[0]
+    if (!admin) {
+      // Create official admin user in Supabase database
+      admin = await db.user.create({
+        data: {
+          name: 'Asteria Master Admin',
+          email: 'admin.master@asteria.com',
+          role: 'ADMIN',
+          walletBalance: 10000,
+          verifiedStatus: 'APPROVED',
+        },
+      })
+    }
+
+    const cookieStore = await cookies()
+    cookieStore.set('demo_user_id', admin.id, { path: '/' })
+    cookieStore.set('demo_user_role', 'ADMIN', { path: '/' })
+    revalidatePath('/', 'layout')
+    return { success: true }
+  } catch (err: any) {
+    console.error('loginAsAdminDemo error:', err)
+    return { error: err.message || 'Failed to sign in as admin.' }
+  }
+}
+
 export async function loginAsTestUser(userId: string) {
   const user = await db.user.findUnique({ where: { id: userId } })
   if (user) {
