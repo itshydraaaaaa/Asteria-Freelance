@@ -8,6 +8,7 @@ import { Providers } from '@/components/providers/Providers'
 import { CustomCursor } from '@/components/cursor/CustomCursor'
 import { ScrollProgressBar } from '@/components/ui/ScrollProgressBar'
 import { CookieConsentBanner } from '@/components/common/CookieConsentBanner'
+import { SpeedInsights } from '@vercel/speed-insights/next'
 
 const exo2 = Exo_2({
   subsets: ['latin'],
@@ -68,6 +69,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <Footer />
           <CookieConsentBanner />
         </Providers>
+        <SpeedInsights />
       </body>
     </html>
   )
