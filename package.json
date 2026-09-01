@@ -25,6 +25,7 @@
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
     "@types/three": "^0.184.0",
+    "@vercel/speed-insights": "^2.0.0",
     "autoprefixer": "^10.5.0",
     "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",
