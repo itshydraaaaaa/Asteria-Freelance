@@ -28,8 +28,13 @@ const config = {
     optimizePackageImports: ['lucide-react', 'framer-motion', '@supabase/supabase-js'],
     serverActions: {
       allowedOrigins: [
+        'localhost:3000',
         'localhost:5000',
-        process.env.REPLIT_DEV_DOMAIN ?? '',
+        '127.0.0.1:3000',
+        '127.0.0.1:5000',
+        '*.vercel.app',
+        'asteriafreelance.vercel.app',
+        process.env.VERCEL_URL ?? '',
       ].filter(Boolean),
     },
   },

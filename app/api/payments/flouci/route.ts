@@ -50,7 +50,11 @@ export async function POST(req: NextRequest) {
       }
 
       // 2. Constant-Time HMAC Signature Verification (Task 2.4)
-      const secret = process.env.FLOUCI_APP_SECRET || 'asteria_flouci_sandbox_secret'
+      const secret = process.env.FLOUCI_APP_SECRET
+      if (!secret) {
+        console.error('CRITICAL: FLOUCI_APP_SECRET is missing from environment')
+        return NextResponse.json({ error: 'Webhook service misconfigured' }, { status: 500 })
+      }
       const payloadString = `${paymentId}:${amount}:${orderId || ''}:${userId || ''}:${timestamp}`
       const expectedSignature = crypto.createHmac('sha256', secret).update(payloadString).digest('hex')
 

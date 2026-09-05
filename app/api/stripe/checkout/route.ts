@@ -25,9 +25,23 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const { orderId, amount, type = 'ORDER_PAYMENT', title = 'Asteria Escrow Payment' } = body
 
-    const numericTndAmount = parseFloat(amount)
-    if (isNaN(numericTndAmount) || numericTndAmount <= 0) {
-      return NextResponse.json({ error: 'Valid amount is required' }, { status: 400 })
+    let verifiedTndAmount: number
+    if (orderId) {
+      const order = await db.order.findUnique({ where: { id: orderId } })
+      if (!order) {
+        return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+      }
+      verifiedTndAmount = Number(order.amount)
+      if (isNaN(verifiedTndAmount) || verifiedTndAmount <= 0) {
+        return NextResponse.json({ error: 'Order has invalid amount' }, { status: 400 })
+      }
+    } else {
+      // Wallet deposit flow where orderId is not applicable
+      const numericTndAmount = parseFloat(amount)
+      if (isNaN(numericTndAmount) || numericTndAmount <= 0) {
+        return NextResponse.json({ error: 'Valid amount is required' }, { status: 400 })
+      }
+      verifiedTndAmount = numericTndAmount
     }
 
     const currencyConfig = (process.env.CURRENCY || 'tnd').toLowerCase()
@@ -37,7 +51,7 @@ export async function POST(req: NextRequest) {
     const { rate: currentFxRate, source: fxSource } = await getTndToUsdRate()
 
     // Calculate charge amount in cents, accounting for live FX rate if converting TND -> USD
-    const chargeAmountUsd = currencyConfig === 'tnd' ? (numericTndAmount * currentFxRate) : numericTndAmount
+    const chargeAmountUsd = currencyConfig === 'tnd' ? (verifiedTndAmount * currentFxRate) : verifiedTndAmount
     const unitAmountCents = Math.max(50, Math.round(chargeAmountUsd * 100)) // Stripe minimum 50 cents
 
     const origin = req.headers.get('origin') || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:5000'
@@ -51,7 +65,7 @@ export async function POST(req: NextRequest) {
             product_data: {
               name: title,
               description: currencyConfig === 'tnd'
-                ? `Asteria Escrow: ${numericTndAmount.toFixed(2)} TND (~$${chargeAmountUsd.toFixed(2)} USD at ${fxSource} rate ${currentFxRate}) for Order #${orderId || 'Direct'}`
+                ? `Asteria Escrow: ${verifiedTndAmount.toFixed(2)} TND (~$${chargeAmountUsd.toFixed(2)} USD at ${fxSource} rate ${currentFxRate}) for Order #${orderId || 'Direct'}`
                 : `Asteria Freelance Escrow Protection — Safe payment for order #${orderId || 'Direct'}`,
             },
             unit_amount: unitAmountCents,
@@ -70,7 +84,7 @@ export async function POST(req: NextRequest) {
         userId: session!.user.id,
         orderId: orderId || '',
         paymentType: type,
-        tndAmount: String(numericTndAmount),
+        tndAmount: String(verifiedTndAmount),
         usdAmount: String(chargeAmountUsd.toFixed(2)),
         exchangeRateApplied: String(currentFxRate),
         fxSource,

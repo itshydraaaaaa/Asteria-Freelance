@@ -8,13 +8,11 @@ export const dynamic = 'force-dynamic'
 export default async function AdminPage() {
   const session = await auth()
   
-  // Allow access for ADMIN role or demo mode
-  const role = (session?.user as any)?.role ?? 'ADMIN'
-  if (role !== 'ADMIN' && session?.user) {
-    redirect('/dashboard')
+  if (!session?.user || (session.user as any).role !== 'ADMIN') {
+    redirect('/login?error=admin_required')
   }
 
-  const [users, orders, gigs, verifications, logs, reports, withdrawals] = await Promise.all([
+  const [rawUsers, orders, gigs, verifications, logs, reports, withdrawals] = await Promise.all([
     db.user.findMany({ orderBy: { createdAt: 'desc' } }).catch(() => []),
     db.order.findMany({ orderBy: { createdAt: 'desc' }, take: 50 }).catch(() => []),
     db.gig.findMany({ orderBy: { createdAt: 'desc' }, take: 50 }).catch(() => []),
@@ -23,6 +21,21 @@ export default async function AdminPage() {
     db.report.findMany().catch(() => []),
     db.withdrawal.findMany().catch(() => []),
   ])
+
+  const users = (rawUsers || []).map((u: any) => ({
+    id: u.id,
+    name: u.name,
+    email: u.email,
+    role: u.role,
+    walletBalance: u.walletBalance,
+    verifiedStatus: u.verifiedStatus,
+    rating: u.rating,
+    reviewCount: u.reviewCount,
+    createdAt: u.createdAt,
+    image: u.image,
+    bio: u.bio,
+    skills: u.skills,
+  }))
 
   return (
     <AdminClient

@@ -29,11 +29,65 @@ const jakarta = Plus_Jakarta_Sans({
 })
 
 export const metadata: Metadata = {
-  title: 'Asteria Freelance — Elite Microjob Marketplace',
-  description: 'Connect with world-class freelancers. Post jobs, browse talent, deliver results.',
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://asteriafreelance.com'),
+  title: {
+    default: 'Asteria Freelance — Tunisia & Global Digital Escrow Marketplace',
+    template: '%s | Asteria Freelance',
+  },
+  description: 'Tunisia’s premier digital freelance marketplace. Connect with vetted freelancers, fund milestone escrow safely, and pay via TND (Flouci/Konnect) or USD (Stripe).',
+  keywords: [
+    'Asteria Freelance',
+    'Asteria Club',
+    'Freelancers in Tunisia',
+    'Escrow Marketplace Tunisia',
+    'Web Development Tunisia',
+    'Graphic Design Tunisia',
+    'AI Freelancers',
+    'TND Escrow Payments',
+    'Flouci Freelance',
+    'Konnect Escrow',
+  ],
+  authors: [{ name: 'Asteria Technologies' }],
+  creator: 'Asteria',
+  publisher: 'Asteria',
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
   openGraph: {
-    title: 'Asteria Freelance',
-    description: 'The intelligent microjob marketplace.',
+    title: 'Asteria Freelance — Learn. Create. Connect. Transact.',
+    description: 'Empowering Tunisian and global digital talent with secure escrow payments, mathematical double-entry ledgers, and verified gigs.',
+    url: 'https://asteriafreelance.com',
+    siteName: 'Asteria Freelance',
+    images: [
+      {
+        url: '/logo.png',
+        width: 1200,
+        height: 630,
+        alt: 'Asteria Freelance Marketplace',
+      },
+    ],
+    locale: 'en_US',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Asteria Freelance — Digital Marketplace & Escrow',
+    description: 'Empowering Tunisian and global talent with secure escrow payments and verified gigs.',
+    images: ['/logo.png'],
+    creator: '@AsteriaClub',
+  },
+  icons: {
+    icon: '/icon.png',
+    shortcut: '/icon.png',
+    apple: '/logo.png',
   },
 }
 

@@ -2,6 +2,7 @@ import { auth } from '@/lib/auth'
 import { db }   from '@/lib/db'
 import { getTransactionHistory } from '@/lib/ledger'
 import { Wallet, ArrowUpRight, ArrowDownLeft, Clock, DollarSign, Shield, CheckCircle2 } from 'lucide-react'
+import { redirect } from 'next/navigation'
 import { WalletActionClient } from '@/components/wallet/WalletActionClient'
 
 const STATUS_BADGE: Record<string, string> = {
@@ -22,8 +23,11 @@ const TX_TYPE_BADGE: Record<string, { label: string; style: string }> = {
 
 export default async function WalletPage() {
   const session = await auth()
-  const userId  = session?.user?.id ?? ''
-  const role    = (session?.user as any)?.role ?? 'CLIENT'
+  if (!session?.user) {
+    redirect('/login')
+  }
+  const userId  = session.user.id
+  const role    = (session.user as any)?.role ?? 'CLIENT'
 
   let dbUser: any = null
   let orders: any[] = []

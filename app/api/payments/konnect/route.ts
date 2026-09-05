@@ -50,7 +50,11 @@ export async function POST(req: NextRequest) {
       }
 
       // 2. Constant-Time HMAC Signature Verification (Task 2.4)
-      const secret = process.env.KONNECT_WEBHOOK_KEY || 'asteria_konnect_sandbox_key'
+      const secret = process.env.KONNECT_WEBHOOK_KEY
+      if (!secret) {
+        console.error('CRITICAL: KONNECT_WEBHOOK_KEY is missing from environment')
+        return NextResponse.json({ error: 'Webhook service misconfigured' }, { status: 500 })
+      }
       const payloadString = `${paymentRef}:${amount}:${orderId || ''}:${userId || ''}:${timestamp}`
       const expectedSignature = crypto.createHmac('sha256', secret).update(payloadString).digest('hex')
 

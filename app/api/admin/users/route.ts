@@ -12,7 +12,21 @@ export async function GET(req: NextRequest) {
     const adminErr = requireAdmin(session)
     if (adminErr) return adminErr
 
-    const users = await db.user.findMany()
+    const rawUsers = await db.user.findMany()
+    const users = (rawUsers || []).map((u: any) => ({
+      id: u.id,
+      name: u.name,
+      email: u.email,
+      role: u.role,
+      walletBalance: u.walletBalance,
+      verifiedStatus: u.verifiedStatus,
+      rating: u.rating,
+      reviewCount: u.reviewCount,
+      createdAt: u.createdAt,
+      image: u.image,
+      bio: u.bio,
+      skills: u.skills,
+    }))
     return NextResponse.json({ users }, { status: 200 })
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Failed to fetch users' }, { status: 500 })

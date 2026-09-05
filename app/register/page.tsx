@@ -19,14 +19,17 @@ export default function RegisterPage() {
     setLoading(true)
     setError('')
 
-    const res = await register(formData)
-
-    if (res?.error) {
-      setError(res.error)
+    try {
+      const res = await register(formData)
+      if (res?.error) {
+        setError(res.error)
+        setLoading(false)
+      } else if (res?.success) {
+        window.location.href = res.redirect || '/dashboard'
+      }
+    } catch (err: any) {
+      setError(err?.message || 'Registration failed. Please try again.')
       setLoading(false)
-    } else if (res?.success) {
-      router.push('/dashboard')
-      router.refresh()
     }
   }
 

@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { DashboardStats } from '@/components/dashboard/DashboardStats'
 import { DashboardChart } from '@/components/dashboard/DashboardChart'
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { Briefcase, Star, Plus, ArrowRight } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
@@ -11,9 +12,12 @@ const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Se
 
 export default async function DashboardPage() {
   const session = await auth()
-  const userId = session?.user?.id ?? ''
-  const role = session?.user?.role ?? 'FREELANCER'
-  const name = session?.user?.name ?? 'User'
+  if (!session?.user) {
+    redirect('/login')
+  }
+  const userId = session.user.id
+  const role = session.user.role ?? 'FREELANCER'
+  const name = session.user.name ?? 'User'
 
   let orders: any[] = []
   let gigs: any[] = []

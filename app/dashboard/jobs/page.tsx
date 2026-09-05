@@ -1,6 +1,7 @@
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { Briefcase, Plus, Users, Clock, ArrowRight, ShieldCheck, Tag } from 'lucide-react'
 import { ClientJobProposals } from '@/components/jobs/ClientJobProposals'
 
@@ -8,8 +9,11 @@ export const dynamic = 'force-dynamic'
 
 export default async function DashboardJobsPage() {
   const session = await auth()
-  const userId = session?.user?.id ?? ''
-  const role = session?.user?.role ?? 'CLIENT'
+  if (!session?.user) {
+    redirect('/login')
+  }
+  const userId = session.user.id
+  const role = session.user.role ?? 'CLIENT'
 
   let jobs: any[] = []
   let allProposals: any[] = []

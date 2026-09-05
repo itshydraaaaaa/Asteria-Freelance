@@ -14,11 +14,22 @@ export async function POST(req: NextRequest) {
     const rawBody = await req.text()
     const signature = req.headers.get('x-kyc-signature') || req.headers.get('x-webhook-signature')
 
-    // Webhook signature verification if secret is configured
-    const secret = process.env.KYC_WEBHOOK_SECRET || 'asteria_kyc_webhook_secret'
-    const expectedSignature = crypto.createHmac('sha256', secret).update(rawBody).digest('hex')
+    // Webhook signature verification
+    const secret = process.env.KYC_WEBHOOK_SECRET
+    if (!secret) {
+      console.error('CRITICAL: KYC_WEBHOOK_SECRET is missing from environment')
+      return NextResponse.json({ error: 'Webhook service misconfigured' }, { status: 500 })
+    }
 
-    if (signature && signature !== expectedSignature) {
+    if (!signature) {
+      return NextResponse.json({ error: 'Missing KYC webhook signature' }, { status: 401 })
+    }
+
+    const expectedSignature = crypto.createHmac('sha256', secret).update(rawBody).digest('hex')
+    const sigBuf = Buffer.from(signature)
+    const expBuf = Buffer.from(expectedSignature)
+
+    if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
       return NextResponse.json({ error: 'Invalid KYC webhook signature' }, { status: 401 })
     }
 

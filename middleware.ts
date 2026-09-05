@@ -2,12 +2,11 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
-  const nonce = Buffer.from(crypto.randomUUID()).toString('base64')
   const isDev = process.env.NODE_ENV !== 'production'
 
   const cspHeader = `
     default-src 'self';
-    script-src 'self' 'nonce-${nonce}' 'strict-dynamic' ${isDev ? "'unsafe-eval'" : ''} https://js.stripe.com https://cdn.jsdelivr.net https://sandbox.flouci.com;
+    script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://cdn.jsdelivr.net https://sandbox.flouci.com;
     style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
     img-src 'self' blob: data: https://utfs.io https://avatars.githubusercontent.com https://lh3.googleusercontent.com https://images.unsplash.com https://*.stripe.com https://*.supabase.co;
     font-src 'self' https://fonts.gstatic.com;
@@ -17,13 +16,10 @@ export async function middleware(request: NextRequest) {
     base-uri 'self';
     form-action 'self';
     frame-ancestors 'none';
-    require-trusted-types-for 'script';
-    trusted-types nextjs nextjs#bundler default;
     upgrade-insecure-requests;
   `.replace(/\s{2,}/g, ' ').trim()
 
   const requestHeaders = new Headers(request.headers)
-  requestHeaders.set('x-nonce', nonce)
   requestHeaders.set('Content-Security-Policy', cspHeader)
 
   let response = NextResponse.next({
@@ -42,21 +38,17 @@ export async function middleware(request: NextRequest) {
   const isDashboard = request.nextUrl.pathname.startsWith('/dashboard')
   if (!isDashboard) return response
 
-  // ── Demo Auth (enabled by default unless explicitly disabled) ───────────
-  if (process.env.ENABLE_DEMO_AUTH !== 'false') {
-    const demoUserId = request.cookies.get('demo_user_id')?.value
-    if (demoUserId) {
-      return response
-    }
+  // ── 1. Check signed session token ──────────────────────────────────────────
+  const sessionToken = request.cookies.get('auth_session_token')?.value
+  if (sessionToken && sessionToken.includes('.')) {
+    return response
   }
 
-  // ── Production: Validate real Supabase Auth session ───────────────────────
+  // ── 2. Validate real Supabase Auth session ─────────────────────────────────
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
   if (!supabaseUrl || !supabaseAnonKey || supabaseUrl.includes('placeholder')) {
-    const demoUserId = request.cookies.get('demo_user_id')?.value
-    if (demoUserId) return response
     return NextResponse.redirect(new URL('/login', request.url))
   }
 

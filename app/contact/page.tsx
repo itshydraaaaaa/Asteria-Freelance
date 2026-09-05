@@ -8,7 +8,7 @@ const TOPICS = ['General Enquiry', 'Report a Problem', 'Billing & Payments', 'Ac
 const FAQS = [
   { q: 'How do I get verified as a freelancer?',    a: 'Submit your ID and portfolio through the dashboard. Verification takes 24–48 hours and unlocks a verified badge on your profile.' },
   { q: 'What payment methods does Asteria support?', a: 'We support Stripe, PayPal, and Wise internationally, plus local options including Flouci, D17, and bank transfers for Tunisia.' },
-  { q: 'Is there a commission fee?',                 a: 'Asteria charges a 15% service fee on completed orders. Freelancers on the Premium plan pay a reduced 10% commission.' },
+  { q: 'Is there a commission fee?',                 a: 'Asteria charges a transparent 12% platform fee on completed escrow releases. Freelancers receive 88% net payout directly to their local or international wallet.' },
   { q: 'How does escrow work?',                      a: 'Client funds are held securely in escrow when an order is placed. Payment is released to the freelancer only after the client approves the delivery.' },
   { q: 'Can I cancel an order?',                    a: 'Orders can be mutually cancelled before delivery. Disputes after delivery are handled by our support team within 48 hours.' },
 ]

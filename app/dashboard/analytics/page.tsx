@@ -1,5 +1,6 @@
 import { auth } from '@/lib/auth'
 import { db }   from '@/lib/db'
+import { redirect } from 'next/navigation'
 import { DashboardChart } from '@/components/dashboard/DashboardChart'
 import { TrendingUp, Eye, MousePointerClick, Users, Star, BarChart2, DollarSign, CheckCircle } from 'lucide-react'
 
@@ -9,8 +10,11 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 
 export default async function AnalyticsPage() {
   const session = await auth()
-  const userId  = session?.user?.id ?? ''
-  const role    = session?.user?.role ?? 'FREELANCER'
+  if (!session?.user) {
+    redirect('/login')
+  }
+  const userId  = session.user.id
+  const role    = session.user.role ?? 'FREELANCER'
 
   let orders: any[] = []
   let gigs: any[] = []

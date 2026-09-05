@@ -5,42 +5,28 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { Mail, Lock, Eye, EyeOff, ShieldCheck, ArrowRight, Loader2 } from 'lucide-react'
-import { login, loginAsAdminDemo } from '@/app/actions/auth'
+import { login } from '@/app/actions/auth'
 
 export default function LoginPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
-  const [adminLoading, setAdminLoading] = useState(false)
   const [error, setError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
 
   const clientAction = async (formData: FormData) => {
     setLoading(true)
     setError('')
-    const res = await login(formData)
-    if (res?.error) {
-      setError(res.error)
-      setLoading(false)
-    } else if (res?.success) {
-      router.push('/dashboard')
-      router.refresh()
-    }
-  }
-
-  const handleAdminQuickLogin = async () => {
-    setAdminLoading(true)
-    setError('')
     try {
-      const res = await loginAsAdminDemo()
+      const res = await login(formData)
       if (res?.error) {
         setError(res.error)
-        setAdminLoading(false)
+        setLoading(false)
       } else if (res?.success) {
-        router.push('/dashboard/admin')
-        router.refresh()
+        window.location.href = res.redirect || '/dashboard'
       }
-    } catch {
-      setAdminLoading(false)
+    } catch (err: any) {
+      setError(err?.message || 'Login failed. Please try again.')
+      setLoading(false)
     }
   }
 
@@ -87,39 +73,6 @@ export default function LoginPage() {
             </motion.div>
           )}
 
-          {/* Quick Admin Access Button */}
-          <button
-            type="button"
-            onClick={handleAdminQuickLogin}
-            disabled={adminLoading || loading}
-            className="w-full bg-gradient-to-r from-purple-900 to-ast-dark text-white rounded-2xl p-4 border border-purple-500/30 hover:border-purple-400 text-left transition-all shadow-md group relative overflow-hidden"
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-purple-500/20 border border-purple-400/40 flex items-center justify-center text-purple-300">
-                  <ShieldCheck size={20} />
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-white flex items-center gap-1.5">
-                    ⚡ Quick Admin Access <span className="text-[10px] bg-purple-500/30 text-purple-200 px-2 py-0.5 rounded-full">1-Click</span>
-                  </p>
-                  <p className="text-[11px] text-white/60">Log in as Master Administrator</p>
-                </div>
-              </div>
-              {adminLoading ? (
-                <Loader2 size={16} className="animate-spin text-purple-300" />
-              ) : (
-                <ArrowRight size={16} className="text-purple-300 group-hover:translate-x-1 transition-transform" />
-              )}
-            </div>
-          </button>
-
-          <div className="flex items-center gap-3 my-4">
-            <div className="h-px bg-black/10 flex-1" />
-            <span className="text-[11px] font-semibold text-ast-gray uppercase tracking-wider">or email &amp; password</span>
-            <div className="h-px bg-black/10 flex-1" />
-          </div>
-
           <form action={clientAction} className="space-y-4">
             <div className="relative">
               <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ast-gray" />
@@ -151,7 +104,7 @@ export default function LoginPage() {
             </div>
             <button
               type="submit"
-              disabled={loading || adminLoading}
+              disabled={loading}
               className="w-full bg-ast-primary text-white rounded-xl py-3 font-semibold text-sm hover:bg-ast-dark transition-colors disabled:opacity-60 shadow-sm"
             >
               {loading ? (
