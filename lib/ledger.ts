@@ -19,6 +19,16 @@ function getServiceClient() {
   return createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } })
 }
 
+export const PLATFORM_TREASURY_USER_ID = '00000000-0000-4000-8000-000000000000'
+export const PLATFORM_RESERVE_ID = PLATFORM_TREASURY_USER_ID
+
+export function canonicalizeUserId(id?: string | null): string {
+  if (!id || id === 'platform' || id === '00000000-0000-0000-0000-000000000000') {
+    return PLATFORM_TREASURY_USER_ID
+  }
+  return id
+}
+
 export type TxType =
   | 'DEPOSIT'
   | 'FUND_ESCROW'
@@ -102,7 +112,7 @@ function getInMemoryTxs(): LedgerEntry[] {
       },
       {
         id: 'tx_init_4',
-        userId: 'platform',
+        userId: PLATFORM_TREASURY_USER_ID,
         orderId: 'ord1',
         type: 'PLATFORM_FEE',
         amount: 35.88,
@@ -128,21 +138,22 @@ function getInMemoryTxs(): LedgerEntry[] {
 const userLocks = new Map<string, Promise<any>>()
 
 export async function withUserLock<T>(userId: string, task: () => Promise<T>): Promise<T> {
-  const previousLock = userLocks.get(userId) || Promise.resolve()
+  const canonicalId = canonicalizeUserId(userId)
+  const previousLock = userLocks.get(canonicalId) || Promise.resolve()
 
   let release: () => void
   const currentLock = new Promise<void>(resolve => {
     release = resolve
   })
-  userLocks.set(userId, currentLock)
+  userLocks.set(canonicalId, currentLock)
 
   try {
     await previousLock.catch(() => {})
     return await task()
   } finally {
     release!()
-    if (userLocks.get(userId) === currentLock) {
-      userLocks.delete(userId)
+    if (userLocks.get(canonicalId) === currentLock) {
+      userLocks.delete(canonicalId)
     }
   }
 }
@@ -151,7 +162,8 @@ export async function withUserLock<T>(userId: string, task: () => Promise<T>): P
  * Enforces canonical ascending user ID lock ordering across multi-party transactions.
  */
 export async function withSortedMultiUserLock<T>(userIds: string[], task: () => Promise<T>): Promise<T> {
-  const sortedIds = Array.from(new Set(userIds.filter(Boolean))).sort()
+  const canonicalIds = userIds.map(id => canonicalizeUserId(id))
+  const sortedIds = Array.from(new Set(canonicalIds.filter(Boolean))).sort()
 
   const acquireRecursive = async (index: number): Promise<T> => {
     if (index >= sortedIds.length) {
@@ -223,13 +235,14 @@ export async function saveIdempotency(key: string, endpoint: string, userId: str
 
 // ─── getBalance ───────────────────────────────────────────────────────────────
 export async function getBalance(userId: string): Promise<number> {
+  const targetId = canonicalizeUserId(userId)
   try {
     const supabase = getServiceClient()
     if (supabase) {
       const { data, error } = await supabase
         .from('users')
         .select('wallet_balance')
-        .eq('id', userId)
+        .eq('id', targetId)
         .single()
 
       if (!error && data) {
@@ -238,7 +251,7 @@ export async function getBalance(userId: string): Promise<number> {
     }
   } catch {}
 
-  const u = await db.user.findUnique({ where: { id: userId } })
+  const u = await db.user.findUnique({ where: { id: targetId } })
   return Number(u?.walletBalance ?? 0)
 }
 
@@ -249,6 +262,7 @@ async function _creditWalletInternal(
   type: TxType,
   meta: TransactionMeta = {}
 ): Promise<LedgerEntry> {
+  const targetUserId = canonicalizeUserId(userId)
   if (amount <= 0) throw new Error('[ledger] creditWallet: amount must be positive')
 
   // Check idempotency if key provided
@@ -262,7 +276,7 @@ async function _creditWalletInternal(
     const supabase = getServiceClient()
     if (supabase) {
       const { data, error } = await supabase.rpc('credit_wallet', {
-        p_user_id:         userId,
+        p_user_id:         targetUserId,
         p_amount:          amount,
         p_type:            type,
         p_order_id:        meta.orderId ?? null,
@@ -278,20 +292,20 @@ async function _creditWalletInternal(
   } catch {}
 
   // In-memory fallback
-  const u = await db.user.findUnique({ where: { id: userId } })
+  const u = await db.user.findUnique({ where: { id: targetUserId } })
   const curBal = Number(u?.walletBalance ?? 0)
   const newBal = Math.round((curBal + amount) * 100) / 100
 
   try {
     await db.user.update({
-      where: { id: userId },
+      where: { id: targetUserId },
       data: { walletBalance: newBal },
     })
   } catch {}
 
   const entry: LedgerEntry = {
     id: `tx_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-    userId,
+    userId: targetUserId,
     orderId: meta.orderId,
     milestoneId: meta.milestoneId,
     type,
@@ -314,6 +328,7 @@ async function _debitWalletInternal(
   type: TxType,
   meta: TransactionMeta = {}
 ): Promise<LedgerEntry> {
+  const targetUserId = canonicalizeUserId(userId)
   if (amount <= 0) throw new Error('[ledger] debitWallet: amount must be positive')
 
   // Check idempotency if key provided
@@ -327,7 +342,7 @@ async function _debitWalletInternal(
     const supabase = getServiceClient()
     if (supabase) {
       const { data, error } = await supabase.rpc('debit_wallet', {
-        p_user_id:         userId,
+        p_user_id:         targetUserId,
         p_amount:          amount,
         p_type:            type,
         p_order_id:        meta.orderId ?? null,
@@ -343,7 +358,7 @@ async function _debitWalletInternal(
   } catch {}
 
   // In-memory fallback with atomic balance verification
-  const u = await db.user.findUnique({ where: { id: userId } })
+  const u = await db.user.findUnique({ where: { id: targetUserId } })
   const curBal = Number(u?.walletBalance ?? 0)
 
   if (curBal < amount) {
@@ -354,14 +369,14 @@ async function _debitWalletInternal(
 
   try {
     await db.user.update({
-      where: { id: userId },
+      where: { id: targetUserId },
       data: { walletBalance: newBal },
     })
   } catch {}
 
   const entry: LedgerEntry = {
     id: `tx_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-    userId,
+    userId: targetUserId,
     orderId: meta.orderId,
     milestoneId: meta.milestoneId,
     type,
@@ -407,9 +422,10 @@ export async function processEscrowRelease(
   orderId: string,
   sellerId: string,
   amount: number,
-  adminId: string = 'platform'
+  adminId: string = PLATFORM_TREASURY_USER_ID
 ): Promise<{ sellerPayout: number; platformFee: number }> {
-  return withSortedMultiUserLock([sellerId, adminId], async () => {
+  const targetAdminId = canonicalizeUserId(adminId)
+  return withSortedMultiUserLock([sellerId, targetAdminId], async () => {
     const sellerPayout = Math.round(amount * (1 - PLATFORM_FEE_RATE) * 100) / 100
     const platformFee  = Math.round(amount * PLATFORM_FEE_RATE * 100) / 100
 
@@ -419,7 +435,7 @@ export async function processEscrowRelease(
       idempotencyKey: `release-${orderId}-seller`,
     })
 
-    await _creditWalletInternal(adminId, platformFee, 'PLATFORM_FEE', {
+    await _creditWalletInternal(targetAdminId, platformFee, 'PLATFORM_FEE', {
       orderId,
       note: `12% Platform commission for order #${orderId} (${platformFee} TND)`,
       idempotencyKey: `release-${orderId}-platform`,
@@ -436,7 +452,7 @@ export async function processMilestoneRelease(
   sellerId: string,
   milestoneAmount: number
 ): Promise<{ sellerPayout: number; platformFee: number }> {
-  return withSortedMultiUserLock([sellerId, 'platform'], async () => {
+  return withSortedMultiUserLock([sellerId, PLATFORM_TREASURY_USER_ID], async () => {
     const sellerPayout = Math.round(milestoneAmount * (1 - PLATFORM_FEE_RATE) * 100) / 100
     const platformFee  = Math.round(milestoneAmount * PLATFORM_FEE_RATE * 100) / 100
 
@@ -447,7 +463,7 @@ export async function processMilestoneRelease(
       idempotencyKey: `milestone-release-${milestoneId}-seller`,
     })
 
-    await _creditWalletInternal('platform', platformFee, 'PLATFORM_FEE', {
+    await _creditWalletInternal(PLATFORM_TREASURY_USER_ID, platformFee, 'PLATFORM_FEE', {
       orderId,
       milestoneId,
       note: `12% Platform fee on milestone #${milestoneId} (${platformFee} TND)`,

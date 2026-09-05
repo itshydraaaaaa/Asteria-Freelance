@@ -1185,6 +1185,27 @@ export const db = {
   // ── MILESTONE ───────────────────────────────────────────────────────────────
   milestone: {
     findMany: async (query?: { where?: { orderId?: string } }): Promise<MilestoneItem[]> => {
+      try {
+        const supabase = await getDbClient()
+        if (supabase) {
+          let q = supabase.from('Milestone').select('*')
+          if (query?.where?.orderId) q = q.eq('orderId', query.where.orderId)
+          const { data, error } = await q.order('position', { ascending: true })
+          if (!error && data) {
+            return data.map(m => ({
+              id: m.id,
+              orderId: m.orderId,
+              title: m.title,
+              percentage: Number(m.percentage ?? 100),
+              amount: Number(m.amount ?? 0),
+              status: m.status || 'PENDING',
+              position: Number(m.position ?? 0),
+              createdAt: new Date(m.createdAt || Date.now()),
+            }))
+          }
+        }
+      } catch {}
+
       const store = getMemoryStore()
       let list = Array.from(store.milestones.values())
       if (query?.where?.orderId) {
@@ -1195,6 +1216,25 @@ export const db = {
     },
 
     findUnique: async ({ where }: { where: { id: string } }): Promise<MilestoneItem | null> => {
+      try {
+        const supabase = await getDbClient()
+        if (supabase) {
+          const { data, error } = await supabase.from('Milestone').select('*').eq('id', where.id).maybeSingle()
+          if (!error && data) {
+            return {
+              id: data.id,
+              orderId: data.orderId,
+              title: data.title,
+              percentage: Number(data.percentage ?? 100),
+              amount: Number(data.amount ?? 0),
+              status: data.status || 'PENDING',
+              position: Number(data.position ?? 0),
+              createdAt: new Date(data.createdAt || Date.now()),
+            }
+          }
+        }
+      } catch {}
+
       const store = getMemoryStore()
       return store.milestones.get(where.id) || null
     },
@@ -1204,17 +1244,78 @@ export const db = {
         id: data.id || `m_${crypto.randomUUID()}`,
         orderId: data.orderId,
         title: data.title,
-        percentage: Number(data.percentage),
-        amount: Number(data.amount),
+        percentage: Number(data.percentage ?? 100),
+        amount: Number(data.amount ?? 0),
         status: data.status || 'PENDING',
         position: Number(data.position || 0),
         createdAt: new Date(),
       }
+
+      try {
+        const supabase = await getDbClient()
+        if (supabase) {
+          const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(payload.id)
+          const insertObj: any = {
+            orderId: payload.orderId,
+            title: payload.title,
+            percentage: payload.percentage,
+            amount: payload.amount,
+            status: payload.status,
+            position: payload.position,
+          }
+          if (isUuid) insertObj.id = payload.id
+
+          const { data: created, error } = await supabase.from('Milestone').insert(insertObj).select('*').single()
+
+          if (!error && created) {
+            const res: MilestoneItem = {
+              id: created.id,
+              orderId: created.orderId,
+              title: created.title,
+              percentage: Number(created.percentage ?? 100),
+              amount: Number(created.amount ?? 0),
+              status: created.status,
+              position: Number(created.position ?? 0),
+              createdAt: new Date(created.createdAt || Date.now()),
+            }
+            getMemoryStore().milestones.set(res.id, res)
+            return res
+          }
+        }
+      } catch {}
+
       getMemoryStore().milestones.set(payload.id, payload)
       return payload
     },
 
     update: async ({ where, data }: { where: { id: string }; data: Partial<MilestoneItem> }): Promise<MilestoneItem | null> => {
+      try {
+        const supabase = await getDbClient()
+        if (supabase) {
+          const { data: updated, error } = await supabase
+            .from('Milestone')
+            .update(data)
+            .eq('id', where.id)
+            .select('*')
+            .single()
+
+          if (!error && updated) {
+            const res: MilestoneItem = {
+              id: updated.id,
+              orderId: updated.orderId,
+              title: updated.title,
+              percentage: Number(updated.percentage ?? 100),
+              amount: Number(updated.amount ?? 0),
+              status: updated.status,
+              position: Number(updated.position ?? 0),
+              createdAt: new Date(updated.createdAt || Date.now()),
+            }
+            getMemoryStore().milestones.set(where.id, res)
+            return res
+          }
+        }
+      } catch {}
+
       const store = getMemoryStore()
       const existing = store.milestones.get(where.id)
       if (!existing) return null
@@ -1478,30 +1579,138 @@ export const db = {
   // ── REPORT ──────────────────────────────────────────────────────────────────
   report: {
     findMany: async (query?: any): Promise<ReportRecord[]> => {
+      try {
+        const supabase = await getDbClient()
+        if (supabase) {
+          let q = supabase.from('Report').select('*')
+          if (query?.where?.status) q = q.eq('status', query.where.status)
+          const { data, error } = await q.order('createdAt', { ascending: false })
+          if (!error && data) {
+            return data.map(r => ({
+              id: r.id,
+              reporterId: r.reporterId,
+              reporterName: r.reporterName || 'User',
+              targetType: r.targetType || 'ORDER',
+              targetId: r.targetId || '',
+              targetTitle: r.targetTitle || 'Item',
+              reason: r.reason || 'DISPUTE',
+              description: r.description || '',
+              status: r.status || 'PENDING',
+              createdAt: new Date(r.createdAt || Date.now()),
+            }))
+          }
+        }
+      } catch {}
+
       const store = getMemoryStore()
-      return Array.from(store.reports.values()).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      let list = Array.from(store.reports.values())
+      if (query?.where?.status) {
+        list = list.filter(r => r.status === query.where.status)
+      }
+      return list.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
     },
 
     findUnique: async ({ where }: { where: { id: string } }): Promise<ReportRecord | null> => {
+      try {
+        const supabase = await getDbClient()
+        if (supabase) {
+          const { data, error } = await supabase.from('Report').select('*').eq('id', where.id).maybeSingle()
+          if (!error && data) {
+            return {
+              id: data.id,
+              reporterId: data.reporterId,
+              reporterName: data.reporterName || 'User',
+              targetType: data.targetType || 'ORDER',
+              targetId: data.targetId || '',
+              targetTitle: data.targetTitle || 'Item',
+              reason: data.reason || 'DISPUTE',
+              description: data.description || '',
+              status: data.status || 'PENDING',
+              createdAt: new Date(data.createdAt || Date.now()),
+            }
+          }
+        }
+      } catch {}
+
       return getMemoryStore().reports.get(where.id) || null
     },
 
     create: async ({ data }: { data: any }): Promise<any> => {
       const payload: ReportRecord = {
-        id: data.id || `rep_${crypto.randomUUID()}`,
-        targetId: data.targetId || '',
-        reporterId: data.reporterId || 'system',
+        id: data.id || crypto.randomUUID(),
+        targetId: data.targetId || crypto.randomUUID(),
+        reporterId: data.reporterId || '00000000-0000-4000-8000-000000000000',
         reporterName: data.reporterName || 'User',
+        targetType: data.targetType === 'ORDER' ? 'JOB' : (data.targetType || 'JOB'),
+        targetTitle: data.targetTitle || 'Reported Item',
         reason: data.reason || 'DISPUTE',
         description: data.description || '',
-        status: 'UNRESOLVED',
+        status: data.status || 'UNRESOLVED',
         createdAt: new Date(),
       }
+
+      try {
+        const supabase = await getDbClient()
+        if (supabase) {
+          const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(payload.id)
+          const insertObj: any = {
+            reporterId: payload.reporterId,
+            reporterName: payload.reporterName,
+            targetType: payload.targetType,
+            targetId: payload.targetId,
+            targetTitle: payload.targetTitle,
+            reason: payload.reason,
+            description: payload.description,
+            status: payload.status,
+          }
+          if (isUuid) insertObj.id = payload.id
+
+          const { data: created, error } = await supabase.from('Report').insert(insertObj).select('*').single()
+          if (!error && created) {
+            const res = {
+              id: created.id,
+              reporterId: created.reporterId,
+              reporterName: created.reporterName,
+              targetType: created.targetType,
+              targetId: created.targetId,
+              targetTitle: created.targetTitle,
+              reason: created.reason,
+              description: created.description,
+              status: created.status,
+              createdAt: new Date(created.createdAt || Date.now()),
+            }
+            getMemoryStore().reports.set(res.id, res)
+            return res
+          }
+        }
+      } catch {}
+
       getMemoryStore().reports.set(payload.id, payload)
       return payload
     },
 
     update: async ({ where, data }: { where: { id: string }; data: any }): Promise<any> => {
+      try {
+        const supabase = await getDbClient()
+        if (supabase) {
+          const { data: updated, error } = await supabase
+            .from('Report')
+            .update(data)
+            .eq('id', where.id)
+            .select('*')
+            .single()
+
+          if (!error && updated) {
+            const res = {
+              ...updated,
+              createdAt: new Date(updated.createdAt || Date.now()),
+            }
+            getMemoryStore().reports.set(where.id, res)
+            return res
+          }
+        }
+      } catch {}
+
       const store = getMemoryStore()
       const existing = store.reports.get(where.id)
       if (!existing) return null
@@ -1514,18 +1723,68 @@ export const db = {
   // ── WITHDRAWAL ──────────────────────────────────────────────────────────────
   withdrawal: {
     findMany: async (query?: any): Promise<WithdrawalRecord[]> => {
+      try {
+        const supabase = await getDbClient()
+        if (supabase) {
+          let q = supabase.from('withdrawals').select('*')
+          if (query?.where?.status) q = q.eq('status', query.where.status)
+          if (query?.where?.userId) q = q.eq('user_id', query.where.userId)
+          const { data, error } = await q.order('created_at', { ascending: false })
+          if (!error && data) {
+            return data.map(w => ({
+              id: w.id,
+              userId: w.user_id || w.userId,
+              amount: Number(w.amount ?? 0),
+              method: w.method || 'BANK_RIB',
+              accountDetails: w.account_details || w.accountDetails,
+              status: w.status || 'PENDING',
+              adminNotes: w.admin_notes || w.adminNotes,
+              reviewedBy: w.reviewed_by || w.reviewedBy,
+              createdAt: new Date(w.created_at || w.createdAt || Date.now()),
+            }))
+          }
+        }
+      } catch {}
+
       const store = getMemoryStore()
-      return Array.from(store.withdrawals.values()).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      let list = Array.from(store.withdrawals.values())
+      if (query?.where?.status) {
+        list = list.filter(w => w.status === query.where.status)
+      }
+      if (query?.where?.userId) {
+        list = list.filter(w => w.userId === query.where.userId)
+      }
+      return list.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
     },
 
     findUnique: async ({ where }: { where: { id: string } }): Promise<WithdrawalRecord | null> => {
+      try {
+        const supabase = await getDbClient()
+        if (supabase) {
+          const { data, error } = await supabase.from('withdrawals').select('*').eq('id', where.id).maybeSingle()
+          if (!error && data) {
+            return {
+              id: data.id,
+              userId: data.user_id || data.userId,
+              amount: Number(data.amount ?? 0),
+              method: data.method || 'BANK_RIB',
+              accountDetails: data.account_details || data.accountDetails,
+              status: data.status || 'PENDING',
+              adminNotes: data.admin_notes || data.adminNotes,
+              reviewedBy: data.reviewed_by || data.reviewedBy,
+              createdAt: new Date(data.created_at || data.createdAt || Date.now()),
+            }
+          }
+        }
+      } catch {}
+
       const store = getMemoryStore()
       return store.withdrawals.get(where.id) || null
     },
 
     create: async ({ data }: { data: any }): Promise<WithdrawalRecord> => {
       const payload: WithdrawalRecord = {
-        id: data.id || `wth_${crypto.randomUUID()}`,
+        id: data.id || crypto.randomUUID(),
         userId: data.userId,
         amount: Number(data.amount || 0),
         method: data.method || 'BANK_RIB',
@@ -1539,11 +1798,81 @@ export const db = {
         reviewedBy: data.reviewedBy,
         createdAt: new Date(),
       }
+
+      try {
+        const supabase = await getDbClient()
+        if (supabase) {
+          const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(payload.id)
+          const insertObj: any = {
+            user_id: payload.userId,
+            amount: payload.amount,
+            method: payload.method,
+            account_details: typeof payload.accountDetails === 'string' ? payload.accountDetails : JSON.stringify(payload.accountDetails || {}),
+            status: payload.status,
+            admin_notes: payload.adminNotes,
+            reviewed_by: payload.reviewedBy,
+          }
+          if (isUuid) insertObj.id = payload.id
+
+          const { data: created, error } = await supabase.from('withdrawals').insert(insertObj).select('*').single()
+          if (!error && created) {
+            const res: WithdrawalRecord = {
+              id: created.id,
+              userId: created.user_id || payload.userId,
+              amount: Number(created.amount ?? payload.amount),
+              method: created.method || payload.method,
+              accountDetails: created.account_details || payload.accountDetails,
+              status: created.status || payload.status,
+              adminNotes: created.admin_notes || payload.adminNotes,
+              reviewedBy: created.reviewed_by || payload.reviewedBy,
+              createdAt: new Date(created.created_at || Date.now()),
+            }
+            getMemoryStore().withdrawals.set(res.id, res)
+            return res
+          }
+        }
+      } catch {}
+
       getMemoryStore().withdrawals.set(payload.id, payload)
       return payload
     },
 
     update: async ({ where, data }: { where: { id: string }; data: any }): Promise<WithdrawalRecord | null> => {
+      try {
+        const supabase = await getDbClient()
+        if (supabase) {
+          const updatePayload: any = {}
+          if (data.status !== undefined) updatePayload.status = data.status
+          if (data.adminNotes !== undefined) updatePayload.admin_notes = data.adminNotes
+          if (data.reviewedBy !== undefined) updatePayload.reviewed_by = data.reviewedBy
+          if (data.amount !== undefined) updatePayload.amount = data.amount
+          if (data.method !== undefined) updatePayload.method = data.method
+
+          const { data: updated, error } = await supabase
+            .from('withdrawals')
+            .update(updatePayload)
+            .eq('id', where.id)
+            .select('*')
+            .single()
+
+          if (!error && updated) {
+            const res: WithdrawalRecord = {
+              id: updated.id,
+              userId: updated.user_id,
+              amount: Number(updated.amount),
+              method: updated.method,
+              accountDetails: updated.account_details,
+              status: updated.status,
+              adminNotes: updated.admin_notes,
+              reviewedBy: updated.reviewed_by,
+              createdAt: new Date(updated.created_at || Date.now()),
+            }
+            getMemoryStore().withdrawals.set(where.id, res)
+            return res
+          }
+        }
+      } catch {}
+
       const store = getMemoryStore()
       const existing = store.withdrawals.get(where.id)
       if (!existing) return null
@@ -1556,6 +1885,30 @@ export const db = {
   // ── MESSAGE ─────────────────────────────────────────────────────────────────
   message: {
     findMany: async (query?: { where?: { userId?: string; partnerId?: string } }): Promise<MessageRecord[]> => {
+      try {
+        const supabase = await getDbClient()
+        if (supabase) {
+          let q = supabase.from('Message').select('*')
+          if (query?.where?.userId) {
+            const u = query.where.userId
+            q = q.or(`senderId.eq.${u},receiverId.eq.${u}`)
+          }
+          const { data, error } = await q.order('createdAt', { ascending: true })
+          if (!error && data) {
+            return data.map(m => ({
+              id: m.id,
+              senderId: m.senderId,
+              receiverId: m.receiverId,
+              content: m.content,
+              msgType: m.msgType || 'TEXT',
+              offerData: m.offerData,
+              isRead: Boolean(m.isRead),
+              createdAt: new Date(m.createdAt || Date.now()),
+            }))
+          }
+        }
+      } catch {}
+
       const store = getMemoryStore()
       let list = Array.from(store.messages.values())
       if (query?.where?.userId) {
@@ -1567,7 +1920,7 @@ export const db = {
 
     create: async ({ data }: { data: any }): Promise<MessageRecord> => {
       const payload: MessageRecord = {
-        id: data.id || `msg_${crypto.randomUUID()}`,
+        id: data.id || crypto.randomUUID(),
         senderId: data.senderId,
         receiverId: data.receiverId,
         content: data.content,
@@ -1576,6 +1929,61 @@ export const db = {
         isRead: false,
         createdAt: new Date(),
       }
+
+      try {
+        const supabase = await getDbClient()
+        if (supabase) {
+          // Check or create Conversation between participants
+          let convId: string | null = null
+          const { data: convs } = await supabase
+            .from('Conversation')
+            .select('id')
+            .or(`and(participant1.eq.${data.senderId},participant2.eq.${data.receiverId}),and(participant1.eq.${data.receiverId},participant2.eq.${data.senderId})`)
+            .limit(1)
+
+          if (convs && convs.length > 0) {
+            convId = convs[0].id
+          } else {
+            const newConvId = crypto.randomUUID()
+            const { data: newConv } = await supabase.from('Conversation').insert({
+              id: newConvId,
+              participant1: data.senderId,
+              participant2: data.receiverId,
+              lastMessage: data.content?.slice(0, 100) || '',
+            }).select('id').single()
+            if (newConv) convId = newConv.id
+          }
+
+          if (convId) {
+            const { data: created, error } = await supabase.from('Message').insert({
+              id: payload.id.length === 36 ? payload.id : undefined,
+              conversationId: convId,
+              senderId: payload.senderId,
+              receiverId: payload.receiverId,
+              content: payload.content,
+              msgType: payload.msgType,
+              offerData: payload.offerData,
+              isRead: false,
+            }).select('*').single()
+
+            if (!error && created) {
+              const res: MessageRecord = {
+                id: created.id,
+                senderId: created.senderId,
+                receiverId: created.receiverId,
+                content: created.content,
+                msgType: created.msgType,
+                offerData: created.offerData,
+                isRead: created.isRead,
+                createdAt: new Date(created.createdAt || Date.now()),
+              }
+              getMemoryStore().messages.set(res.id, res)
+              return res
+            }
+          }
+        }
+      } catch {}
+
       getMemoryStore().messages.set(payload.id, payload)
       return payload
     },
@@ -1584,6 +1992,29 @@ export const db = {
   // ── NOTIFICATION ────────────────────────────────────────────────────────────
   notification: {
     findMany: async (query?: { where?: { userId?: string; isRead?: boolean }; orderBy?: any; take?: number }): Promise<NotificationRecord[]> => {
+      try {
+        const supabase = await getDbClient()
+        if (supabase) {
+          let q = supabase.from('Notification').select('*')
+          if (query?.where?.userId) q = q.eq('userId', query.where.userId)
+          if (query?.where?.isRead !== undefined) q = q.eq('isRead', query.where.isRead)
+          if (query?.take) q = q.limit(query.take)
+          const { data, error } = await q.order('createdAt', { ascending: false })
+          if (!error && data) {
+            return data.map(n => ({
+              id: n.id,
+              userId: n.userId,
+              title: n.title,
+              message: n.message,
+              type: n.type || 'SYSTEM',
+              link: n.link,
+              isRead: Boolean(n.isRead),
+              createdAt: new Date(n.createdAt || Date.now()),
+            }))
+          }
+        }
+      } catch {}
+
       const store = getMemoryStore()
       let list = Array.from(store.notifications.values())
       if (query?.where?.userId) {
@@ -1600,7 +2031,7 @@ export const db = {
 
     create: async ({ data }: { data: any }): Promise<NotificationRecord> => {
       const payload: NotificationRecord = {
-        id: data.id || `notif_${crypto.randomUUID()}`,
+        id: data.id || crypto.randomUUID(),
         userId: data.userId,
         title: data.title,
         message: data.message,
@@ -1609,11 +2040,65 @@ export const db = {
         isRead: false,
         createdAt: new Date(),
       }
+
+      try {
+        const supabase = await getDbClient()
+        if (supabase) {
+          const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(payload.id)
+          const insertObj: any = {
+            userId: payload.userId,
+            title: payload.title,
+            message: payload.message,
+            type: payload.type,
+            link: payload.link,
+            isRead: false,
+          }
+          if (isUuid) insertObj.id = payload.id
+
+          const { data: created, error } = await supabase.from('Notification').insert(insertObj).select('*').single()
+          if (!error && created) {
+            const res: NotificationRecord = {
+              id: created.id,
+              userId: created.userId,
+              title: created.title,
+              message: created.message,
+              type: created.type,
+              link: created.link,
+              isRead: created.isRead,
+              createdAt: new Date(created.createdAt || Date.now()),
+            }
+            getMemoryStore().notifications.set(res.id, res)
+            return res
+          }
+        }
+      } catch {}
+
       getMemoryStore().notifications.set(payload.id, payload)
       return payload
     },
 
     update: async ({ where, data }: { where: { id: string }; data: Partial<NotificationRecord> }): Promise<any> => {
+      try {
+        const supabase = await getDbClient()
+        if (supabase) {
+          const { data: updated, error } = await supabase
+            .from('Notification')
+            .update(data)
+            .eq('id', where.id)
+            .select('*')
+            .single()
+
+          if (!error && updated) {
+            const res = {
+              ...updated,
+              createdAt: new Date(updated.createdAt || Date.now()),
+            }
+            getMemoryStore().notifications.set(where.id, res)
+            return res
+          }
+        }
+      } catch {}
+
       const store = getMemoryStore()
       const existing = store.notifications.get(where.id)
       if (!existing) return null
@@ -1623,6 +2108,28 @@ export const db = {
     },
 
     markAllAsRead: async (userId: string): Promise<number> => {
+      try {
+        const supabase = await getDbClient()
+        if (supabase) {
+          const { data, error } = await supabase
+            .from('Notification')
+            .update({ isRead: true })
+            .eq('userId', userId)
+            .eq('isRead', false)
+            .select('id')
+
+          if (!error && data) {
+            const store = getMemoryStore()
+            for (const n of store.notifications.values()) {
+              if (n.userId === userId && !n.isRead) {
+                n.isRead = true
+              }
+            }
+            return data.length
+          }
+        }
+      } catch {}
+
       const store = getMemoryStore()
       let count = 0
       for (const n of store.notifications.values()) {
