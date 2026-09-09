@@ -75,6 +75,9 @@ export async function auth(): Promise<AuthSession | null> {
       if (verified) {
         const profile = await db.user.findUnique({ where: { id: verified.userId } })
         if (profile) {
+          if (profile.verifiedStatus === 'BANNED' || (profile as any).status === 'BANNED') {
+            return null
+          }
           return {
             user: {
               id: profile.id,
@@ -97,6 +100,10 @@ export async function auth(): Promise<AuthSession | null> {
         if (!error && user) {
           const profile = (await db.user.findUnique({ where: { id: user.id } })) ||
                           (user.email ? await db.user.findUnique({ where: { email: user.email } }) : null)
+
+          if (profile && (profile.verifiedStatus === 'BANNED' || (profile as any).status === 'BANNED')) {
+            return null
+          }
 
           if (!profile) {
             return {

@@ -61,7 +61,7 @@ export interface UserRecord {
   bio?: string
   skills?: string[]
   walletBalance: number
-  verifiedStatus?: 'UNSUBMITTED' | 'PENDING' | 'APPROVED' | 'REJECTED'
+  verifiedStatus?: 'UNSUBMITTED' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'BANNED'
   rating?: number
   reviewCount?: number
   createdAt: Date
@@ -517,6 +517,41 @@ export const db = {
       }
       store.users.set(where.id, updated)
       return updated
+    },
+
+    delete: async ({ where }: { where: { id: string } }): Promise<boolean> => {
+      try {
+        const supabase = await getDbClient()
+        if (supabase) {
+          if (process.env.SUPABASE_SERVICE_ROLE_KEY && !process.env.SUPABASE_SERVICE_ROLE_KEY.includes('your-service-role-key-here')) {
+            try {
+              const adminAuth = createClient(
+                process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://tvuktwtartbqmggndinu.supabase.co',
+                process.env.SUPABASE_SERVICE_ROLE_KEY,
+                { auth: { autoRefreshToken: false, persistSession: false } }
+              )
+              await adminAuth.auth.admin.deleteUser(where.id)
+            } catch (authErr) {
+              console.warn('[db.user.delete] auth.admin.deleteUser warning:', authErr)
+            }
+          }
+
+          const { error } = await supabase
+            .from('User')
+            .delete()
+            .eq('id', where.id)
+
+          if (!error) {
+            getMemoryStore().users.delete(where.id)
+            return true
+          }
+        }
+      } catch {}
+
+      const store = getMemoryStore()
+      const existed = store.users.has(where.id)
+      store.users.delete(where.id)
+      return existed
     },
 
     count: async (query?: { where?: any }): Promise<number> => {

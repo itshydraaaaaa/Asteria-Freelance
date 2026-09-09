@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import {
   Shield, UserCheck, DollarSign, FileText, Flag, History, CheckCircle2,
-  XCircle, Search, ArrowUpRight, ArrowDownLeft, Eye, AlertCircle, Edit3, Lock, ShieldCheck, MessageSquare, Wallet
+  XCircle, Search, ArrowUpRight, ArrowDownLeft, Eye, AlertCircle, Edit3, Lock, ShieldCheck, MessageSquare, Wallet,
+  Ban, Trash2, ShieldAlert
 } from 'lucide-react'
 
 interface Props {
@@ -29,6 +30,7 @@ const STATUS_BADGE: Record<string, string> = {
   COMPLETED: 'bg-green-50 text-green-700 border border-green-200',
   CANCELLED: 'bg-black/8 text-ast-gray border border-black/15',
   REJECTED:  'bg-red-50 text-red-700 border border-red-200',
+  BANNED:    'bg-red-100 text-red-800 border border-red-300 font-bold',
   DISMISSED: 'bg-gray-100 text-gray-600',
   RESOLVED:  'bg-emerald-50 text-emerald-700 border border-emerald-200',
 }
@@ -62,6 +64,17 @@ export function AdminClient({
   const [balanceAmount, setBalanceAmount] = useState('')
   const [balanceReason, setBalanceReason] = useState('')
   const [balanceLoading, setBalanceLoading] = useState(false)
+
+  // User Ban Modal State
+  const [selectedUserForBan, setSelectedUserForBan] = useState<any>(null)
+  const [banReason, setBanReason] = useState('')
+  const [banLoading, setBanLoading] = useState(false)
+
+  // User Deletion Modal State
+  const [selectedUserForDelete, setSelectedUserForDelete] = useState<any>(null)
+  const [deleteUserConfirmText, setDeleteUserConfirmText] = useState('')
+  const [deleteUserLoading, setDeleteUserLoading] = useState(false)
+  const [deleteUserError, setDeleteUserError] = useState('')
 
   // Verification Rejection Modal State
   const [rejectingVerif, setRejectingVerif] = useState<any>(null)
@@ -123,6 +136,70 @@ export function AdminClient({
       alert(err.message)
     } finally {
       setBalanceLoading(false)
+    }
+  }
+
+  // Handle User Ban / Unban
+  const handleBanToggle = async (targetUser: any, action: 'BAN' | 'UNBAN', reason?: string) => {
+    try {
+      setBanLoading(true)
+      const res = await fetch(`/api/admin/users/${targetUser.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, reason }),
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to update user account status')
+
+      setUsers(prev => prev.map(u => u.id === targetUser.id ? { ...u, verifiedStatus: action === 'BAN' ? 'BANNED' : 'APPROVED' } : u))
+
+      const logRes = await fetch('/api/admin/logs')
+      if (logRes.ok) {
+        const logData = await logRes.json()
+        setLogs(logData.logs)
+      }
+
+      showToast(action === 'BAN' ? `User ${targetUser.name} has been suspended.` : `User ${targetUser.name} has been reactivated.`)
+      setSelectedUserForBan(null)
+      setBanReason('')
+    } catch (err: any) {
+      alert(err.message)
+    } finally {
+      setBanLoading(false)
+    }
+  }
+
+  // Handle User Deletion
+  const handleDeleteUserSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedUserForDelete || deleteUserConfirmText !== 'DELETE') return
+
+    try {
+      setDeleteUserLoading(true)
+      setDeleteUserError('')
+      const res = await fetch(`/api/admin/users/${selectedUserForDelete.id}`, {
+        method: 'DELETE',
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to delete user account')
+
+      setUsers(prev => prev.filter(u => u.id !== selectedUserForDelete.id))
+
+      const logRes = await fetch('/api/admin/logs')
+      if (logRes.ok) {
+        const logData = await logRes.json()
+        setLogs(logData.logs)
+      }
+
+      showToast(`User ${selectedUserForDelete.name} permanently deleted.`)
+      setSelectedUserForDelete(null)
+      setDeleteUserConfirmText('')
+    } catch (err: any) {
+      setDeleteUserError(err.message || 'Failed to delete user account')
+    } finally {
+      setDeleteUserLoading(false)
     }
   }
 
@@ -676,12 +753,49 @@ export function AdminClient({
                       {new Date(u.createdAt).toLocaleDateString()}
                     </td>
                     <td className="px-5 py-3.5 text-right">
-                      <button
-                        onClick={() => setSelectedUserForBalance(u)}
-                        className="px-3 py-1.5 bg-ast-dark text-white rounded-lg text-xs font-semibold hover:bg-black transition-colors flex items-center gap-1.5 ml-auto"
-                      >
-                        <DollarSign size={13} /> Edit Solde
-                      </button>
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => setSelectedUserForBalance(u)}
+                          className="px-2.5 py-1.5 bg-ast-surface border border-black/15 text-black hover:bg-black/5 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1"
+                          title="Edit User Balance"
+                        >
+                          <DollarSign size={12} /> Solde
+                        </button>
+
+                        {u.verifiedStatus === 'BANNED' ? (
+                          <button
+                            onClick={() => handleBanToggle(u, 'UNBAN')}
+                            disabled={banLoading}
+                            className="px-2.5 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-300 hover:bg-emerald-100 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1 disabled:opacity-50"
+                            title="Reactivate Account"
+                          >
+                            <ShieldCheck size={12} /> Unban
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => {
+                              setSelectedUserForBan(u)
+                              setBanReason('')
+                            }}
+                            className="px-2.5 py-1.5 bg-amber-50 text-amber-700 border border-amber-300 hover:bg-amber-100 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1"
+                            title="Suspend User Account"
+                          >
+                            <Ban size={12} /> Ban
+                          </button>
+                        )}
+
+                        <button
+                          onClick={() => {
+                            setSelectedUserForDelete(u)
+                            setDeleteUserConfirmText('')
+                            setDeleteUserError('')
+                          }}
+                          className="px-2.5 py-1.5 bg-red-50 text-red-600 border border-red-200 hover:bg-red-600 hover:text-white rounded-lg text-xs font-semibold transition-colors flex items-center gap-1"
+                          title="Permanently Delete Account"
+                        >
+                          <Trash2 size={12} /> Delete
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -1114,6 +1228,118 @@ export function AdminClient({
                   className="px-5 py-2 rounded-xl text-xs font-semibold bg-red-600 text-white hover:bg-red-700 transition-colors shadow-sm disabled:opacity-50"
                 >
                   Confirm Rejection
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: BAN / SUSPEND USER */}
+      {selectedUserForBan && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-black/10 space-y-4">
+            <h3 className="font-heading font-bold text-xl text-amber-700 flex items-center gap-2">
+              <Ban size={20} /> Suspend User Account
+            </h3>
+            <p className="text-ast-gray text-xs leading-relaxed">
+              You are about to suspend <strong>{selectedUserForBan.name}</strong> ({selectedUserForBan.email}). 
+              They will be prevented from logging in and accessing platform services until reactivated.
+            </p>
+
+            <form
+              onSubmit={e => {
+                e.preventDefault()
+                handleBanToggle(selectedUserForBan, 'BAN', banReason)
+              }}
+              className="space-y-4"
+            >
+              <div>
+                <label className="block text-xs font-semibold text-ast-dark mb-1">Reason for Suspension (Optional)</label>
+                <textarea
+                  rows={3}
+                  placeholder="e.g. Terms of service violation, fraudulent activity, dispute non-compliance..."
+                  value={banReason}
+                  onChange={e => setBanReason(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border border-black/15 text-xs outline-none focus:border-amber-500 resize-none"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedUserForBan(null)
+                    setBanReason('')
+                  }}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-ast-gray hover:bg-ast-surface"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={banLoading}
+                  className="px-5 py-2 rounded-xl text-xs font-semibold bg-amber-600 text-white hover:bg-amber-700 transition-colors shadow-xs disabled:opacity-50"
+                >
+                  {banLoading ? 'Suspending...' : 'Confirm Suspension'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: PERMANENT USER DELETION */}
+      {selectedUserForDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-black/10 space-y-4">
+            <h3 className="font-heading font-bold text-xl text-red-600 flex items-center gap-2">
+              <ShieldAlert size={20} /> Permanently Delete Account
+            </h3>
+            <p className="text-ast-gray text-xs leading-relaxed">
+              You are about to permanently delete <strong>{selectedUserForDelete.name}</strong> ({selectedUserForDelete.email}). 
+              All associated data, profile records, and auth credentials will be purged. This action cannot be reversed.
+            </p>
+
+            {deleteUserError && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 font-medium">
+                {deleteUserError}
+              </div>
+            )}
+
+            <form onSubmit={handleDeleteUserSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-ast-dark mb-1.5">
+                  To confirm administrative deletion, type <span className="font-mono font-bold text-red-600">DELETE</span> below:
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="DELETE"
+                  value={deleteUserConfirmText}
+                  onChange={e => setDeleteUserConfirmText(e.target.value)}
+                  className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-black/15 focus:outline-none focus:border-red-500 font-mono"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedUserForDelete(null)
+                    setDeleteUserConfirmText('')
+                    setDeleteUserError('')
+                  }}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-ast-gray hover:bg-ast-surface"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={deleteUserConfirmText !== 'DELETE' || deleteUserLoading}
+                  className="px-5 py-2 rounded-xl text-xs font-semibold bg-red-600 text-white hover:bg-red-700 transition-colors shadow-xs disabled:opacity-50"
+                >
+                  {deleteUserLoading ? 'Deleting Account...' : 'Permanently Delete User'}
                 </button>
               </div>
             </form>

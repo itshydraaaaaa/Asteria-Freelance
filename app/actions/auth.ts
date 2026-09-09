@@ -38,6 +38,11 @@ export async function login(formData: FormData) {
     if (!authError && authData?.user) {
       const u = (await db.user.findUnique({ where: { id: authData.user.id } })) ||
                 (await db.user.findUnique({ where: { email } }))
+
+      if (u && (u.verifiedStatus === 'BANNED' || (u as any).status === 'BANNED')) {
+        return { error: 'Your account has been suspended by an administrator. Please contact support.' }
+      }
+
       const role = u?.role ?? authData.user.user_metadata?.role ?? 'CLIENT'
       const token = signSessionToken(authData.user.id, role)
       const cookieStore = await cookies()
@@ -59,6 +64,10 @@ export async function login(formData: FormData) {
   try {
     const dbUser = await db.user.findUnique({ where: { email } })
     if (dbUser) {
+      if (dbUser.verifiedStatus === 'BANNED' || (dbUser as any).status === 'BANNED') {
+        return { error: 'Your account has been suspended by an administrator. Please contact support.' }
+      }
+
       const storedHash = (dbUser as any).password_hash || dbUser.password
       let passwordValid = false
       if (storedHash) {

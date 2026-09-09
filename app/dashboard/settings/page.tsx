@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Bell, Shield, CreditCard, Globe, Moon, LogOut, Check } from 'lucide-react'
+import { Bell, Shield, CreditCard, Globe, Moon, LogOut, Check, Trash2, AlertTriangle, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { logout } from '@/app/actions/auth'
 
@@ -41,6 +41,12 @@ export default function SettingsPage() {
   const [language, setLanguage] = useState('English')
   const [currency, setCurrency] = useState('TND')
   const [savedSection, setSavedSection] = useState('')
+
+  // 4. Delete Account State
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
+  const [deleteLoading, setDeleteLoading] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
 
   // Load configuration settings from localStorage if available
   useEffect(() => {
@@ -91,6 +97,36 @@ export default function SettingsPage() {
     } catch {}
     router.push('/login')
     router.refresh()
+  }
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmText !== 'DELETE') return
+    try {
+      setDeleteLoading(true)
+      setDeleteError('')
+      const res = await fetch('/api/user/delete-account', {
+        method: 'POST',
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to delete account')
+      }
+
+      if (typeof document !== 'undefined') {
+        document.cookie = 'demo_user_id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT;'
+        document.cookie = 'demo_user_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT;'
+      }
+      try {
+        await logout()
+        await supabase.auth.signOut()
+      } catch {}
+
+      router.push('/login?message=account_deleted')
+    } catch (err: any) {
+      setDeleteError(err.message || 'An unexpected error occurred while deleting your account.')
+    } finally {
+      setDeleteLoading(false)
+    }
   }
 
   return (
@@ -263,7 +299,97 @@ export default function SettingsPage() {
             Sign Out
           </button>
         </div>
+
+        {/* Section 6: Danger Zone - Delete Account */}
+        <div className="bg-red-50/60 border border-red-200 rounded-2xl p-6">
+          <h2 className="font-semibold text-red-700 mb-2 flex items-center gap-2">
+            <Trash2 size={16} /> Danger Zone: Delete Account
+          </h2>
+          <p className="text-sm text-red-600/80 mb-4 leading-relaxed">
+            Permanently delete your Asteria account, profile data, and identity records. This action is irreversible. You cannot delete your account if you have active contracts or pending escrow transactions.
+          </p>
+          <button
+            onClick={() => {
+              setDeleteConfirmText('')
+              setDeleteError('')
+              setShowDeleteModal(true)
+            }}
+            className="text-xs font-bold bg-red-600 text-white rounded-xl px-5 py-2.5 hover:bg-red-700 transition-colors shadow-xs"
+          >
+            Delete My Account
+          </button>
+        </div>
       </div>
+
+      {/* Delete Account Confirmation Modal */}
+      <AnimatePresence>
+        {showDeleteModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-black/10 space-y-4 relative"
+            >
+              <button
+                type="button"
+                onClick={() => setShowDeleteModal(false)}
+                className="absolute top-4 right-4 text-ast-gray hover:text-black transition-colors"
+              >
+                <X size={20} />
+              </button>
+
+              <div className="w-12 h-12 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center">
+                <AlertTriangle size={24} />
+              </div>
+
+              <div>
+                <h3 className="font-heading font-bold text-lg text-black">Delete Account Permanently</h3>
+                <p className="text-xs text-ast-gray mt-1 leading-relaxed">
+                  This action is permanent and cannot be undone. All your profile information, gigs, and user data will be removed.
+                </p>
+              </div>
+
+              {deleteError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 font-medium">
+                  {deleteError}
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-semibold text-ast-dark mb-1.5">
+                  To confirm, type <span className="font-mono font-bold text-red-600">DELETE</span> below:
+                </label>
+                <input
+                  type="text"
+                  value={deleteConfirmText}
+                  onChange={e => setDeleteConfirmText(e.target.value)}
+                  placeholder="DELETE"
+                  className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-black/15 focus:outline-none focus:border-red-500 font-mono"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteModal(false)}
+                  className="px-4 py-2 text-xs font-semibold text-ast-gray hover:text-black transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={deleteConfirmText !== 'DELETE' || deleteLoading}
+                  onClick={handleDeleteAccount}
+                  className="px-5 py-2.5 text-xs font-bold bg-red-600 text-white rounded-xl hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-xs"
+                >
+                  {deleteLoading ? 'Deleting Account...' : 'Permanently Delete'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
