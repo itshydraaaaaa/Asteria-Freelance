@@ -426,8 +426,28 @@ export async function processEscrowRelease(
 ): Promise<{ sellerPayout: number; platformFee: number }> {
   const targetAdminId = canonicalizeUserId(adminId)
   return withSortedMultiUserLock([sellerId, targetAdminId], async () => {
-    const sellerPayout = Math.round(amount * (1 - PLATFORM_FEE_RATE) * 100) / 100
-    const platformFee  = Math.round(amount * PLATFORM_FEE_RATE * 100) / 100
+    // Exact cent-based integer arithmetic: guarantees zero floating-point drift
+    const amountCents = Math.round(amount * 100)
+    const feeCents = Math.round((amountCents * 12) / 100)
+    const sellerPayoutCents = amountCents - feeCents
+    const platformFee = feeCents / 100
+    const sellerPayout = sellerPayoutCents / 100
+
+    try {
+      const supabase = getServiceClient()
+      if (supabase) {
+        const { data, error } = await supabase.rpc('execute_escrow_release', {
+          p_order_id: orderId,
+          p_caller_id: targetAdminId,
+        })
+        if (!error && data && data.success) {
+          return {
+            sellerPayout: Number(data.seller_payout),
+            platformFee: Number(data.platform_fee),
+          }
+        }
+      }
+    } catch {}
 
     await _creditWalletInternal(sellerId, sellerPayout, 'RELEASE', {
       orderId,
@@ -453,8 +473,12 @@ export async function processMilestoneRelease(
   milestoneAmount: number
 ): Promise<{ sellerPayout: number; platformFee: number }> {
   return withSortedMultiUserLock([sellerId, PLATFORM_TREASURY_USER_ID], async () => {
-    const sellerPayout = Math.round(milestoneAmount * (1 - PLATFORM_FEE_RATE) * 100) / 100
-    const platformFee  = Math.round(milestoneAmount * PLATFORM_FEE_RATE * 100) / 100
+    // Exact cent-based integer arithmetic: guarantees zero floating-point drift
+    const amountCents = Math.round(milestoneAmount * 100)
+    const feeCents = Math.round((amountCents * 12) / 100)
+    const sellerPayoutCents = amountCents - feeCents
+    const platformFee = feeCents / 100
+    const sellerPayout = sellerPayoutCents / 100
 
     await _creditWalletInternal(sellerId, sellerPayout, 'RELEASE', {
       orderId,

@@ -25,6 +25,7 @@ export function WalletActionClient({ balance, userId, userRole }: Props) {
   const [withdrawAccount, setWithdrawAccount] = useState('')
   const [withdrawing, setWithdrawing] = useState(false)
   const [withdrawnSuccess, setWithdrawnSuccess] = useState(false)
+  const [withdrawError, setWithdrawError] = useState('')
 
   const handleDepositStripe = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -61,25 +62,43 @@ export function WalletActionClient({ balance, userId, userRole }: Props) {
 
   const handleWithdraw = async (e: React.FormEvent) => {
     e.preventDefault()
+    setWithdrawError('')
     const amountNum = parseFloat(withdrawAmount)
-    if (isNaN(amountNum) || amountNum <= 0 || amountNum > balance) {
-      alert(`Please enter an amount between 20 TND and ${balance} TND`)
+    if (isNaN(amountNum) || amountNum < 20 || amountNum > balance) {
+      setWithdrawError(`Please enter an amount between 20 TND and ${balance.toFixed(2)} TND`)
       return
     }
 
     try {
       setWithdrawing(true)
-      // Simulate payout dispatch request
-      await new Promise(r => setTimeout(r, 1000))
+      const res = await fetch('/api/wallet/withdraw', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': `with-${userId}-${Date.now()}`,
+        },
+        body: JSON.stringify({
+          amount: amountNum,
+          method: withdrawMethod,
+          accountDetails: withdrawAccount,
+        }),
+      })
+
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.error || 'Withdrawal request failed')
+      }
+
       setWithdrawnSuccess(true)
       setTimeout(() => {
         setWithdrawnSuccess(false)
         setShowWithdraw(false)
         setWithdrawAmount('')
         setWithdrawAccount('')
-      }, 2000)
+        window.location.reload()
+      }, 2500)
     } catch (err: any) {
-      alert('Withdrawal request failed. Please contact support.')
+      setWithdrawError(err.message || 'Withdrawal request failed. Please contact support.')
     } finally {
       setWithdrawing(false)
     }
@@ -212,6 +231,12 @@ export function WalletActionClient({ balance, userId, userRole }: Props) {
                   <h3 className="font-heading font-bold text-xl text-black">Request Withdrawal</h3>
                   <p className="text-ast-gray text-xs mt-0.5">Available Balance: <strong className="text-emerald-700">{balance.toFixed(2)} TND</strong></p>
                 </div>
+
+                {withdrawError && (
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 font-medium">
+                    {withdrawError}
+                  </div>
+                )}
 
                 <form onSubmit={handleWithdraw} className="space-y-4">
                   <div>
