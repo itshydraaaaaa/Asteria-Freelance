@@ -36,10 +36,18 @@ export async function GET(req: NextRequest) {
       partnerIds.add(partnerId)
     }
 
-    // 3. Fetch user details for each partner
-    const allUsers = await db.user.findMany()
-    const partners = Array.from(partnerIds).map(pid => {
-      const user = allUsers.find(u => u.id === pid)
+    // 3. Fetch user details specifically for active partners (O(partners) instead of full-table scan)
+    const partnerIdList = Array.from(partnerIds)
+    const partnerUsers = await Promise.all(
+      partnerIdList.map(pid => db.user.findUnique({ where: { id: pid } }))
+    )
+    const userMap = new Map<string, any>()
+    partnerUsers.forEach(u => {
+      if (u) userMap.set(u.id, u)
+    })
+
+    const partners = partnerIdList.map(pid => {
+      const user = userMap.get(pid)
       const lastMsg = allUserMessages
         .filter(m => (m.senderId === pid && m.receiverId === currentUserId) || (m.senderId === currentUserId && m.receiverId === pid))
         .pop()

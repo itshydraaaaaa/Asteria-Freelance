@@ -177,12 +177,32 @@ export async function GET(req: NextRequest) {
     }
 
     const userId = session.user.id
-    const orders = await db.order.findMany({
-      where: {
-        buyerId: userId,
-      },
-      orderBy: { createdAt: 'desc' },
-    })
+    const { searchParams } = new URL(req.url)
+    const roleParam = searchParams.get('role')?.toLowerCase()
+
+    let orders: any[] = []
+    if (roleParam === 'buyer') {
+      orders = await db.order.findMany({
+        where: { buyerId: userId },
+        orderBy: { createdAt: 'desc' },
+      })
+    } else if (roleParam === 'seller') {
+      orders = await db.order.findMany({
+        where: { sellerId: userId },
+        orderBy: { createdAt: 'desc' },
+      })
+    } else {
+      const [buyerOrders, sellerOrders] = await Promise.all([
+        db.order.findMany({ where: { buyerId: userId } }),
+        db.order.findMany({ where: { sellerId: userId } }),
+      ])
+      const map = new Map<string, any>()
+      buyerOrders.forEach((o: any) => map.set(o.id, o))
+      sellerOrders.forEach((o: any) => map.set(o.id, o))
+      orders = Array.from(map.values()).sort(
+        (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      )
+    }
 
     return NextResponse.json({ orders })
   } catch (err: any) {
