@@ -48,30 +48,11 @@ export default async function GigDetailPage({ params }: { params: { id: string }
   const flInitials = flName.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()
   const badge      = (freelancer?.badge ?? 'top') as string
 
-  // Fetch real reviews from DB or use verified client reviews
+  // Fetch real reviews from DB
   let reviews: any[] = []
   try {
     reviews = await db.review.findMany({ where: { gigId: gig.id } })
   } catch (e) {}
-
-  if (reviews.length === 0) {
-    reviews = [
-      {
-        name: 'Sami Mansour',
-        initials: 'SM',
-        rating: 5,
-        comment: 'Exceptional delivery quality and excellent technical communication. Delivered ahead of schedule with clean documentation.',
-        date: 'Verified Client',
-      },
-      {
-        name: 'Nour El Houda',
-        initials: 'NH',
-        rating: 5,
-        comment: 'Great work! The attention to detail and milestone updates were seamless. Escrow payout was completely smooth.',
-        date: 'Verified Client',
-      },
-    ]
-  }
 
   const packages = [
     {
@@ -196,27 +177,33 @@ export default async function GigDetailPage({ params }: { params: { id: string }
               <h2 className="font-heading font-bold text-black text-lg mb-5">
                 Client Reviews <span className="text-ast-gray font-normal text-sm">({reviews.length})</span>
               </h2>
-              <div className="space-y-5">
-                {reviews.map((r, i) => (
-                  <div key={i} className={`${i > 0 ? 'border-t border-black/5 pt-5' : ''}`}>
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="w-8 h-8 rounded-full bg-ast-surface border border-black/8 flex items-center justify-center text-xs font-bold text-black">
-                        {r.initials ?? r.name?.[0] ?? 'C'}
-                      </div>
-                      <div>
-                        <p className="text-xs font-bold text-black">{r.name}</p>
-                        <div className="flex items-center gap-1">
-                          {Array.from({ length: 5 }).map((_, s) => (
-                            <Star key={s} size={10} className={s < (r.rating ?? 5) ? 'text-yellow-400 fill-yellow-400' : 'text-black/15'} />
-                          ))}
-                          <span className="text-[10px] text-ast-gray ml-1">{r.date ?? 'Verified Order'}</span>
+              {reviews.length === 0 ? (
+                <div className="py-8 text-center text-ast-gray text-xs">
+                  No client reviews yet for this listing. Complete an order to be the first to leave feedback!
+                </div>
+              ) : (
+                <div className="space-y-5">
+                  {reviews.map((r, i) => (
+                    <div key={i} className={`${i > 0 ? 'border-t border-black/5 pt-5' : ''}`}>
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="w-8 h-8 rounded-full bg-ast-surface border border-black/8 flex items-center justify-center text-xs font-bold text-black">
+                          {r.initials ?? r.name?.[0] ?? 'C'}
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-black">{r.name}</p>
+                          <div className="flex items-center gap-1">
+                            {Array.from({ length: 5 }).map((_, s) => (
+                              <Star key={s} size={10} className={s < (r.rating ?? 5) ? 'text-yellow-400 fill-yellow-400' : 'text-black/15'} />
+                            ))}
+                            <span className="text-[10px] text-ast-gray ml-1">{r.date ?? 'Verified Order'}</span>
+                          </div>
                         </div>
                       </div>
+                      <p className="text-ast-gray text-xs leading-relaxed">{r.comment}</p>
                     </div>
-                    <p className="text-ast-gray text-xs leading-relaxed">{r.comment}</p>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 

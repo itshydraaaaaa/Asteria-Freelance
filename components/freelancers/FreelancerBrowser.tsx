@@ -19,13 +19,22 @@ export function FreelancerBrowser({ freelancers, categories }: { freelancers: an
 
   const filtered = useMemo(() => {
     let f = [...freelancers]
-    if (category !== 'All') f = f.filter(x => x.category === category)
-    if (badge    !== 'All') f = f.filter(x => x.badge && x.badge.toLowerCase() === badge.toLowerCase())
+    if (category !== 'All') {
+      const catLower = category.toLowerCase()
+      f = f.filter(x => {
+        const xCat = (x.category || '').toLowerCase()
+        const matchCat = xCat === catLower || xCat.includes(catLower)
+        const matchSkills = Array.isArray(x.skills) && x.skills.some((s: string) => s.toLowerCase().includes(catLower))
+        return matchCat || matchSkills
+      })
+    }
+    if (badge !== 'All') f = f.filter(x => x.badge && x.badge.toLowerCase() === badge.toLowerCase())
     if (query) {
       const q = query.toLowerCase()
       f = f.filter(x => 
         (x.name && x.name.toLowerCase().includes(q)) || 
-        (x.skills && x.skills.some((s: string) => s.toLowerCase().includes(q)))
+        (x.skills && x.skills.some((s: string) => s.toLowerCase().includes(q))) ||
+        (x.category && x.category.toLowerCase().includes(q))
       )
     }
     return f

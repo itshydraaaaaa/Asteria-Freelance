@@ -27,9 +27,7 @@ export default async function FreelancerProfilePage({ params }: { params: { id: 
   const name        = person.name        ?? 'Freelancer'
   const bio         = person.bio         ?? 'Professional freelancer on Asteria.'
   const skills      = person.skills      ?? []
-  const rating      = person.rating      ?? 4.9
-  const reviewCount = person.reviewCount ?? 18
-  const badge       = (person.badge      ?? 'top') as string
+  const badge       = (person.badge      ?? 'verified') as string
   const image       = person.image
   const initials    = name.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()
 
@@ -39,24 +37,8 @@ export default async function FreelancerProfilePage({ params }: { params: { id: 
     reviewsList = await db.review.findMany({ where: { freelancerId: params.id } })
   } catch (e) {}
 
-  if (reviewsList.length === 0) {
-    reviewsList = [
-      {
-        name: 'Sami Mansour',
-        initials: 'SM',
-        rating: 5,
-        comment: 'Outstanding freelancer. Incredibly professional and the work was top quality. Prompt delivery with complete escrow security.',
-        date: 'Verified Client',
-      },
-      {
-        name: 'Nour El Houda',
-        initials: 'NH',
-        rating: 5,
-        comment: 'Delivered ahead of schedule. Great communication throughout the project phases.',
-        date: 'Verified Client',
-      },
-    ]
-  }
+  const reviewCount = person.reviewCount ?? reviewsList.length
+  const rating      = person.rating ?? (reviewsList.length > 0 ? (reviewsList.reduce((acc, r) => acc + Number(r.rating || 5), 0) / reviewsList.length).toFixed(1) : '5.0')
 
   return (
     <div className="min-h-screen bg-ast-surface pt-24 pb-16">
@@ -176,27 +158,33 @@ export default async function FreelancerProfilePage({ params }: { params: { id: 
               <h2 className="font-heading font-bold text-xl text-black mb-5">
                 Client Reviews <span className="text-ast-gray font-normal text-sm">({reviewsList.length})</span>
               </h2>
-              <div className="space-y-5">
-                {reviewsList.map((r, i) => (
-                  <div key={i} className={`${i > 0 ? 'border-t border-black/5 pt-5' : ''}`}>
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="w-8 h-8 rounded-full bg-ast-surface border border-black/8 flex items-center justify-center text-xs font-bold text-black">
-                        {r.initials ?? r.name?.[0] ?? 'C'}
-                      </div>
-                      <div>
-                        <p className="text-xs font-bold text-black">{r.name}</p>
-                        <div className="flex items-center gap-1">
-                          {Array.from({ length: 5 }).map((_, s) => (
-                            <Star key={s} size={10} className={s < (r.rating ?? 5) ? 'text-yellow-400 fill-yellow-400' : 'text-black/15'} />
-                          ))}
-                          <span className="text-[10px] text-ast-gray ml-1">{r.date ?? 'Verified Client'}</span>
+              {reviewsList.length === 0 ? (
+                <div className="py-8 text-center text-ast-gray text-xs">
+                  No client reviews yet for this freelancer.
+                </div>
+              ) : (
+                <div className="space-y-5">
+                  {reviewsList.map((r, i) => (
+                    <div key={i} className={`${i > 0 ? 'border-t border-black/5 pt-5' : ''}`}>
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="w-8 h-8 rounded-full bg-ast-surface border border-black/8 flex items-center justify-center text-xs font-bold text-black">
+                          {r.initials ?? r.name?.[0] ?? 'C'}
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-black">{r.name}</p>
+                          <div className="flex items-center gap-1">
+                            {Array.from({ length: 5 }).map((_, s) => (
+                              <Star key={s} size={10} className={s < (r.rating ?? 5) ? 'text-yellow-400 fill-yellow-400' : 'text-black/15'} />
+                            ))}
+                            <span className="text-[10px] text-ast-gray ml-1">{r.date ?? 'Verified Client'}</span>
+                          </div>
                         </div>
                       </div>
+                      <p className="text-ast-gray text-xs leading-relaxed">{r.comment}</p>
                     </div>
-                    <p className="text-ast-gray text-xs leading-relaxed">{r.comment}</p>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
