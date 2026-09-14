@@ -87,6 +87,6 @@ describe('Phase 5: Admin & Support Operations Tests', () => {
       data: { status: 'APPROVED', reviewedBy: TEST_ADMIN } as any,
     })
 
-    expect(approved.status).toBe('APPROVED')
+    expect(approved?.status).toBe('APPROVED')
   })
 })

@@ -289,7 +289,7 @@ export function ProposalForm({ jobId, budget, deliveryDays }: Props) {
         </div>
         <div className="flex items-center justify-between pt-1.5 border-t border-black/8 font-bold">
           <span className="text-black flex items-center gap-1">
-            <ShieldCheck size={14} className="text-emerald-600" /> You'll Receive (88% Net):
+            <ShieldCheck size={14} className="text-emerald-600" /> You&apos;ll Receive (88% Net):
           </span>
           <span className="text-emerald-600 text-sm">{netEarnings} TND</span>
         </div>

@@ -371,7 +371,7 @@ export function MilestoneTracker({
           </div>
 
           <p className="text-xs text-ast-gray leading-relaxed">
-            The full contract amount of <strong>{totalAmount} TND</strong> is protected in Asteria Escrow. Once the complete deliverable is submitted and approved by the buyer, <strong>{Math.round(totalAmount * 0.88 * 100) / 100} TND</strong> (88% net) is immediately disbursed to the freelancer's wallet.
+            The full contract amount of <strong>{totalAmount} TND</strong> is protected in Asteria Escrow. Once the complete deliverable is submitted and approved by the buyer, <strong>{Math.round(totalAmount * 0.88 * 100) / 100} TND</strong> (88% net) is immediately disbursed to the freelancer&apos;s wallet.
           </p>
 
           <div className="grid grid-cols-3 gap-3 pt-2 text-center text-xs">
