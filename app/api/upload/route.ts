@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
+import { requireAuth } from '@/lib/authz'
 import { createClient } from '@supabase/supabase-js'
 import crypto from 'crypto'
 
@@ -97,7 +98,10 @@ function getServiceClient() {
 export async function POST(req: NextRequest) {
   try {
     const session = await auth()
-    const userId = session?.user?.id ?? 'anonymous'
+    const authErr = requireAuth(session)
+    if (authErr) return authErr
+
+    const userId = session!.user.id
 
     const formData = await req.formData()
     const file = formData.get('file') as File | null
