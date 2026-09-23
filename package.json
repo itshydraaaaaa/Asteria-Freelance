@@ -53,6 +53,7 @@
     "@types/node": "^22.13.9",
     "@types/offscreencanvas": "^2019.7.3",
     "@types/webxr": "^0.5.24",
+    "critters": "^0.0.23",
     "eslint": "^8.57.1",
     "eslint-config-next": "^14.2.35",
     "jest": "^30.4.2",

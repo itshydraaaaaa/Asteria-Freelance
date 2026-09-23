@@ -16,7 +16,11 @@ const cspHeader = `
 `.replace(/\s{2,}/g, ' ').trim()
 
 const config = {
-  // Strip React prop-types and component display names in production to reduce bundle size
+  // Lenis ships pre-compiled with Babel class/spread transforms — SWC must re-transpile it
+  // to target modern browsers and eliminate the 12 KiB legacy JS chunk (2117-*.js)
+  transpilePackages: ['lenis'],
+
+  // Strip React prop-types and console.log in production to reduce bundle size
   compiler: {
     reactRemoveProperties: process.env.NODE_ENV === 'production',
     removeConsole: process.env.NODE_ENV === 'production' ? { exclude: ['error', 'warn'] } : false,
@@ -33,6 +37,8 @@ const config = {
     ],
   },
   experimental: {
+    // Inline critical CSS and defer the rest — eliminates the render-blocking CSS request
+    optimizeCss: true,
     optimizePackageImports: ['lucide-react', 'framer-motion', '@supabase/supabase-js'],
     serverActions: {
       allowedOrigins: [
