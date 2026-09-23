@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { requireAuth } from '@/lib/authz'
 import { rateLimit } from '@/lib/rateLimit'
+import { detectTunisianDialect, enhancePromptForTunisianContext } from '@/lib/ai/tunbert'
 
 export const dynamic = 'force-dynamic'
 
@@ -58,6 +59,9 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    const fullInputText = `${title || ''} ${context || ''}`
+    const dialectInfo = detectTunisianDialect(fullInputText)
+
     const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY
     if (!apiKey) {
       return NextResponse.json({
@@ -65,19 +69,23 @@ export async function POST(req: NextRequest) {
         generatedText: getFallbackText(),
         type,
         aiAssisted: false,
+        dialect: dialectInfo,
         disclosure: '✦ Generated with Asteria Smart Template Engine (Configure GEMINI_API_KEY for dynamic AI generation)',
       }, { status: 200 })
     }
 
-    const prompt = `You are Asteria AI, an assistant for an elite freelance marketplace in Tunisia/MENA. Generate high-quality professional text for the following request:
+    const basePrompt = `You are Asteria AI, an assistant for an elite freelance marketplace in Tunisia/MENA. Generate high-quality professional text for the following request:
 Type: ${type}
 Title: ${title || 'N/A'}
 Category: ${category || 'N/A'}
 Skills: ${skillsList}
 Budget: ${budget ? budget + ' TND' : 'N/A'}
 Additional Context: ${context || 'N/A'}
+Detected Language/Dialect: ${dialectInfo.isTunisian ? `Tunisian Dialect (${dialectInfo.script} script)` : 'Standard'}
 
 Respond with ONLY the polished markdown content, directly usable in the platform without conversational filler.`
+
+    const prompt = enhancePromptForTunisianContext(basePrompt)
 
     try {
       const aiRes = await fetch(
@@ -101,6 +109,7 @@ Respond with ONLY the polished markdown content, directly usable in the platform
           generatedText: getFallbackText(),
           type,
           aiAssisted: false,
+          dialect: dialectInfo,
           disclosure: '✦ Generated with Asteria Fallback Template Engine',
         }, { status: 200 })
       }
@@ -114,6 +123,7 @@ Respond with ONLY the polished markdown content, directly usable in the platform
           generatedText: getFallbackText(),
           type,
           aiAssisted: false,
+          dialect: dialectInfo,
           disclosure: '✦ Generated with Asteria Fallback Template Engine',
         }, { status: 200 })
       }
@@ -123,7 +133,8 @@ Respond with ONLY the polished markdown content, directly usable in the platform
         generatedText,
         type,
         aiAssisted: true,
-        disclosure: '✦ Generated with Asteria AI Assistant (Powered by Gemini)',
+        dialect: dialectInfo,
+        disclosure: '✦ Generated with Asteria AI Assistant (Powered by Gemini & TunBERT Context)',
       }, { status: 200 })
     } catch (apiErr: any) {
       console.warn('Gemini request failed, falling back to smart template:', apiErr?.message)
@@ -132,6 +143,7 @@ Respond with ONLY the polished markdown content, directly usable in the platform
         generatedText: getFallbackText(),
         type,
         aiAssisted: false,
+        dialect: dialectInfo,
         disclosure: '✦ Generated with Asteria Fallback Template Engine',
       }, { status: 200 })
     }

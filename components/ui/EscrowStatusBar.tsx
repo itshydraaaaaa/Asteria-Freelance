@@ -67,8 +67,10 @@ const STATUS_CONFIG: Record<OrderStatus, {
   },
 }
 
-export function EscrowStatusBar({ status, amount, currency = 'USD' }: EscrowStatusBarProps) {
+export function EscrowStatusBar({ status, amount, currency = 'TND' }: EscrowStatusBarProps) {
   const { Icon, label, sublabel, bg, border, text, iconColor } = STATUS_CONFIG[status]
+
+  const displayPrice = currency === 'USD' ? `$${amount.toFixed(2)} USD` : `${amount.toFixed(2)} ${currency}`
 
   return (
     <div
@@ -86,7 +88,7 @@ export function EscrowStatusBar({ status, amount, currency = 'USD' }: EscrowStat
           <div className={`flex items-center gap-2 flex-wrap`}>
             <span className={`font-semibold text-sm ${text}`}>{label}</span>
             <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded ${bg} border ${border} ${text}`}>
-              ${amount.toFixed(2)} {currency}
+              {displayPrice}
             </span>
           </div>
           <p className={`text-xs mt-0.5 ${text} opacity-70 truncate`}>{sublabel}</p>

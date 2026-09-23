@@ -6,6 +6,8 @@ import Lenis from 'lenis'
 import gsap from 'gsap'
 import ScrollTrigger from 'gsap/ScrollTrigger'
 
+import { LanguageProvider } from '@/components/providers/LanguageContext'
+
 gsap.registerPlugin(ScrollTrigger)
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -59,5 +61,5 @@ export function Providers({ children }: { children: React.ReactNode }) {
     }
   }, [pathname])
 
-  return <>{children}</>
+  return <LanguageProvider>{children}</LanguageProvider>
 }

@@ -66,7 +66,11 @@ export default async function FreelancerProfilePage({ params }: { params: { id: 
               </span>
 
               <h1 className="font-heading font-bold text-2xl text-black mb-1">{name}</h1>
-              <p className="text-ast-primary text-xs font-semibold mb-3">{person.role === 'FREELANCER' ? 'Verified Freelancer' : 'Platform User'}</p>
+              <p className="text-ast-primary text-xs font-semibold mb-1">{person.role === 'FREELANCER' ? 'Verified Freelancer' : 'Platform User'}</p>
+              <p className="text-ast-gray text-xs flex items-center justify-center gap-1 mb-3">
+                <MapPin size={12} className="text-ast-primary shrink-0" />
+                <span>🇹🇳 {person.location || 'Tunis, Tunisia'}</span>
+              </p>
 
               <div className="flex items-center justify-center gap-1.5 text-xs mb-5">
                 <Star size={13} className="text-yellow-400 fill-yellow-400" />

@@ -7,6 +7,7 @@
 
 import { useState } from 'react'
 import { PlusCircle, ArrowUpRight, CheckCircle2, CreditCard, ShieldCheck, X } from 'lucide-react'
+import { isValidTunisianRIB } from '@/lib/country'
 
 interface Props {
   balance: number
@@ -66,6 +67,11 @@ export function WalletActionClient({ balance, userId, userRole }: Props) {
     const amountNum = parseFloat(withdrawAmount)
     if (isNaN(amountNum) || amountNum < 20 || amountNum > balance) {
       setWithdrawError(`Please enter an amount between 20 TND and ${balance.toFixed(2)} TND`)
+      return
+    }
+
+    if (withdrawMethod.includes('RIB') && !isValidTunisianRIB(withdrawAccount)) {
+      setWithdrawError('Tunisian Bank RIB must be exactly 20 digits (e.g. 0800 1234 5678 9012 3456).')
       return
     }
 
@@ -261,8 +267,8 @@ export function WalletActionClient({ balance, userId, userRole }: Props) {
                       onChange={e => setWithdrawMethod(e.target.value)}
                       className="w-full px-4 py-2.5 rounded-xl border border-black/15 text-xs font-semibold outline-none focus:border-ast-primary bg-white"
                     >
-                      <option value="Flouci (Tunisia)">Flouci (Tunisia — Instant)</option>
-                      <option value="Tunisian Bank Transfer (RIB)">Tunisian Bank Transfer (RIB)</option>
+                      <option value="Flouci (Tunisia)">🇹🇳 Flouci (Tunisia — Instant)</option>
+                      <option value="Tunisian Bank Transfer (RIB)">🇹🇳 Tunisian Bank Transfer (RIB)</option>
                       <option value="Stripe Payout">Stripe Direct Payout</option>
                       <option value="Wise (International)">Wise (International)</option>
                       <option value="PayPal">PayPal</option>

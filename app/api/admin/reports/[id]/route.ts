@@ -145,12 +145,12 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
               adminName: session!.user.name || 'Admin',
               action:    'DISPUTE_FIRST_APPROVAL',
               targetId:  params.id,
-              details:   `Admin approved ${action} for report ${params.id} (amount $${order.amount} > threshold $${DISPUTE_THRESHOLD_USD}). Awaiting second admin approval.`,
+              details:   `Admin approved ${action} for report ${params.id} (amount ${order.amount} TND > threshold ${DISPUTE_THRESHOLD_USD} TND). Awaiting second admin approval.`,
             }
           })
 
           return NextResponse.json({
-            message: `First approval recorded. A second admin must confirm this action (amount $${order.amount} exceeds the $${DISPUTE_THRESHOLD_USD} threshold).`,
+            message: `First approval recorded. A second admin must confirm this action (amount ${order.amount} TND exceeds the ${DISPUTE_THRESHOLD_USD} TND threshold).`,
             requiresSecondApproval: true,
           })
         }
@@ -187,11 +187,11 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
               adminName: session!.user.name || 'Admin',
               action:    'ESCROW_REFUND',
               targetId:  params.id,
-              details:   `Refunded $${order.amount} to buyer ${buyer?.name} for order ${order.id}. Report resolved.`,
+              details:   `Refunded ${order.amount} TND to buyer ${buyer?.name} for order ${order.id}. Report resolved.`,
             }
           })
 
-          return { message: `Refunded $${order.amount} to buyer. Order cancelled. Report resolved.` }
+          return { message: `Refunded ${order.amount} TND to buyer. Order cancelled. Report resolved.` }
         }
 
         if (action === 'RELEASE_SELLER') {
@@ -206,11 +206,11 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
               adminName: session!.user.name || 'Admin',
               action:    'ESCROW_RELEASE_ADMIN',
               targetId:  params.id,
-              details:   `Released $${sellerPayout} to seller ${seller?.name} for order ${order.id}. Report resolved.`,
+              details:   `Released ${sellerPayout} TND to seller ${seller?.name} for order ${order.id}. Report resolved.`,
             }
           })
 
-          return { message: `Released $${sellerPayout} to seller (85% net). Order completed. Report resolved.` }
+          return { message: `Released ${sellerPayout} TND to seller (88% net). Order completed. Report resolved.` }
         }
       }
     )

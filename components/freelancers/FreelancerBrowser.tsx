@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Search, Star, Award, TrendingUp, CheckCircle } from 'lucide-react'
 import type { Category } from '@/lib/data/categories'
 import { scaleIn, stagger, microHover } from '@/lib/motion'
+import { expandTunisianSearchQuery } from '@/lib/ai/tunbert'
 
 export function FreelancerBrowser({ freelancers, categories }: { freelancers: any[]; categories: Category[] }) {
   const [query,    setQuery]    = useState('')
@@ -30,12 +31,22 @@ export function FreelancerBrowser({ freelancers, categories }: { freelancers: an
     }
     if (badge !== 'All') f = f.filter(x => x.badge && x.badge.toLowerCase() === badge.toLowerCase())
     if (query) {
-      const q = query.toLowerCase()
-      f = f.filter(x => 
-        (x.name && x.name.toLowerCase().includes(q)) || 
-        (x.skills && x.skills.some((s: string) => s.toLowerCase().includes(q))) ||
-        (x.category && x.category.toLowerCase().includes(q))
-      )
+      const searchTerms = expandTunisianSearchQuery(query)
+      f = f.filter(x => {
+        const nameLower = (x.name || '').toLowerCase()
+        const catLower = (x.category || '').toLowerCase()
+        const locLower = (x.location || '').toLowerCase()
+        const skillsLower = Array.isArray(x.skills) ? x.skills.map((s: string) => s.toLowerCase()) : []
+        return searchTerms.some(term => {
+          const tLower = term.toLowerCase()
+          return (
+            nameLower.includes(tLower) ||
+            catLower.includes(tLower) ||
+            locLower.includes(tLower) ||
+            skillsLower.some(s => s.includes(tLower))
+          )
+        })
+      })
     }
     return f
   }, [freelancers, category, badge, query])
@@ -91,7 +102,11 @@ export function FreelancerBrowser({ freelancers, categories }: { freelancers: an
                         )}
                         <div className="min-w-0">
                           <p className="font-heading font-semibold text-black text-sm group-hover:text-ast-primary transition-colors truncate">{f.name}</p>
-                          <p className="text-xs text-ast-gray truncate">{f.category || 'Freelancer'}</p>
+                          <p className="text-xs text-ast-gray truncate flex items-center gap-1">
+                            <span>{f.category || 'Freelancer'}</span>
+                            <span>•</span>
+                            <span className="text-[11px] text-ast-primary/90 font-medium">🇹🇳 {f.location || 'Tunisia'}</span>
+                          </p>
                         </div>
                       </div>
 

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { ShieldCheck, Upload, CheckCircle2, AlertCircle, Clock, FileText, UserCheck, ArrowRight, Loader2, X, Image as ImageIcon } from 'lucide-react'
+import { isValidTunisianCIN } from '@/lib/country'
 
 interface UploadBoxProps {
   label: string
@@ -166,6 +167,11 @@ export default function VerificationPage() {
       return
     }
 
+    if (country === 'Tunisia' && documentType === 'National ID' && !isValidTunisianCIN(documentNumber)) {
+      setErrorMsg('Tunisian National ID (CIN / بطاقة التعريف) must be exactly 8 digits.')
+      return
+    }
+
     try {
       setSubmitting(true)
       const res = await fetch('/api/user/verification', {
@@ -312,14 +318,14 @@ export default function VerificationPage() {
                   onChange={e => setCountry(e.target.value)}
                   className="w-full px-4 py-3 rounded-xl border border-black/15 focus:outline-none focus:border-ast-primary text-sm bg-white"
                 >
-                  <option value="Tunisia">Tunisia</option>
-                  <option value="Algeria">Algeria</option>
-                  <option value="Morocco">Morocco</option>
-                  <option value="Egypt">Egypt</option>
-                  <option value="Saudi Arabia">Saudi Arabia</option>
-                  <option value="UAE">United Arab Emirates</option>
-                  <option value="France">France</option>
-                  <option value="United States">United States</option>
+                  <option value="Tunisia">🇹🇳 Tunisia (تونس)</option>
+                  <option value="Algeria">🇩🇿 Algeria (الجزائر)</option>
+                  <option value="Morocco">🇲🇦 Morocco (المغرب)</option>
+                  <option value="Egypt">🇪🇬 Egypt (مصر)</option>
+                  <option value="Saudi Arabia">🇸🇦 Saudi Arabia (المملكة العربية السعودية)</option>
+                  <option value="UAE">🇦🇪 United Arab Emirates (الإمارات)</option>
+                  <option value="France">🇫🇷 France</option>
+                  <option value="United States">🇺🇸 United States</option>
                   <option value="Other">Other</option>
                 </select>
               </div>
@@ -331,9 +337,11 @@ export default function VerificationPage() {
                   onChange={e => setDocumentType(e.target.value)}
                   className="w-full px-4 py-3 rounded-xl border border-black/15 focus:outline-none focus:border-ast-primary text-sm bg-white"
                 >
-                  <option value="National ID">National ID Card</option>
-                  <option value="Passport">Passport</option>
-                  <option value="Drivers License">Driver's License</option>
+                  <option value="National ID">
+                    {country === 'Tunisia' ? 'National ID Card (CIN - بطاقة التعريف الوطنية)' : 'National ID Card'}
+                  </option>
+                  <option value="Passport">Passport (جواز سفر)</option>
+                  <option value="Drivers License">Driver&apos;s License (رخصة سياقة)</option>
                 </select>
               </div>
             </div>
@@ -343,7 +351,7 @@ export default function VerificationPage() {
               <input
                 type="text"
                 required
-                placeholder="e.g. 14890234 or N839201"
+                placeholder={country === 'Tunisia' && documentType === 'National ID' ? 'e.g. 08123456 (8-digit CIN)' : 'e.g. 14890234 or N839201'}
                 value={documentNumber}
                 onChange={e => setDocumentNumber(e.target.value)}
                 className="w-full px-4 py-3 rounded-xl border border-black/15 focus:outline-none focus:border-ast-primary text-sm"

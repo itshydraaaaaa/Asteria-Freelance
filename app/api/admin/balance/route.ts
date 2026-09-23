@@ -39,11 +39,11 @@ export async function POST(req: NextRequest) {
         adminId: session?.user?.id ?? 'admin1',
         adminName: session?.user?.name || 'Admin',
         action: 'BALANCE_ADJUSTED',
-        details: `Adjusted balance for user ${user.name} (${user.email}). Type: ${type}, Value: $${val}, New Balance: $${newBalance}. Reason: ${reason || 'Admin modification'}`
+        details: `Adjusted balance for user ${user.name} (${user.email}). Type: ${type}, Value: ${val} TND, New Balance: ${newBalance} TND. Reason: ${reason || 'Admin modification'}`
       }
     })
 
-    return NextResponse.json({ user: updated, message: `Balance updated to $${newBalance}` })
+    return NextResponse.json({ user: updated, message: `Balance updated to ${newBalance} TND` })
   } catch (err) {
     console.error('Admin balance update error:', err)
     return NextResponse.json({ error: 'Failed to adjust balance' }, { status: 500 })

@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { motion }    from 'framer-motion'
 import { User, Mail, DollarSign, FileText, Tag, Wallet, MapPin, Globe, Check, Camera, Edit2, X, Loader2 } from 'lucide-react'
 import { ImageCropper } from './ImageCropper'
+import { TUNISIAN_GOVERNORATES } from '@/lib/country'
 
 interface Profile {
   name:         string
@@ -237,11 +238,23 @@ export function ProfileForm({ profile }: { profile: Profile }) {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-ast-gray uppercase tracking-wider mb-1.5">Location</label>
+                  <label className="block text-xs font-medium text-ast-gray uppercase tracking-wider mb-1.5">Location (Tunisia)</label>
                   <div className="relative">
                     <MapPin size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ast-gray" />
-                    <input value={form.location} onChange={handle('location')} placeholder="Dubai, UAE"
-                      className="w-full pl-10 pr-4 py-3 border border-black/15 rounded-xl text-sm outline-none focus:border-ast-primary focus:ring-2 focus:ring-ast-primary/20 transition-all" />
+                    <input
+                      list="tunisia-governorates"
+                      value={form.location}
+                      onChange={handle('location')}
+                      placeholder="Tunis, Tunisia"
+                      className="w-full pl-10 pr-4 py-3 border border-black/15 rounded-xl text-sm outline-none focus:border-ast-primary focus:ring-2 focus:ring-ast-primary/20 transition-all"
+                    />
+                    <datalist id="tunisia-governorates">
+                      {TUNISIAN_GOVERNORATES.map(gov => (
+                        <option key={gov.id} value={`${gov.nameEn}, Tunisia`}>
+                          {gov.nameEn} ({gov.nameAr})
+                        </option>
+                      ))}
+                    </datalist>
                   </div>
                 </div>
                 <div>
@@ -266,10 +279,10 @@ export function ProfileForm({ profile }: { profile: Profile }) {
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-medium text-ast-gray uppercase tracking-wider mb-1.5">Hourly Rate (USD)</label>
+                      <label className="block text-xs font-medium text-ast-gray uppercase tracking-wider mb-1.5">Hourly Rate (TND)</label>
                       <div className="relative">
                         <DollarSign size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ast-gray" />
-                        <input type="number" min="1" value={form.hourlyRate} onChange={handle('hourlyRate')} placeholder="e.g. 75"
+                        <input type="number" min="1" value={form.hourlyRate} onChange={handle('hourlyRate')} placeholder="e.g. 50"
                           className="w-full pl-10 pr-4 py-3 border border-black/15 rounded-xl text-sm outline-none focus:border-ast-primary focus:ring-2 focus:ring-ast-primary/20 transition-all" />
                       </div>
                     </div>

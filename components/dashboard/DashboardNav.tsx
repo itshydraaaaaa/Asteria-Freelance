@@ -5,6 +5,7 @@ import { motion } from 'framer-motion'
 import { microHover } from '@/lib/motion'
 import { createClient } from '@/lib/supabase/client'
 import { logout } from '@/app/actions/auth'
+import { useLanguage } from '@/components/providers/LanguageContext'
 import {
   LayoutDashboard, Package, MessageSquare, Settings, LogOut,
   User, ShieldCheck, Star, Wallet, BarChart2, Briefcase, Globe, X
@@ -20,39 +21,40 @@ interface Props {
   onClose?: () => void
 }
 
-const COMMON_NAV = [
-  { label: 'Overview',      href: '/dashboard',              Icon: LayoutDashboard },
-  { label: 'Verification',  href: '/dashboard/verification',  Icon: ShieldCheck },
-  { label: 'Orders',        href: '/dashboard/orders',       Icon: Package },
-  { label: 'Messages',      href: '/dashboard/messages',     Icon: MessageSquare },
-  { label: 'Profile',       href: '/dashboard/profile',      Icon: User },
-  { label: 'Settings',      href: '/dashboard/settings',     Icon: Settings },
-]
-
-const FREELANCER_NAV = [
-  { label: 'Browse Jobs',   href: '/jobs',               Icon: Briefcase },
-  { label: 'My Gigs',       href: '/dashboard/gigs',      Icon: Star },
-  { label: 'Wallet',        href: '/dashboard/wallet',     Icon: Wallet },
-  { label: 'Analytics',     href: '/dashboard/analytics',  Icon: BarChart2 },
-]
-
-const CLIENT_NAV = [
-  { label: 'My Posted Jobs', href: '/dashboard/jobs',       Icon: Briefcase },
-  { label: 'Post a Job',     href: '/post-job',              Icon: Briefcase },
-  { label: 'Explore Gigs',   href: '/explore',               Icon: Star },
-  { label: 'Wallet',         href: '/dashboard/wallet',      Icon: Wallet },
-]
-
 export function DashboardNav({ name, email, role, initials, image, isMobileDrawer, onClose }: Props) {
   const pathname = usePathname()
   const router = useRouter()
+  const { t } = useLanguage()
+
+  const commonNav = [
+    { label: t('navOverview'),     href: '/dashboard',             Icon: LayoutDashboard },
+    { label: t('navVerification'), href: '/dashboard/verification', Icon: ShieldCheck },
+    { label: t('navOrders'),       href: '/dashboard/orders',      Icon: Package },
+    { label: t('navMessages'),     href: '/dashboard/messages',    Icon: MessageSquare },
+    { label: t('navProfile'),      href: '/dashboard/profile',     Icon: User },
+    { label: t('navSettings'),     href: '/dashboard/settings',    Icon: Settings },
+  ]
+
+  const freelancerNav = [
+    { label: t('navBrowseJobs'),   href: '/jobs',                  Icon: Briefcase },
+    { label: t('navMyGigs'),       href: '/dashboard/gigs',         Icon: Star },
+    { label: t('navWallet'),       href: '/dashboard/wallet',       Icon: Wallet },
+    { label: t('navAnalytics'),    href: '/dashboard/analytics',    Icon: BarChart2 },
+  ]
+
+  const clientNav = [
+    { label: t('navMyJobs'),       href: '/dashboard/jobs',         Icon: Briefcase },
+    { label: t('navPostJob'),      href: '/post-job',              Icon: Briefcase },
+    { label: t('navExploreGigs'),  href: '/explore',               Icon: Star },
+    { label: t('navWallet'),       href: '/dashboard/wallet',       Icon: Wallet },
+  ]
 
   const isActive = (href: string) =>
     href === '/dashboard' ? pathname === '/dashboard' : pathname.startsWith(href)
 
   const extraNav =
-    role === 'FREELANCER' ? FREELANCER_NAV :
-    role === 'CLIENT'     ? CLIENT_NAV     : []
+    role === 'FREELANCER' ? freelancerNav :
+    role === 'CLIENT'     ? clientNav     : []
 
   const handleSignOut = async () => {
     if (onClose) onClose()

@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Search, Star, Clock, SlidersHorizontal } from 'lucide-react'
 import type { Category } from '@/lib/data/categories'
 import { scaleIn, stagger } from '@/lib/motion'
+import { expandTunisianSearchQuery } from '@/lib/ai/tunbert'
 
 const SORT_OPTIONS = ['Relevance', 'Price: Low to High', 'Price: High to Low', 'Fastest Delivery']
 
@@ -17,7 +18,18 @@ export function GigBrowser({ initialGigs, categories }: { initialGigs: any[]; ca
   const filtered = useMemo(() => {
     let g = [...initialGigs]
     if (category !== 'All Categories') g = g.filter(x => x.category?.toLowerCase() === category.toLowerCase())
-    if (query) g = g.filter(x => x.title?.toLowerCase().includes(query.toLowerCase()) || (x.tags && x.tags.some((t: string) => t.toLowerCase().includes(query.toLowerCase()))))
+    if (query) {
+      const searchTerms = expandTunisianSearchQuery(query)
+      g = g.filter(x => {
+        const titleLower = (x.title || '').toLowerCase()
+        const tagsLower = Array.isArray(x.tags) ? x.tags.map((t: string) => t.toLowerCase()) : []
+        const catLower = (x.category || '').toLowerCase()
+        return searchTerms.some(term => {
+          const tLower = term.toLowerCase()
+          return titleLower.includes(tLower) || tagsLower.some(t => t.includes(tLower)) || catLower.includes(tLower)
+        })
+      })
+    }
     if (sort === 'Price: Low to High') g.sort((a, b) => a.price - b.price)
     if (sort === 'Price: High to Low') g.sort((a, b) => b.price - a.price)
     if (sort === 'Fastest Delivery')   g.sort((a, b) => a.deliveryDays - b.deliveryDays)
