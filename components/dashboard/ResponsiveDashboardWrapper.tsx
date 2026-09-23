@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Menu, X } from 'lucide-react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { DashboardNav } from './DashboardNav'
 import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher'
@@ -53,9 +54,11 @@ export function ResponsiveDashboardWrapper({ name, email, role, initials, image,
         <Link href="/" className="flex items-center gap-2.5 group">
           <div className="relative">
             <div className="absolute inset-0 bg-ast-light/30 blur-sm rounded-full group-hover:scale-110 transition-all duration-300" />
-            <img
+            <Image
               src="/logo.png"
               alt="Asteria Logo"
+              width={28}
+              height={28}
               className="relative w-7 h-7 object-contain drop-shadow-sm transition-transform group-hover:scale-105"
             />
           </div>
@@ -65,9 +68,12 @@ export function ResponsiveDashboardWrapper({ name, email, role, initials, image,
         <div className="flex items-center gap-2">
           <LanguageSwitcher theme="light" compact={true} />
           {image ? (
-            <img
+            <Image
               src={image}
               alt={name}
+              width={32}
+              height={32}
+              unoptimized={image.startsWith('data:')}
               className="w-8 h-8 rounded-full object-cover border border-black/10 shadow-xs"
             />
           ) : (

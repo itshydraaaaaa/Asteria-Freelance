@@ -1,5 +1,6 @@
 'use client'
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { microHover } from '@/lib/motion'
@@ -80,9 +81,11 @@ export function DashboardNav({ name, email, role, initials, image, isMobileDrawe
         <Link href="/" onClick={onClose} className="flex items-center gap-2.5 group">
           <div className="relative">
             <div className="absolute inset-0 bg-ast-light/30 blur-sm rounded-full group-hover:scale-110 transition-all duration-300" />
-            <img
+            <Image
               src="/logo.png"
               alt="Asteria Logo"
+              width={32}
+              height={32}
               className="relative w-8 h-8 object-contain drop-shadow-sm transition-transform group-hover:scale-105"
             />
           </div>
@@ -99,9 +102,12 @@ export function DashboardNav({ name, email, role, initials, image, isMobileDrawe
 
       <div className="mb-6 px-2">
         {image ? (
-          <img 
+          <Image 
             src={image} 
             alt={name} 
+            width={48}
+            height={48}
+            unoptimized={image.startsWith('data:')}
             className="w-12 h-12 rounded-full object-cover border border-black/10 mb-3 shadow-sm" 
           />
         ) : (

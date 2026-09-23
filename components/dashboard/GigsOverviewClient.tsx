@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { Plus, Star, Clock, Pencil, Eye } from 'lucide-react'
 import { useLanguage } from '@/components/providers/LanguageContext'
 
@@ -49,7 +50,13 @@ export function GigsOverviewClient({ gigs }: Props) {
               <div key={gig.id} className="bg-white rounded-3xl border border-black/8 overflow-hidden group hover:shadow-md transition-all">
                 <div className="h-40 bg-ast-surface overflow-hidden relative">
                   {gig.image ? (
-                    <img src={gig.image} alt={gig.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                    <Image
+                      src={gig.image}
+                      alt={gig.title}
+                      fill
+                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                      className="object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
                   ) : (
                     <div className="w-full h-full bg-gradient-to-br from-ast-dark to-ast-primary flex items-center justify-center">
                       <span className="font-mono text-white/80 text-xs tracking-widest uppercase font-bold">{gig.category}</span>

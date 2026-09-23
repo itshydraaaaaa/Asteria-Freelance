@@ -1,5 +1,6 @@
 'use client'
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher'
 import { useLanguage } from '@/components/providers/LanguageContext'
@@ -44,14 +45,16 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-10 mb-12">
           <div>
             <Link href="/" className="flex items-center gap-2.5 mb-4 group">
-              <img
+              <Image
                 src="/logo.png"
                 alt="Asteria Logo"
+                width={28}
+                height={28}
                 className="w-7 h-7 object-contain drop-shadow-sm transition-transform group-hover:scale-105"
               />
               <span className="font-heading font-bold text-white text-base tracking-wide">ASTERIA</span>
             </Link>
-            <p className="text-ast-gray text-sm leading-relaxed max-w-xs">
+            <p className="text-slate-300 text-sm leading-relaxed max-w-xs">
               {t('footerDesc')}
             </p>
           </div>
@@ -62,7 +65,7 @@ export function Footer() {
               <ul className="space-y-2">
                 {section.items.map(item => (
                   <li key={item.label}>
-                    <Link href={item.href} className="text-ast-gray hover:text-ast-light text-sm transition-colors">
+                    <Link href={item.href} className="text-slate-300 hover:text-white text-sm transition-colors">
                       {item.label}
                     </Link>
                   </li>
@@ -73,12 +76,12 @@ export function Footer() {
         </div>
 
         <div className="border-t border-ast-light/10 pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
-          <p className="text-ast-gray text-sm">
+          <p className="text-slate-300 text-sm">
             © 2026 Asteria Freelance. {t('footerRights')}
           </p>
           <div className="flex items-center gap-4">
             <LanguageSwitcher theme="dark" compact={false} />
-            <p className="font-mono text-ast-light/40 text-xs tracking-widest2">
+            <p className="font-mono text-ast-light/80 text-xs tracking-widest2">
               TUNISIA — EST. 2024
             </p>
           </div>

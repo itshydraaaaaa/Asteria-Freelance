@@ -1,6 +1,7 @@
 'use client'
 import { useState, useMemo } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Search, Star, Award, TrendingUp, CheckCircle } from 'lucide-react'
 import type { Category } from '@/lib/data/categories'
@@ -137,7 +138,14 @@ export function FreelancerBrowser({ freelancers, categories }: { freelancers: an
                     <motion.div variants={microHover} initial="rest" whileHover="hover" whileTap={{ scale: 0.995 }}>
                       <div className="flex items-center gap-3 mb-4">
                         {f.image ? (
-                          <img src={f.image} alt={f.name} className="w-12 h-12 rounded-full object-cover shrink-0 border border-black/5" />
+                          <Image
+                            src={f.image}
+                            alt={f.name}
+                            width={48}
+                            height={48}
+                            unoptimized={f.image.startsWith('data:')}
+                            className="w-12 h-12 rounded-full object-cover shrink-0 border border-black/5"
+                          />
                         ) : (
                           <div className="w-12 h-12 rounded-full bg-ast-primary flex items-center justify-center text-white font-bold text-lg shrink-0">
                             {initials}

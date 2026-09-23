@@ -1,12 +1,13 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
+import Image from 'next/image'
 
 export function LoadingScreen({ onComplete }: { onComplete: () => void }) {
   const [fading, setFading] = useState(false)
   const completedRef = useRef(false)
 
-  const finish = () => {
+  const finish = useCallback(() => {
     if (completedRef.current) return
     completedRef.current = true
     setFading(true)
@@ -16,7 +17,7 @@ export function LoadingScreen({ onComplete }: { onComplete: () => void }) {
     setTimeout(() => {
       onComplete()
     }, 300)
-  }
+  }, [onComplete])
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -36,7 +37,7 @@ export function LoadingScreen({ onComplete }: { onComplete: () => void }) {
     // Ironclad safety timer: screen ALWAYS reveals within 500ms max
     const timer = setTimeout(finish, 500)
     return () => clearTimeout(timer)
-  }, [onComplete])
+  }, [finish, onComplete])
 
   return (
     <div
@@ -51,7 +52,7 @@ export function LoadingScreen({ onComplete }: { onComplete: () => void }) {
         <div className="absolute inset-0 rounded-full border-t-2 border-ast-light animate-spin blur-[2px]" />
         <div className="absolute inset-2 rounded-full border-b-2 border-l-2 border-ast-primary animate-[spin_1.5s_linear_infinite_reverse]" />
         <div className="absolute bg-ast-dark/80 w-12 h-12 rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(17,96,110,0.5)] overflow-hidden">
-          <img src="/logo.png" alt="Asteria Logo" className="w-8 h-8 object-contain animate-pulse drop-shadow-[0_0_8px_rgba(96,200,212,0.8)]" />
+          <Image src="/logo.png" alt="Asteria Logo" width={32} height={32} priority className="w-8 h-8 object-contain animate-pulse drop-shadow-[0_0_8px_rgba(96,200,212,0.8)]" />
         </div>
       </div>
 

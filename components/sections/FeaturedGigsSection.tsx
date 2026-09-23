@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
+import Image from 'next/image'
 import { categories } from '@/lib/data/categories'
 import { scaleIn, stagger, microHover } from '@/lib/motion'
 import { Star, Clock } from 'lucide-react'
@@ -100,9 +101,15 @@ export function FeaturedGigsSection() {
                     className="group block bg-white rounded-2xl overflow-hidden border border-black/8 hover:border-ast-light/60 hover:shadow-lg transition-all"
                   >
                     <motion.div variants={microHover} initial="rest" whileHover="hover" whileTap={{ scale: 0.995 }}>
-                      <div className="h-40 bg-gradient-to-br from-ast-dark to-ast-primary flex items-center justify-center overflow-hidden">
+                      <div className="relative h-40 bg-gradient-to-br from-ast-dark to-ast-primary flex items-center justify-center overflow-hidden">
                         {gig.image ? (
-                          <img src={gig.image} alt={gig.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                          <Image
+                            src={gig.image}
+                            alt={gig.title}
+                            fill
+                            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                            className="object-cover group-hover:scale-105 transition-transform duration-500"
+                          />
                         ) : (
                           <span className="font-mono text-ast-light/30 text-xs tracking-widest uppercase">{gig.category}</span>
                         )}

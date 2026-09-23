@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Search, Star, Clock, SlidersHorizontal } from 'lucide-react'
 import type { Category } from '@/lib/data/categories'
@@ -158,7 +159,13 @@ export function GigBrowser({ initialGigs, categories }: { initialGigs: any[]; ca
                       <Link href={`/gig/${gig.id}`} className="group block bg-white rounded-3xl border border-black/8 hover:border-ast-primary/40 hover:shadow-md transition-all overflow-hidden flex flex-col h-full">
                         <div className="h-40 bg-ast-surface overflow-hidden relative">
                           {gig.image ? (
-                            <img src={gig.image} alt={gig.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                            <Image
+                              src={gig.image}
+                              alt={gig.title}
+                              fill
+                              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                              className="object-cover group-hover:scale-105 transition-transform duration-300"
+                            />
                           ) : (
                             <div className="w-full h-full bg-gradient-to-br from-ast-dark to-ast-primary flex items-center justify-center">
                               <span className="font-mono text-white/80 text-xs tracking-widest uppercase font-bold">{gig.category}</span>
@@ -173,7 +180,14 @@ export function GigBrowser({ initialGigs, categories }: { initialGigs: any[]; ca
                           {/* Freelancer Header */}
                           <div className="flex items-center gap-2.5">
                             {flImage ? (
-                              <img src={flImage} alt={flName} className="w-7 h-7 rounded-full object-cover border border-black/10" />
+                              <Image
+                                src={flImage}
+                                alt={flName}
+                                width={28}
+                                height={28}
+                                unoptimized={flImage.startsWith('data:')}
+                                className="w-7 h-7 rounded-full object-cover border border-black/10"
+                              />
                             ) : (
                               <div className="w-7 h-7 rounded-full bg-ast-primary text-white text-[10px] font-bold flex items-center justify-center">
                                 {flInitials}

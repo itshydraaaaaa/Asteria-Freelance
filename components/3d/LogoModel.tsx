@@ -10,6 +10,7 @@
  */
 
 import { useEffect, useState } from 'react'
+import Image from 'next/image'
 import { motion } from 'framer-motion'
 import { ShieldCheck, Zap } from 'lucide-react'
 
@@ -51,9 +52,12 @@ export default function LogoModel() {
         {/* 3D Holographic Wave Logo Graphic */}
         <div className="relative w-52 h-52 flex items-center justify-center">
           <div className="absolute inset-4 bg-gradient-to-tr from-ast-light/30 via-sky-400/20 to-transparent rounded-full blur-xl animate-pulse" />
-          <img
+          <Image
             src="/logo.png"
             alt="Asteria Hologram Logo"
+            width={160}
+            height={160}
+            priority
             className="relative w-36 h-36 sm:w-40 sm:h-40 object-contain filter drop-shadow-[0_0_25px_rgba(96,200,212,0.7)] group-hover:rotate-6 transition-transform duration-700"
             style={reducedMotion ? {} : { animation: 'heroFloat 4s ease-in-out infinite' }}
           />

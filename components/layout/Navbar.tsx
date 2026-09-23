@@ -2,6 +2,7 @@
 
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import {
@@ -154,12 +155,11 @@ export function Navbar() {
 
   return (
     <>
-      <motion.header
-        className="fixed top-0 left-0 right-0 z-50 transition-all duration-300"
-        animate={{ height: scrolled ? 64 : 80 }}
-        transition={{ duration: 0.3, ease: 'easeOut' }}
+      <header
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+          scrolled ? 'h-16 shadow-lg bg-[rgba(10,58,64,0.98)]' : 'h-20 bg-[rgba(10,58,64,0.92)]'
+        }`}
         style={{
-          background:         scrolled ? 'rgba(10,58,64,0.98)' : 'rgba(10,58,64,0.92)',
           backdropFilter:     'blur(24px)',
           WebkitBackdropFilter: 'blur(24px)',
           borderBottom:       scrolled ? '1px solid rgba(96,200,212,0.30)' : '1px solid rgba(96,200,212,0.12)',
@@ -172,9 +172,12 @@ export function Navbar() {
           <Link href="/" className="flex items-center gap-3 group shrink-0">
             <div className="relative">
               <div className="absolute inset-0 bg-ast-light/25 blur-md rounded-full group-hover:bg-ast-light/50 group-hover:scale-110 transition-all duration-500" />
-              <img
+              <Image
                 src="/logo.png"
                 alt="Asteria Logo"
+                width={36}
+                height={36}
+                priority
                 className="relative w-8 h-8 md:w-9 md:h-9 object-contain drop-shadow-[0_0_12px_rgba(96,200,212,0.6)] group-hover:drop-shadow-[0_0_20px_rgba(96,200,212,0.9)] transition-all duration-500 group-hover:rotate-[5deg]"
               />
             </div>
@@ -252,7 +255,7 @@ export function Navbar() {
                     aria-haspopup="true"
                   >
                     {avatar ? (
-                      <img src={avatar} alt={displayName} className="w-7 h-7 rounded-full object-cover border border-white/20" />
+                      <Image src={avatar} alt={displayName} width={28} height={28} unoptimized={avatar.startsWith('data:')} className="w-7 h-7 rounded-full object-cover border border-white/20" />
                     ) : (
                       <span className="w-7 h-7 rounded-full bg-ast-primary flex items-center justify-center text-white font-bold text-xs border border-ast-light/30">
                         {initials}
@@ -279,7 +282,7 @@ export function Navbar() {
                         <div className="px-4 py-3.5 border-b border-black/8 bg-ast-surface/60">
                           <div className="flex items-center gap-3">
                             {avatar ? (
-                              <img src={avatar} alt={displayName} className="w-9 h-9 rounded-full object-cover border border-black/10" />
+                              <Image src={avatar} alt={displayName} width={36} height={36} unoptimized={avatar.startsWith('data:')} className="w-9 h-9 rounded-full object-cover border border-black/10" />
                             ) : (
                               <span className="w-9 h-9 rounded-full bg-ast-primary flex items-center justify-center text-white font-bold text-sm">
                                 {initials}
@@ -380,7 +383,7 @@ export function Navbar() {
             </AnimatePresence>
           </button>
         </div>
-      </motion.header>
+      </header>
 
       {/* Mobile Drawer */}
       <AnimatePresence>
@@ -452,7 +455,7 @@ export function Navbar() {
                   <>
                     <div className="flex items-center gap-3 bg-white/8 p-3.5 rounded-2xl border border-white/10">
                       {avatar ? (
-                        <img src={avatar} alt={displayName} className="w-10 h-10 rounded-full object-cover border border-white/20" />
+                        <Image src={avatar} alt={displayName} width={40} height={40} unoptimized={avatar.startsWith('data:')} className="w-10 h-10 rounded-full object-cover border border-white/20" />
                       ) : (
                         <span className="w-10 h-10 rounded-full bg-ast-primary flex items-center justify-center text-white font-bold text-sm shrink-0">
                           {initials}
