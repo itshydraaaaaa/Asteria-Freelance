@@ -90,7 +90,10 @@ export const metadata: Metadata = {
     apple: '/logo.png',
   },
   verification: {
-    google: 'UjvPHiod5OhQr55JBY3ef5nC9G1ZpIMRJ98lrz-WXYQ',
+    google: [
+      'vpRLb_4omj-Nnk1eYBoUcj569uHIj3uu37BUr2BDzuE',
+      'UjvPHiod5OhQr55JBY3ef5nC9G1ZpIMRJ98lrz-WXYQ',
+    ],
   },
 }
 
@@ -115,6 +118,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
+        <meta name="google-site-verification" content="vpRLb_4omj-Nnk1eYBoUcj569uHIj3uu37BUr2BDzuE" />
         <meta name="google-site-verification" content="UjvPHiod5OhQr55JBY3ef5nC9G1ZpIMRJ98lrz-WXYQ" />
       </head>
       <body className="font-body bg-white text-black antialiased">
