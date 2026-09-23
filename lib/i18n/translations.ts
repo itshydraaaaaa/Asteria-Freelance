@@ -10,7 +10,42 @@
 export type SupportedLanguage = 'English' | 'Arabic' | 'French'
 
 export interface TranslationDictionary {
-  // Navigation & General
+  // Public Navigation
+  navHome: string
+  navExplore: string
+  navFreelancers: string
+  navJobs: string
+  navHowItWorks: string
+  navAbout: string
+  navSignIn: string
+  navJoinFree: string
+  navGetStarted: string
+  navDashboard: string
+  navPostJob: string
+
+  // Hero Section
+  heroBadge: string
+  heroHeading1: string
+  heroHeading2: string
+  heroHeading3: string
+  heroSubtitle: string
+  heroSearchPlaceholder: string
+  heroSearchBtn: string
+  heroTrending: string
+  heroExploreServices: string
+  heroPostProject: string
+
+  // Features
+  featEscrowTitle: string
+  featEscrowDesc: string
+  featKycTitle: string
+  featKycDesc: string
+  featLocalTitle: string
+  featLocalDesc: string
+  featTunisiaTitle: string
+  featTunisiaDesc: string
+
+  // Dashboard Navigation & General
   navOverview: string
   navVerification: string
   navOrders: string
@@ -22,7 +57,6 @@ export interface TranslationDictionary {
   navWallet: string
   navAnalytics: string
   navMyJobs: string
-  navPostJob: string
   navExploreGigs: string
   navLogout: string
   navAdmin: string
@@ -76,6 +110,42 @@ export interface TranslationDictionary {
 
 export const TRANSLATIONS: Record<SupportedLanguage, TranslationDictionary> = {
   English: {
+    // Public Navigation
+    navHome: 'Home',
+    navExplore: 'Explore',
+    navFreelancers: 'Freelancers',
+    navJobs: 'Jobs',
+    navHowItWorks: 'How It Works',
+    navAbout: 'About',
+    navSignIn: 'Sign In',
+    navJoinFree: 'Join Free',
+    navGetStarted: 'Get Started',
+    navDashboard: 'Dashboard',
+    navPostJob: 'Post a Job',
+
+    // Hero Section
+    heroBadge: '✨ Asteria — Escrow-Protected Freelance Marketplace, Made in Tunisia',
+    heroHeading1: 'TALENT',
+    heroHeading2: 'ESCROW',
+    heroHeading3: 'DELIVERY',
+    heroSubtitle: 'Hire vetted Tunisian developers, designers, and specialists — with escrow-protected payments on every project.',
+    heroSearchPlaceholder: "Search 'Next.js App', 'Figma Design', 'AI Bot'...",
+    heroSearchBtn: 'Search',
+    heroTrending: 'Trending:',
+    heroExploreServices: 'Explore Microjobs',
+    heroPostProject: 'Post Job (Client)',
+
+    // Features
+    featEscrowTitle: 'Escrow-Protected',
+    featEscrowDesc: 'Funds held securely until work is approved',
+    featKycTitle: 'KYC-Verified Talent',
+    featKycDesc: 'Every freelancer identity-checked before they can bid',
+    featLocalTitle: 'Local & Fast',
+    featLocalDesc: 'TND payments, built for how Tunisian freelancers and clients actually work',
+    featTunisiaTitle: 'Tunisia First',
+    featTunisiaDesc: 'Starting local, expanding across MENA',
+
+    // Dashboard Navigation
     navOverview: 'Overview',
     navVerification: 'Verification (KYC)',
     navOrders: 'Orders',
@@ -87,11 +157,11 @@ export const TRANSLATIONS: Record<SupportedLanguage, TranslationDictionary> = {
     navWallet: 'Wallet & Payouts',
     navAnalytics: 'Analytics',
     navMyJobs: 'My Posted Jobs',
-    navPostJob: 'Post a Job',
     navExploreGigs: 'Explore Services',
     navLogout: 'Sign Out',
     navAdmin: 'Admin Governance',
 
+    // Settings Page
     settingsTitle: 'Platform Settings',
     settingsSubtitle: 'Configure your notification preferences, privacy visibility, and regional language & currency.',
     
@@ -134,6 +204,42 @@ export const TRANSLATIONS: Record<SupportedLanguage, TranslationDictionary> = {
   },
 
   French: {
+    // Public Navigation
+    navHome: 'Accueil',
+    navExplore: 'Explorer',
+    navFreelancers: 'Freelances',
+    navJobs: 'Missions',
+    navHowItWorks: 'Fonctionnement',
+    navAbout: 'À propos',
+    navSignIn: 'Connexion',
+    navJoinFree: 'Rejoindre',
+    navGetStarted: 'Commencer',
+    navDashboard: 'Tableau de bord',
+    navPostJob: 'Publier une mission',
+
+    // Hero Section
+    heroBadge: '✨ Asteria — Marketplace Freelance Sécurisée avec Escrow, Créée en Tunisie',
+    heroHeading1: 'TALENTS',
+    heroHeading2: 'ESCROW',
+    heroHeading3: 'LIVRAISON',
+    heroSubtitle: 'Recrutez les meilleurs développeurs, designers et experts tunisiens — avec paiements sous séquestre sécurisé sur chaque projet.',
+    heroSearchPlaceholder: 'Rechercher Next.js, Design Figma, Bot IA...',
+    heroSearchBtn: 'Rechercher',
+    heroTrending: 'Tendances :',
+    heroExploreServices: 'Explorer les services',
+    heroPostProject: 'Publier un projet',
+
+    // Features
+    featEscrowTitle: 'Séquestre Sécurisé',
+    featEscrowDesc: 'Fonds bloqués en toute sécurité jusqu’à validation du travail',
+    featKycTitle: 'Talents Vérifiés KYC',
+    featKycDesc: 'Identité vérifiée pour chaque freelance avant toute candidature',
+    featLocalTitle: 'Local & Rapide',
+    featLocalDesc: 'Paiements en TND adaptés au marché tunisien et aux virements locaux',
+    featTunisiaTitle: 'La Tunisie d’abord',
+    featTunisiaDesc: 'Conçu en Tunisie, rayonnant sur toute la région MENA',
+
+    // Dashboard Navigation
     navOverview: 'Vue d’ensemble',
     navVerification: 'Vérification (KYC)',
     navOrders: 'Commandes',
@@ -145,11 +251,11 @@ export const TRANSLATIONS: Record<SupportedLanguage, TranslationDictionary> = {
     navWallet: 'Portefeuille & Retraits',
     navAnalytics: 'Statistiques',
     navMyJobs: 'Mes offres publiées',
-    navPostJob: 'Publier une mission',
     navExploreGigs: 'Explorer les services',
     navLogout: 'Se déconnecter',
     navAdmin: 'Administration',
 
+    // Settings Page
     settingsTitle: 'Paramètres de la Plateforme',
     settingsSubtitle: 'Configurez vos notifications, la visibilité de votre profil ainsi que votre langue et devise préférées.',
     
@@ -192,6 +298,42 @@ export const TRANSLATIONS: Record<SupportedLanguage, TranslationDictionary> = {
   },
 
   Arabic: {
+    // Public Navigation
+    navHome: 'الرئيسية',
+    navExplore: 'استكشاف',
+    navFreelancers: 'المستقلون',
+    navJobs: 'المشاريع',
+    navHowItWorks: 'كيف نعمل',
+    navAbout: 'من نحن',
+    navSignIn: 'تسجيل الدخول',
+    navJoinFree: 'انضم مجاناً',
+    navGetStarted: 'ابدأ الآن',
+    navDashboard: 'لوحة التحكم',
+    navPostJob: 'نشر مشروع',
+
+    // Hero Section
+    heroBadge: '✨ أستيريا — أول منصة عمل حر تونسية محمية بالضمان المالي (Escrow)',
+    heroHeading1: 'كفاءات',
+    heroHeading2: 'ضمان مالي',
+    heroHeading3: 'إنجاز',
+    heroSubtitle: 'وظف أفضل المطورين والمصممين التونسيين مع حماية مالية 100% بالدينار التونسي عبر Flouci وD17 والبطاقات البنكية.',
+    heroSearchPlaceholder: "ابحث عن 'تطبيق Next.js'، 'تصميم Figma'، 'ذكاء اصطناعي'...",
+    heroSearchBtn: 'بحث',
+    heroTrending: 'رائج الآن:',
+    heroExploreServices: 'استكشاف الخدمات المصغرة',
+    heroPostProject: 'نشر مشروع جديد',
+
+    // Features
+    featEscrowTitle: 'ضمان مالي Escrow',
+    featEscrowDesc: 'أموالك محفوظة في أمان تام حتى توافق على العمل المنجز',
+    featKycTitle: 'كفاءات موثقة بالهوية (CIN)',
+    featKycDesc: 'فحص هوية كل فريلانسر قبل السماح له بالتقديم لضمان المصداقية',
+    featLocalTitle: 'دفع محلي وسريع',
+    featLocalDesc: 'معاملات بالدينار التونسي مصممة لواقع الشركات والمستقلين في تونس',
+    featTunisiaTitle: 'تونس أولاً',
+    featTunisiaDesc: 'منصة تونسية 100% تتوسع نحو السوق المغاربي والعربي',
+
+    // Dashboard Navigation
     navOverview: 'نظرة عامة',
     navVerification: 'توثيق الهوية (CIN)',
     navOrders: 'الطلبات والعقود',
@@ -203,11 +345,11 @@ export const TRANSLATIONS: Record<SupportedLanguage, TranslationDictionary> = {
     navWallet: 'المحفظة والسحب (TND)',
     navAnalytics: 'الإحصائيات والأرباح',
     navMyJobs: 'مشاريعي المنشورة',
-    navPostJob: 'نشر مشروع جديد',
     navExploreGigs: 'استكشاف الخدمات',
     navLogout: 'تسجيل الخروج',
     navAdmin: 'لوحة الإدارة',
 
+    // Settings Page
     settingsTitle: 'إعدادات المنصة',
     settingsSubtitle: 'تحكم في إشعاراتك، خصوصية حسابك، وتفضيلات اللغة والعملة التونسية.',
     

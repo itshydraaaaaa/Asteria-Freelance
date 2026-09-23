@@ -43,7 +43,7 @@ export function FreelancerBrowser({ freelancers, categories }: { freelancers: an
             nameLower.includes(tLower) ||
             catLower.includes(tLower) ||
             locLower.includes(tLower) ||
-            skillsLower.some(s => s.includes(tLower))
+            skillsLower.some((s: string) => s.includes(tLower))
           )
         })
       })

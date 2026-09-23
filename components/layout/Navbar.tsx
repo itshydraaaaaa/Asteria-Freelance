@@ -19,6 +19,8 @@ import {
 } from 'lucide-react'
 import { NotificationDropdown } from '@/components/ui/NotificationDropdown'
 import { logout } from '@/app/actions/auth'
+import { useLanguage } from '@/components/providers/LanguageContext'
+import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher'
 
 const NAV_LINKS = [
   { label: 'Explore',      href: '/explore' },
@@ -40,6 +42,15 @@ function NavSkeleton() {
 export function Navbar() {
   const pathname = usePathname()
   const router   = useRouter()
+  const { t }    = useLanguage()
+
+  const navLinks = [
+    { label: t('navExplore'),      href: '/explore' },
+    { label: t('navFreelancers'),  href: '/freelancers' },
+    { label: t('navJobs'),         href: '/jobs' },
+    { label: t('navHowItWorks'),   href: '/#how-it-works' },
+    { label: t('navAbout'),        href: '/about' },
+  ]
 
   const [user, setUser]                 = useState<any>(null)
   const [loading, setLoading]           = useState(false)
@@ -174,7 +185,7 @@ export function Navbar() {
 
           {/* Desktop Nav Links */}
           <nav className="hidden md:flex items-center gap-7" aria-label="Main navigation">
-            {NAV_LINKS.map(link => (
+            {navLinks.map(link => (
               <Link
                 key={link.href}
                 href={link.href}
@@ -196,6 +207,8 @@ export function Navbar() {
 
           {/* Desktop Right Actions */}
           <div className="hidden md:flex items-center gap-2.5">
+            <LanguageSwitcher theme="dark" />
+
             {user ? (
               <>
                 <NotificationDropdown />
@@ -217,7 +230,7 @@ export function Navbar() {
                     className="hidden lg:flex items-center gap-1.5 text-xs font-bold text-ast-dark bg-ast-light hover:bg-ast-sky rounded-full px-3.5 py-1.5 transition-all hover:scale-105 active:scale-95 shadow-md shadow-ast-light/20"
                   >
                     <PlusCircle size={13} />
-                    <span>Post a Job</span>
+                    <span>{t('navPostJob')}</span>
                   </Link>
                 )}
 
@@ -227,7 +240,7 @@ export function Navbar() {
                   className="flex items-center gap-1.5 bg-ast-primary hover:bg-ast-dark text-white rounded-full px-4 py-1.5 text-xs font-semibold transition-all hover:scale-105 active:scale-95 shadow-sm"
                 >
                   <LayoutDashboard size={13} />
-                  <span>Dashboard</span>
+                  <span>{t('navDashboard')}</span>
                 </Link>
 
                 {/* Account Dropdown */}
@@ -304,14 +317,14 @@ export function Navbar() {
                             </Link>
                           )}
                           <Link href="/dashboard/settings" onClick={() => setUserMenuOpen(false)} className="flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-ast-gray hover:text-black hover:bg-ast-surface transition-colors">
-                            <Settings size={14} /><span>Account Settings</span>
+                            <Settings size={14} /><span>{t('navSettings')}</span>
                           </Link>
                         </div>
 
                         {/* Sign Out */}
                         <div className="border-t border-black/8 pt-1 pb-1">
                           <button onClick={handleSignOut} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors">
-                            <LogOut size={14} /><span>Sign Out</span>
+                            <LogOut size={14} /><span>{t('btnSignOut')}</span>
                           </button>
                         </div>
                       </motion.div>
@@ -325,7 +338,7 @@ export function Navbar() {
                   href="/login"
                   className="text-sm font-medium text-white/75 hover:text-white px-4 py-1.5 rounded-full hover:bg-white/10 transition-all"
                 >
-                  Sign In
+                  {t('navSignIn')}
                 </Link>
                 <Link
                   href="/register"
@@ -342,7 +355,7 @@ export function Navbar() {
                     }}
                   />
                   <Sparkles size={14} />
-                  Join Free
+                  {t('navJoinFree')}
                 </Link>
               </>
             )}
@@ -396,14 +409,17 @@ export function Navbar() {
                 <Link href="/" onClick={() => setOpen(false)} className="font-heading font-bold text-white text-lg tracking-wide">
                   A<span className="text-white/70">STERIA</span>
                 </Link>
-                <button onClick={() => setOpen(false)} className="text-white p-2 rounded-lg hover:bg-white/10 transition-colors" aria-label="Close menu">
-                  <X size={20} />
-                </button>
+                <div className="flex items-center gap-2">
+                  <LanguageSwitcher theme="dark" compact={false} />
+                  <button onClick={() => setOpen(false)} className="text-white p-2 rounded-lg hover:bg-white/10 transition-colors" aria-label="Close menu">
+                    <X size={20} />
+                  </button>
+                </div>
               </div>
 
               {/* Nav Links */}
               <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-1">
-                {NAV_LINKS.map((link, i) => (
+                {navLinks.map((link, i) => (
                   <motion.div
                     key={link.href}
                     initial={{ opacity: 0, x: 30 }}
@@ -451,22 +467,22 @@ export function Navbar() {
                       </span>
                     </div>
                     <Link href="/dashboard" onClick={() => setOpen(false)} className="w-full flex items-center justify-center gap-2 bg-ast-light text-ast-dark font-bold text-sm py-3 rounded-xl hover:bg-ast-sky transition-colors">
-                      <LayoutDashboard size={16} /><span>Go to Dashboard</span>
+                      <LayoutDashboard size={16} /><span>{t('navDashboard')}</span>
                     </Link>
                     <Link href="/dashboard/wallet" onClick={() => setOpen(false)} className="w-full flex items-center justify-center gap-2 bg-white/8 text-white font-semibold text-sm py-3 rounded-xl border border-white/15 hover:bg-white/15 transition-colors">
-                      <Wallet size={16} /><span>Wallet ({walletBalance.toFixed(2)} TND)</span>
+                      <Wallet size={16} /><span>{t('navWallet')} ({walletBalance.toFixed(2)} TND)</span>
                     </Link>
                     <button onClick={handleSignOut} className="w-full text-center text-red-400 font-semibold text-xs py-2.5 hover:text-red-300 transition-colors">
-                      Sign Out
+                      {t('btnSignOut')}
                     </button>
                   </>
                 ) : (
                   <>
                     <Link href="/login" onClick={() => setOpen(false)} className="w-full block text-center font-semibold text-white bg-white/8 hover:bg-white/15 border border-white/15 rounded-xl py-3 text-sm transition-all">
-                      Sign In
+                      {t('navSignIn')}
                     </Link>
                     <Link href="/register" onClick={() => setOpen(false)} className="w-full flex items-center justify-center gap-2 font-bold text-ast-dark bg-ast-light hover:bg-ast-sky rounded-xl py-3 text-sm shadow-md transition-all">
-                      <Sparkles size={15} />Join Asteria Free
+                      <Sparkles size={15} />{t('navJoinFree')}
                     </Link>
                   </>
                 )}

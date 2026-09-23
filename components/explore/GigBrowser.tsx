@@ -26,7 +26,7 @@ export function GigBrowser({ initialGigs, categories }: { initialGigs: any[]; ca
         const catLower = (x.category || '').toLowerCase()
         return searchTerms.some(term => {
           const tLower = term.toLowerCase()
-          return titleLower.includes(tLower) || tagsLower.some(t => t.includes(tLower)) || catLower.includes(tLower)
+          return titleLower.includes(tLower) || tagsLower.some((t: string) => t.includes(tLower)) || catLower.includes(tLower)
         })
       })
     }

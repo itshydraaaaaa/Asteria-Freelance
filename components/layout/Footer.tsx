@@ -1,6 +1,7 @@
 'use client' // 👉 Required for usePathname
 import Link from 'next/link'
 import { usePathname } from 'next/navigation' // 👉 Added import
+import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher'
 
 const LINKS = [
   {
@@ -74,9 +75,12 @@ export function Footer() {
           <p className="text-ast-gray text-sm">
             © 2026 Asteria Freelance. All rights reserved.
           </p>
-          <p className="font-mono text-ast-light/40 text-xs tracking-widest2">
-            TUNISIA — EST. 2024
-          </p>
+          <div className="flex items-center gap-4">
+            <LanguageSwitcher theme="dark" compact={false} />
+            <p className="font-mono text-ast-light/40 text-xs tracking-widest2">
+              TUNISIA — EST. 2024
+            </p>
+          </div>
         </div>
       </div>
     </footer>

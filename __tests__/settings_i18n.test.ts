@@ -23,6 +23,10 @@ describe('Platform Settings & Multi-Language Localization Tests', () => {
       expect(TRANSLATIONS.Arabic.navWallet).toContain('TND')
       expect(TRANSLATIONS.Arabic.settingsTitle).toBe('إعدادات المنصة')
       expect(TRANSLATIONS.Arabic.timezoneDesc).toContain('تونس')
+      expect(TRANSLATIONS.Arabic.navExplore).toBe('استكشاف')
+      expect(TRANSLATIONS.Arabic.navFreelancers).toBe('المستقلون')
+      expect(TRANSLATIONS.Arabic.navJobs).toBe('المشاريع')
+      expect(TRANSLATIONS.Arabic.heroBadge).toContain('أستيريا')
     })
   })
 

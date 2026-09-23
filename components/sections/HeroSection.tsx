@@ -6,6 +6,7 @@ import Link from 'next/link'
 import gsap from 'gsap'
 import { Search, Sparkles, ShieldCheck, ArrowRight } from 'lucide-react'
 import { Tilt3DCard } from '@/components/ui/Tilt3DCard'
+import { useLanguage } from '@/components/providers/LanguageContext'
 
 import HeroCanvas from '@/components/3d/HeroCanvas'
 import LogoModel from '@/components/3d/LogoModel'
@@ -17,6 +18,7 @@ function formatCompact(v: number) {
 }
 
 export function HeroSection() {
+  const { t } = useLanguage()
   const [searchQuery, setSearchQuery] = useState('')
   const wordsRef = useRef<HTMLSpanElement[]>([])
   const statRefs = useRef<HTMLSpanElement[]>([])
@@ -88,7 +90,7 @@ export function HeroSection() {
     return () => mm.revert()
   }, [statsData])
 
-  const WORDS = ['HIRING', 'REDEFINED', 'WITH ESCROW']
+  const WORDS = [t('heroHeading1'), t('heroHeading2'), t('heroHeading3')]
 
   return (
     <section className="relative min-h-screen flex items-center overflow-hidden bg-ast-dark">
@@ -110,7 +112,7 @@ export function HeroSection() {
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 border border-white/15 backdrop-blur-md mb-8">
             <Sparkles size={14} className="text-ast-light animate-pulse" />
             <span className="font-mono text-ast-light text-[11px] tracking-[0.2em] uppercase font-semibold">
-              ✨ Asteria — Escrow-Protected Freelance Marketplace, Made in Tunisia
+              {t('heroBadge')}
             </span>
           </div>
 
@@ -128,7 +130,7 @@ export function HeroSection() {
           </h1>
 
           <p className="text-white/75 text-lg leading-relaxed mb-8 max-w-xl font-body">
-            Hire vetted Tunisian developers, designers, and specialists — with escrow-protected payments on every project.
+            {t('heroSubtitle')}
           </p>
 
           {/* Interactive Floating Search Bar */}
@@ -139,20 +141,20 @@ export function HeroSection() {
                 type="text"
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                placeholder="Search 'Next.js App', 'Figma Design', 'AI Bot'..."
+                placeholder={t('heroSearchPlaceholder')}
                 className="w-full bg-transparent text-white placeholder-white/40 text-sm outline-none px-2 py-2 font-body"
               />
               <Link
                 href={`/explore${searchQuery ? `?query=${encodeURIComponent(searchQuery)}` : ''}`}
                 className="bg-ast-light text-ast-dark px-6 py-3 rounded-xl font-semibold text-xs flex items-center gap-2 hover:bg-white transition-all shadow-md shrink-0"
               >
-                Search <ArrowRight size={14} />
+                {t('heroSearchBtn')} <ArrowRight size={14} />
               </Link>
             </div>
 
             {/* Quick Tags */}
             <div className="flex items-center gap-2 mt-3 text-xs text-white/60">
-              <span className="font-semibold text-white/80">Trending:</span>
+              <span className="font-semibold text-white/80">{t('heroTrending')}</span>
               {['Next.js 14', 'Figma UI', 'Python AI', 'Mobile App'].map((tag, idx) => (
                 <Link
                   key={idx}
@@ -171,13 +173,13 @@ export function HeroSection() {
               href="/explore"
               className="font-bold bg-ast-light text-ast-dark rounded-2xl px-8 py-4 shadow-xl shadow-ast-light/10 transition-transform hover:-translate-y-1 hover:bg-white flex items-center gap-2"
             >
-              Explore Microjobs <ArrowRight size={16} />
+              {t('heroExploreServices')} <ArrowRight size={16} />
             </Link>
             <Link
               href="/post-job"
               className="font-semibold border border-white/20 bg-white/10 text-white rounded-2xl px-8 py-4 backdrop-blur-md transition-transform hover:-translate-y-1 hover:bg-white/20"
             >
-              Post Job (Client)
+              {t('heroPostProject')}
             </Link>
           </div>
 
@@ -185,23 +187,23 @@ export function HeroSection() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {[
               {
-                title: 'Escrow-Protected',
-                desc: 'Funds held securely until work is approved',
+                title: t('featEscrowTitle'),
+                desc: t('featEscrowDesc'),
                 icon: ShieldCheck,
               },
               {
-                title: 'KYC-Verified Talent',
-                desc: 'Every freelancer identity-checked before they can bid',
+                title: t('featKycTitle'),
+                desc: t('featKycDesc'),
                 icon: Sparkles,
               },
               {
-                title: 'Local & Fast',
-                desc: 'TND payments, built for how Tunisian freelancers and clients actually work',
+                title: t('featLocalTitle'),
+                desc: t('featLocalDesc'),
                 icon: ArrowRight,
               },
               {
-                title: 'Tunisia First',
-                desc: 'Starting local, expanding across MENA',
+                title: t('featTunisiaTitle'),
+                desc: t('featTunisiaDesc'),
                 icon: Sparkles,
               },
             ].map((feat, i) => (

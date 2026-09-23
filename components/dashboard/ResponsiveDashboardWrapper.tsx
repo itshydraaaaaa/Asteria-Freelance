@@ -6,6 +6,7 @@ import { Menu, X } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { DashboardNav } from './DashboardNav'
+import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher'
 
 interface Props {
   name: string
@@ -61,7 +62,8 @@ export function ResponsiveDashboardWrapper({ name, email, role, initials, image,
           <span className="font-heading font-bold text-black text-sm tracking-wider">ASTERIA</span>
         </Link>
 
-        <div>
+        <div className="flex items-center gap-2">
+          <LanguageSwitcher theme="light" compact={true} />
           {image ? (
             <img
               src={image}

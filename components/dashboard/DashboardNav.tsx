@@ -6,6 +6,7 @@ import { microHover } from '@/lib/motion'
 import { createClient } from '@/lib/supabase/client'
 import { logout } from '@/app/actions/auth'
 import { useLanguage } from '@/components/providers/LanguageContext'
+import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher'
 import {
   LayoutDashboard, Package, MessageSquare, Settings, LogOut,
   User, ShieldCheck, Star, Wallet, BarChart2, Briefcase, Globe, X
@@ -117,7 +118,7 @@ export function DashboardNav({ name, email, role, initials, image, isMobileDrawe
       </div>
 
       <nav className="flex-1 space-y-0.5">
-        {COMMON_NAV.map(({ label, href, Icon }) => (
+        {commonNav.map(({ label, href, Icon }) => (
           <Link key={href} href={href} onClick={onClose}>
             <motion.div
               variants={microHover}
@@ -176,27 +177,31 @@ export function DashboardNav({ name, email, role, initials, image, isMobileDrawe
               }`}
             >
               <ShieldCheck size={16} />
-              Admin Panel
+              {t('navAdmin')}
             </Link>
           </>
         )}
       </nav>
 
-      <div className="border-t border-black/8 pt-4 space-y-1">
+      <div className="border-t border-black/8 pt-3 space-y-1">
+        <div className="px-3 py-1.5 flex items-center justify-between">
+          <span className="text-xs text-ast-gray font-medium">{t('langTitle')}</span>
+          <LanguageSwitcher theme="light" compact={false} />
+        </div>
         <Link
           href="/"
           onClick={onClose}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-ast-gray hover:text-black hover:bg-ast-surface text-sm transition-colors"
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-ast-gray hover:text-black hover:bg-ast-surface text-sm transition-colors"
         >
           <Globe size={16} />
-          Main Marketplace
+          {t('navHome')}
         </Link>
         <button
           onClick={handleSignOut}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-ast-gray hover:text-red-600 hover:bg-red-50 text-sm transition-colors"
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-ast-gray hover:text-red-600 hover:bg-red-50 text-sm transition-colors"
         >
           <LogOut size={16} />
-          Sign Out
+          {t('btnSignOut')}
         </button>
       </div>
     </aside>
