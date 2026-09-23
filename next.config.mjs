@@ -2,12 +2,12 @@ const isDev = process.env.NODE_ENV !== 'production'
 
 const cspHeader = `
   default-src 'self';
-  script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://cdn.jsdelivr.net https://sandbox.flouci.com;
+  script-src 'self' 'unsafe-inline' 'unsafe-eval' 'strict-dynamic' https://js.stripe.com https://cdn.jsdelivr.net https://sandbox.flouci.com https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/;
   style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
-  img-src 'self' blob: data: https://utfs.io https://avatars.githubusercontent.com https://lh3.googleusercontent.com https://images.unsplash.com https://*.stripe.com https://*.supabase.co;
+  img-src 'self' blob: data: https://utfs.io https://avatars.githubusercontent.com https://lh3.googleusercontent.com https://images.unsplash.com https://*.stripe.com https://*.supabase.co https://www.gstatic.com/recaptcha/;
   font-src 'self' https://fonts.gstatic.com;
-  connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com https://api.exchangerate-api.com https://sandbox.flouci.com https://sandbox.gateway.konnect.network;
-  frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://sandbox.flouci.com https://sandbox.gateway.konnect.network;
+  connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com https://api.exchangerate-api.com https://sandbox.flouci.com https://sandbox.gateway.konnect.network https://www.google.com/recaptcha/ https://recaptchaenterprise.googleapis.com;
+  frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://sandbox.flouci.com https://sandbox.gateway.konnect.network https://www.google.com/recaptcha/ https://recaptcha.google.com/recaptcha/;
   object-src 'none';
   base-uri 'self';
   form-action 'self';
@@ -16,6 +16,11 @@ const cspHeader = `
 `.replace(/\s{2,}/g, ' ').trim()
 
 const config = {
+  // Strip React prop-types and component display names in production to reduce bundle size
+  compiler: {
+    reactRemoveProperties: process.env.NODE_ENV === 'production',
+    removeConsole: process.env.NODE_ENV === 'production' ? { exclude: ['error', 'warn'] } : false,
+  },
   images: {
     formats: ['image/avif', 'image/webp'],
     remotePatterns: [

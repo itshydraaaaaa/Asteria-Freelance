@@ -2,16 +2,19 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { Mail, Lock, Eye, EyeOff, ShieldCheck, ArrowRight, Loader2 } from 'lucide-react'
 import { login } from '@/app/actions/auth'
 import { useLanguage } from '@/components/providers/LanguageContext'
 import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher'
+import { useRecaptcha } from '@/lib/hooks/useRecaptcha'
 
 export default function LoginPage() {
   const router = useRouter()
   const { t } = useLanguage()
+  const { executeRecaptcha } = useRecaptcha()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -20,6 +23,10 @@ export default function LoginPage() {
     setLoading(true)
     setError('')
     try {
+      const token = await executeRecaptcha('LOGIN')
+      if (token) {
+        formData.append('recaptchaToken', token)
+      }
       const res = await login(formData)
       if (res?.error) {
         setError(res.error)
@@ -56,9 +63,12 @@ export default function LoginPage() {
           <Link href="/" className="inline-flex items-center gap-2 mb-6 group">
             <div className="relative">
               <div className="absolute inset-0 bg-ast-light/30 blur-md rounded-full group-hover:bg-ast-light/50 transition-all duration-500" />
-              <img
+              <Image
                 src="/logo.png"
                 alt="Asteria Logo"
+                width={36}
+                height={36}
+                priority
                 className="relative w-9 h-9 object-contain drop-shadow-[0_0_12px_rgba(96,200,212,0.6)] group-hover:scale-105 transition-transform duration-300"
               />
             </div>

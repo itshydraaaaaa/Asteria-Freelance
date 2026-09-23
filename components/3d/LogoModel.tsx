@@ -51,7 +51,8 @@ export default function LogoModel() {
 
         {/* 3D Holographic Wave Logo Graphic */}
         <div className="relative w-52 h-52 flex items-center justify-center">
-          <div className="absolute inset-4 bg-gradient-to-tr from-ast-light/30 via-sky-400/20 to-transparent rounded-full blur-xl animate-pulse" />
+          {/* animate-pulse replaced: opacity-only animation is GPU-composited (no layout/paint) */}
+          <div className="absolute inset-4 bg-gradient-to-tr from-ast-light/30 via-sky-400/20 to-transparent rounded-full blur-xl" style={{ animation: 'pulseOpacity 2s ease-in-out infinite', willChange: 'opacity' }} />
           <Image
             src="/logo.png"
             alt="Asteria Hologram Logo"
@@ -104,6 +105,10 @@ export default function LogoModel() {
         @keyframes pulseCore {
           0%, 100% { transform: scale(1); opacity: 0.9; }
           50%       { transform: scale(1.3); opacity: 0.5; }
+        }
+        @keyframes pulseOpacity {
+          0%, 100% { opacity: 0.9; }
+          50%       { opacity: 0.35; }
         }
       `}</style>
     </div>

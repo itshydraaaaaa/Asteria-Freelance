@@ -101,7 +101,7 @@ export function HeroSection() {
 
       {/* Subtle Ambient Radial Glow Overlays */}
       <div className="absolute inset-0 z-10 bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(10,58,64,0.65)_100%)] pointer-events-none" />
-      <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-ast-light/10 rounded-full blur-[140px] pointer-events-none animate-pulse" />
+      <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-ast-light/10 rounded-full blur-[140px] pointer-events-none" style={{ animation: 'pulseOpacity 3s ease-in-out infinite', willChange: 'opacity' }} />
       <div className="absolute bottom-10 right-1/4 w-[400px] h-[400px] bg-ast-primary/15 rounded-full blur-[120px] pointer-events-none" />
 
       {/* Main Content Area */}

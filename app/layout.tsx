@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
-import { Exo_2, Inter, JetBrains_Mono, Plus_Jakarta_Sans } from 'next/font/google'
-import { headers } from 'next/headers'
+import Script from 'next/script'
+import { Exo_2, Plus_Jakarta_Sans } from 'next/font/google'
 import './globals.css'
 import { Navbar } from '@/components/layout/Navbar'
 import { Footer } from '@/components/layout/Footer'
@@ -9,23 +9,19 @@ import { CustomCursor } from '@/components/cursor/CustomCursor'
 import { ScrollProgressBar } from '@/components/ui/ScrollProgressBar'
 import { CookieConsentBanner } from '@/components/common/CookieConsentBanner'
 
+// Only load the two fonts actually used: Exo 2 (headings) + Plus Jakarta Sans (body)
+// Inter and JetBrains Mono were generating extra render-blocking CSS chunks
 const exo2 = Exo_2({
   subsets: ['latin'],
   weight: ['300', '400', '600', '700'],
   variable: '--font-exo2',
-})
-const inter = Inter({
-  subsets: ['latin'],
-  variable: '--font-inter',
-})
-const jetbrains = JetBrains_Mono({
-  subsets: ['latin'],
-  variable: '--font-jetbrains',
+  display: 'swap',
 })
 const jakarta = Plus_Jakarta_Sans({
   subsets: ['latin'],
   weight: ['400', '500', '600', '700', '800'],
   variable: '--font-jakarta',
+  display: 'swap',
 })
 
 export const metadata: Metadata = {
@@ -98,23 +94,11 @@ export const metadata: Metadata = {
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  let supabaseOrigin = ''
-  try {
-    const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-    if (rawUrl && !rawUrl.includes('placeholder')) {
-      supabaseOrigin = new URL(rawUrl).origin
-    }
-  } catch {}
-
   return (
-    <html lang="en" className={`${exo2.variable} ${inter.variable} ${jetbrains.variable} ${jakarta.variable}`}>
+    <html lang="en" className={`${exo2.variable} ${jakarta.variable}`}>
       <head>
-        {supabaseOrigin && (
-          <>
-            <link rel="preconnect" href={supabaseOrigin} crossOrigin="anonymous" />
-            <link rel="dns-prefetch" href={supabaseOrigin} />
-          </>
-        )}
+        {/* dns-prefetch only — preconnect was flagged as unused by Lighthouse on the homepage */}
+        <link rel="dns-prefetch" href="https://tvuktwtartbqmggndinu.supabase.co" />
         <meta name="google-site-verification" content="vpRLb_4omj-Nnk1eYBoUcj569uHIj3uu37BUr2BDzuE" />
         <meta name="google-site-verification" content="UjvPHiod5OhQr55JBY3ef5nC9G1ZpIMRJ98lrz-WXYQ" />
       </head>
@@ -127,6 +111,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <Footer />
           <CookieConsentBanner />
         </Providers>
+        <Script
+          src={`https://www.google.com/recaptcha/enterprise.js?render=${process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY || '6Lct-sotAAAAAJP3cxUTmxs5JYE_TTzH9pG0kPS7'}`}
+          strategy="lazyOnload"
+        />
       </body>
     </html>
   )

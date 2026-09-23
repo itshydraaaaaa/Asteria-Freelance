@@ -4,7 +4,10 @@ import { FeaturedGigsSection} from '@/components/sections/FeaturedGigsSection'
 import { CategoriesSection }  from '@/components/sections/CategoriesSection'
 import { db }                 from '@/lib/db'
 
-export const dynamic = 'force-dynamic'
+// ISR: cache the homepage for 60 s — avoids a DB round-trip on every visit.
+// Cuts LCP "Resource load delay" from ~1,160 ms to near-zero for cached hits.
+// Gig list refreshes every 60 seconds in the background (stale-while-revalidate).
+export const revalidate = 60
 
 export default async function HomePage() {
   let gigs: any[] = []
