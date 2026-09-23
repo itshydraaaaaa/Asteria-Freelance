@@ -45,6 +45,97 @@ export interface TranslationDictionary {
   featTunisiaTitle: string
   featTunisiaDesc: string
 
+  // How It Works Section
+  hiwProcess: string
+  hiwTitle: string
+  hiwSubtitle: string
+  step1Title: string
+  step1Body: string
+  step1Badge: string
+  step2Title: string
+  step2Body: string
+  step2Badge: string
+  step3Title: string
+  step3Body: string
+  step3Badge: string
+  stepLabel: string
+
+  // Featured Gigs Section
+  featuredServices: string
+  featuredTitle: string
+  filterAll: string
+  startingAt: string
+  deliveryDays: string
+
+  // Categories Section
+  catBrowseBy: string
+  catPopular: string
+  catLiveServices: string
+  catExploreCat: string
+
+  // Category Names
+  catWebDev: string
+  catDesign: string
+  catDataScience: string
+  catMarketing: string
+  catMobile: string
+  catWriting: string
+  catVideoAudio: string
+  catBusiness: string
+
+  // Marketplace / Explore Page
+  exploreHeaderTag: string
+  exploreHeaderTitle: string
+  exploreHeaderSubtitle: string
+  searchServicesPlaceholder: string
+  filterCategories: string
+  filterAllCategories: string
+  sortBy: string
+  sortRelevance: string
+  sortPriceLow: string
+  sortPriceHigh: string
+  sortFastest: string
+  noServicesFound: string
+  clearFilters: string
+
+  // Freelancers Page
+  freelancersHeaderTag: string
+  freelancersHeaderTitle: string
+  freelancersHeaderSubtitle: string
+  searchFreelancersPlaceholder: string
+
+  // Jobs Board Page
+  jobsHeaderTag: string
+  jobsHeaderTitle: string
+  jobsHeaderSubtitle: string
+  postJobButton: string
+
+  // Authentication (Login & Register)
+  authWelcomeBack: string
+  authSignInSubtitle: string
+  authEmail: string
+  authPassword: string
+  authNoAccount: string
+  authCreateAccount: string
+  authCreateAccountTitle: string
+  authCreateAccountSubtitle: string
+  authFullName: string
+  authRoleClient: string
+  authRoleFreelancer: string
+  authAgreeTerms: string
+  authAlreadyAccount: string
+
+  // Footer
+  footerDesc: string
+  footerPlatform: string
+  footerCompany: string
+  footerSupport: string
+  footerHelpCenter: string
+  footerTerms: string
+  footerPrivacy: string
+  footerContact: string
+  footerRights: string
+
   // Dashboard Navigation & General
   navOverview: string
   navVerification: string
@@ -145,6 +236,97 @@ export const TRANSLATIONS: Record<SupportedLanguage, TranslationDictionary> = {
     featTunisiaTitle: 'Tunisia First',
     featTunisiaDesc: 'Starting local, expanding across MENA',
 
+    // How It Works Section
+    hiwProcess: 'Process',
+    hiwTitle: 'How It Works',
+    hiwSubtitle: 'Three simple steps to get world-class work done.',
+    step1Title: 'Post Your Project',
+    step1Body: 'Describe what you need, set your budget, and get matched with skilled freelancers fast.',
+    step1Badge: 'Post in minutes',
+    step2Title: 'Match with Talent',
+    step2Body: 'Our matching system surfaces the best-fit freelancers based on skills, ratings, and availability.',
+    step2Badge: 'Smart matching',
+    step3Title: 'Deliver & Get Paid',
+    step3Body: 'Work is delivered, reviewed, and payment released automatically from escrow. Safe, fast, and guaranteed.',
+    step3Badge: 'Escrow protected',
+    stepLabel: 'STEP',
+
+    // Featured Gigs Section
+    featuredServices: 'Services',
+    featuredTitle: 'Featured Gigs',
+    filterAll: 'All',
+    startingAt: 'Starting at',
+    deliveryDays: 'days delivery',
+
+    // Categories Section
+    catBrowseBy: 'Browse by',
+    catPopular: 'Popular Categories',
+    catLiveServices: 'live services',
+    catExploreCat: 'Explore category',
+
+    // Category Names
+    catWebDev: 'Web Development',
+    catDesign: 'Design',
+    catDataScience: 'Data Science',
+    catMarketing: 'Marketing',
+    catMobile: 'Mobile',
+    catWriting: 'Writing',
+    catVideoAudio: 'Video & Audio',
+    catBusiness: 'Business',
+
+    // Marketplace / Explore Page
+    exploreHeaderTag: 'Marketplace',
+    exploreHeaderTitle: 'Explore Services',
+    exploreHeaderSubtitle: 'Browse verified microjobs and services from elite Tunisian and MENA freelancers.',
+    searchServicesPlaceholder: 'Search services, skills, or tags…',
+    filterCategories: 'Categories',
+    filterAllCategories: 'All Categories',
+    sortBy: 'Sort By',
+    sortRelevance: 'Relevance',
+    sortPriceLow: 'Price: Low to High',
+    sortPriceHigh: 'Price: High to Low',
+    sortFastest: 'Fastest Delivery',
+    noServicesFound: 'No services match your search.',
+    clearFilters: 'Clear Filters',
+
+    // Freelancers Page
+    freelancersHeaderTag: 'Talent Directory',
+    freelancersHeaderTitle: 'Elite Freelancers',
+    freelancersHeaderSubtitle: 'Identity-verified Tunisian developers, designers, and specialists ready to work.',
+    searchFreelancersPlaceholder: 'Search by name, skill, or governorate…',
+
+    // Jobs Board Page
+    jobsHeaderTag: 'Job Board',
+    jobsHeaderTitle: 'Open Projects',
+    jobsHeaderSubtitle: 'Active contracts seeking talent with 100% guaranteed escrow funding.',
+    postJobButton: '+ Post a Job',
+
+    // Authentication (Login & Register)
+    authWelcomeBack: 'Welcome Back',
+    authSignInSubtitle: 'Sign in to your Asteria account to continue',
+    authEmail: 'Email Address',
+    authPassword: 'Password',
+    authNoAccount: "Don't have an account?",
+    authCreateAccount: 'Create one now',
+    authCreateAccountTitle: 'Join Asteria',
+    authCreateAccountSubtitle: 'Create your client or freelancer account in 30 seconds',
+    authFullName: 'Full Name',
+    authRoleClient: 'I want to hire (Client)',
+    authRoleFreelancer: 'I want to work (Freelancer)',
+    authAgreeTerms: 'By signing up, you agree to our Terms of Service & Privacy Policy.',
+    authAlreadyAccount: 'Already have an account?',
+
+    // Footer
+    footerDesc: 'The freelance marketplace connecting Tunisian talent with ambitious clients — expanding across the MENA region.',
+    footerPlatform: 'Platform',
+    footerCompany: 'Company',
+    footerSupport: 'Support',
+    footerHelpCenter: 'Help Center',
+    footerTerms: 'Terms of Service',
+    footerPrivacy: 'Privacy Policy',
+    footerContact: 'Contact',
+    footerRights: 'All rights reserved.',
+
     // Dashboard Navigation
     navOverview: 'Overview',
     navVerification: 'Verification (KYC)',
@@ -239,6 +421,97 @@ export const TRANSLATIONS: Record<SupportedLanguage, TranslationDictionary> = {
     featTunisiaTitle: 'La Tunisie d’abord',
     featTunisiaDesc: 'Conçu en Tunisie, rayonnant sur toute la région MENA',
 
+    // How It Works Section
+    hiwProcess: 'Processus',
+    hiwTitle: 'Comment ça fonctionne',
+    hiwSubtitle: 'Trois étapes simples pour réaliser vos projets avec succès.',
+    step1Title: 'Publiez votre projet',
+    step1Body: 'Décrivez vos besoins, fixez votre budget et recevez rapidement des propositions d’experts qualifiés.',
+    step1Badge: 'En quelques minutes',
+    step2Title: 'Choisissez votre freelance',
+    step2Body: 'Notre système vous propose les meilleurs profils en fonction de leurs compétences et évaluations.',
+    step2Badge: 'Sélection intelligente',
+    step3Title: 'Livraison & Paiement garanti',
+    step3Body: 'Le travail est livré, validé, et les fonds de séquestre sont débloqués en toute sécurité.',
+    step3Badge: 'Séquestre garanti',
+    stepLabel: 'ÉTAPE',
+
+    // Featured Gigs Section
+    featuredServices: 'Services',
+    featuredTitle: 'Services à la une',
+    filterAll: 'Tous',
+    startingAt: 'À partir de',
+    deliveryDays: 'jours de livraison',
+
+    // Categories Section
+    catBrowseBy: 'Parcourir par',
+    catPopular: 'Catégories populaires',
+    catLiveServices: 'services disponibles',
+    catExploreCat: 'Explorer la catégorie',
+
+    // Category Names
+    catWebDev: 'Développement Web',
+    catDesign: 'Design & Graphisme',
+    catDataScience: 'Data Science & IA',
+    catMarketing: 'Marketing Digital',
+    catMobile: 'Applications Mobiles',
+    catWriting: 'Rédaction & Traduction',
+    catVideoAudio: 'Vidéo & Audio',
+    catBusiness: 'Gestion & Conseil',
+
+    // Marketplace / Explore Page
+    exploreHeaderTag: 'Place de marché',
+    exploreHeaderTitle: 'Explorer les services',
+    exploreHeaderSubtitle: 'Découvrez les micro-services des meilleurs freelances en Tunisie et MENA.',
+    searchServicesPlaceholder: 'Rechercher des services, compétences, tags…',
+    filterCategories: 'Catégories',
+    filterAllCategories: 'Toutes les catégories',
+    sortBy: 'Trier par',
+    sortRelevance: 'Pertinence',
+    sortPriceLow: 'Prix : Croissant',
+    sortPriceHigh: 'Prix : Décroissant',
+    sortFastest: 'Livraison la plus rapide',
+    noServicesFound: 'Aucun service ne correspond à votre recherche.',
+    clearFilters: 'Réinitialiser les filtres',
+
+    // Freelancers Page
+    freelancersHeaderTag: 'Annuaire des talents',
+    freelancersHeaderTitle: 'Freelances d’élite',
+    freelancersHeaderSubtitle: 'Développeurs, designers et spécialistes tunisiens vérifiés prêts à intervenir.',
+    searchFreelancersPlaceholder: 'Rechercher par nom, compétence, ou gouvernorat…',
+
+    // Jobs Board Page
+    jobsHeaderTag: 'Missions & Projets',
+    jobsHeaderTitle: 'Projets ouverts',
+    jobsHeaderSubtitle: 'Missions actives avec financement sous séquestre 100% garanti.',
+    postJobButton: '+ Publier une mission',
+
+    // Authentication (Login & Register)
+    authWelcomeBack: 'Bon retour parmi nous',
+    authSignInSubtitle: 'Connectez-vous à votre compte Asteria pour continuer',
+    authEmail: 'Adresse email',
+    authPassword: 'Mot de passe',
+    authNoAccount: 'Vous n’avez pas de compte ?',
+    authCreateAccount: 'Inscrivez-vous maintenant',
+    authCreateAccountTitle: 'Rejoindre Asteria',
+    authCreateAccountSubtitle: 'Créez votre compte client ou freelance en 30 secondes',
+    authFullName: 'Nom complet',
+    authRoleClient: 'Je souhaite recruter (Client)',
+    authRoleFreelancer: 'Je souhaite travailler (Freelance)',
+    authAgreeTerms: 'En vous inscrivant, vous acceptez nos Conditions d’utilisation et notre Politique de confidentialité.',
+    authAlreadyAccount: 'Vous avez déjà un compte ?',
+
+    // Footer
+    footerDesc: 'La marketplace freelance reliant les talents tunisiens aux entreprises ambitieuses — en Tunisie et dans toute la région MENA.',
+    footerPlatform: 'Plateforme',
+    footerCompany: 'Entreprise',
+    footerSupport: 'Assistance',
+    footerHelpCenter: 'Centre d’aide',
+    footerTerms: 'Conditions d’utilisation',
+    footerPrivacy: 'Politique de confidentialité',
+    footerContact: 'Contactez-nous',
+    footerRights: 'Tous droits réservés.',
+
     // Dashboard Navigation
     navOverview: 'Vue d’ensemble',
     navVerification: 'Vérification (KYC)',
@@ -332,6 +605,97 @@ export const TRANSLATIONS: Record<SupportedLanguage, TranslationDictionary> = {
     featLocalDesc: 'معاملات بالدينار التونسي مصممة لواقع الشركات والمستقلين في تونس',
     featTunisiaTitle: 'تونس أولاً',
     featTunisiaDesc: 'منصة تونسية 100% تتوسع نحو السوق المغاربي والعربي',
+
+    // How It Works Section
+    hiwProcess: 'طريقة العمل',
+    hiwTitle: 'كيف تعمل المنصة',
+    hiwSubtitle: 'ثلاث خطوات سهلة ومضمونة لإنجاز أعمالك بأعلى كفاءة.',
+    step1Title: 'انشر مشروعك أو اطلب خدمة',
+    step1Body: 'حدد تفاصيل طلبك، ميزانيتك بالدينار التونسي، وتلق عروضاً من خيرة الكفاءات التونسية.',
+    step1Badge: 'في دقائق معدودة',
+    step2Title: 'اختر المستقل المناسب',
+    step2Body: 'قارن العروض والملفات الشخصية الموثقة ببطاقة التعريف الوطنية، واختر الأنسب.',
+    step2Badge: 'اختيار ذكي وموثق',
+    step3Title: 'استلم عملك مع الضمان المالي',
+    step3Body: 'يتم حفظ أموالك في الضمان المالي ولا يتم تحويلها للمستقل إلا بعد معاينة العمل والموافقة عليه.',
+    step3Badge: 'حماية مالية 100%',
+    stepLabel: 'الخطوة',
+
+    // Featured Gigs Section
+    featuredServices: 'الخدمات المصغرة',
+    featuredTitle: 'خدمات مميزة',
+    filterAll: 'الكل',
+    startingAt: 'ابتداءً من',
+    deliveryDays: 'أيام للتسليم',
+
+    // Categories Section
+    catBrowseBy: 'تصفح حسب',
+    catPopular: 'أشهر المجالات',
+    catLiveServices: 'خدمة متاحة',
+    catExploreCat: 'استكشف المجال',
+
+    // Category Names
+    catWebDev: 'تطوير المواقع والبرمجيات',
+    catDesign: 'التصميم والغرافيك',
+    catDataScience: 'علوم البيانات والذكاء الاصطناعي',
+    catMarketing: 'التسويق الرقمي',
+    catMobile: 'تطبيقات الجوال',
+    catWriting: 'الكتابة والترجمة',
+    catVideoAudio: 'الفيديو والصوتيات',
+    catBusiness: 'إدارة الأعمال والاستشارات',
+
+    // Marketplace / Explore Page
+    exploreHeaderTag: 'سوق الخدمات',
+    exploreHeaderTitle: 'استكشاف الخدمات المصغرة',
+    exploreHeaderSubtitle: 'تصفح خدمات من أمهر المطورين والمصممين في تونس مع ضمان مالي كامل.',
+    searchServicesPlaceholder: 'ابحث عن خدمات، مهارات، أو وسوم…',
+    filterCategories: 'المجالات',
+    filterAllCategories: 'جميع المجالات',
+    sortBy: 'ترتيب حسب',
+    sortRelevance: 'الأكثر صلة',
+    sortPriceLow: 'السعر: من الأقل للأعلى',
+    sortPriceHigh: 'السعر: من الأعلى للأقل',
+    sortFastest: 'الأسرع تسليماً',
+    noServicesFound: 'لا توجد خدمات مطابقة لمعايير البحث.',
+    clearFilters: 'إعادة ضبط التصفية',
+
+    // Freelancers Page
+    freelancersHeaderTag: 'دليل الكفاءات',
+    freelancersHeaderTitle: 'نخبة المستقلين',
+    freelancersHeaderSubtitle: 'مطورون ومصممون ومحترفون موثقون بالهوية التونسية (CIN) جاهزون للعمل.',
+    searchFreelancersPlaceholder: 'ابحث بالاسم، المهارة، أو الولاية التونسية…',
+
+    // Jobs Board Page
+    jobsHeaderTag: 'فرص المشاريع',
+    jobsHeaderTitle: 'المشاريع المتاحة',
+    jobsHeaderSubtitle: 'مشاريع حقيقية معلنة مع إيداع مالي مؤمن بالكامل في الضمان.',
+    postJobButton: '+ نشر مشروع جديد',
+
+    // Authentication (Login & Register)
+    authWelcomeBack: 'مرحباً بعودتك',
+    authSignInSubtitle: 'سجل الدخول إلى حسابك في أستيريا للمتابعة',
+    authEmail: 'البريد الإلكتروني',
+    authPassword: 'كلمة المرور',
+    authNoAccount: 'ليس لديك حساب؟',
+    authCreateAccount: 'أنشئ حسابك الآن',
+    authCreateAccountTitle: 'انضم إلى أستيريا',
+    authCreateAccountSubtitle: 'أنشئ حسابك كصاحب مشاريع أو مستقل في 30 ثانية',
+    authFullName: 'الاسم الكامل',
+    authRoleClient: 'أريد توظيف كفاءات (صاحب مشروع)',
+    authRoleFreelancer: 'أريد العمل كمستقل (فريلانسر)',
+    authAgreeTerms: 'بتسجيلك، فإنك توافق على شروط الاستخدام وسياسة الخصوصية.',
+    authAlreadyAccount: 'لديك حساب بالفعل؟',
+
+    // Footer
+    footerDesc: 'أول منصة عمل حر تونسية تربط أفضل المواهب الرقمية بالشركات ورواد الأعمال مع حماية مالية متكاملة بالدينار التونسي.',
+    footerPlatform: 'المنصة',
+    footerCompany: 'الشركة',
+    footerSupport: 'المساعدة والدعم',
+    footerHelpCenter: 'مركز المساعدة',
+    footerTerms: 'شروط الاستخدام',
+    footerPrivacy: 'سياسة الخصوصية',
+    footerContact: 'اتصل بنا',
+    footerRights: 'جميع الحقوق محفوظة.',
 
     // Dashboard Navigation
     navOverview: 'نظرة عامة',

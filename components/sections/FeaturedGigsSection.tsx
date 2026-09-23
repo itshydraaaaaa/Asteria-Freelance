@@ -6,13 +6,18 @@ import Link from 'next/link'
 import { categories } from '@/lib/data/categories'
 import { scaleIn, stagger, microHover } from '@/lib/motion'
 import { Star, Clock } from 'lucide-react'
-
-const FILTERS = ['All', ...categories.map(c => c.name).slice(0, 5)]
+import { useLanguage } from '@/components/providers/LanguageContext'
 
 export function FeaturedGigsSection() {
+  const { t, currency } = useLanguage()
   const [active, setActive] = useState('All')
   const [gigs, setGigs] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+
+  const filters = [
+    { id: 'All', label: t('filterAll') },
+    ...categories.slice(0, 5).map(c => ({ id: c.name, label: c.name }))
+  ]
 
   useEffect(() => {
     const loadGigs = async () => {
@@ -39,21 +44,25 @@ export function FeaturedGigsSection() {
       <div className="max-w-7xl mx-auto px-6 lg:px-12">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-12 gap-6">
           <div>
-            <p className="font-mono text-ast-primary text-xs tracking-[0.3em] uppercase mb-2">Services</p>
-            <h2 className="font-heading font-bold text-4xl lg:text-5xl text-black">Featured Gigs</h2>
+            <p className="font-mono text-ast-primary text-xs tracking-[0.3em] uppercase mb-2">
+              {t('featuredServices')}
+            </p>
+            <h2 className="font-heading font-bold text-4xl lg:text-5xl text-black">
+              {t('featuredTitle')}
+            </h2>
           </div>
           <div className="flex flex-wrap gap-2">
-            {FILTERS.map(f => (
+            {filters.map(f => (
               <button
-                key={f}
-                onClick={() => setActive(f)}
+                key={f.id}
+                onClick={() => setActive(f.id)}
                 className={`text-sm rounded-full px-4 py-1.5 transition-all ${
-                  active === f
+                  active === f.id
                     ? 'bg-ast-primary text-white'
                     : 'border border-black/15 text-ast-gray hover:border-ast-primary hover:text-ast-primary'
                 }`}
               >
-                {f}
+                {f.label}
               </button>
             ))}
           </div>
@@ -114,7 +123,7 @@ export function FeaturedGigsSection() {
                             <Clock size={13} />
                             {gig.deliveryDays}d
                           </span>
-                          <span className="font-semibold text-black">{Number(gig.price).toFixed(2)} TND</span>
+                          <span className="font-semibold text-black">{Number(gig.price).toFixed(2)} {currency}</span>
                         </div>
                       </div>
                     </motion.div>
@@ -127,7 +136,7 @@ export function FeaturedGigsSection() {
 
         <div className="text-center mt-12">
           <Link href="/explore" className="inline-block border border-ast-primary text-ast-primary rounded-full px-8 py-3 hover:bg-ast-primary hover:text-white transition-colors font-medium">
-            View All Gigs
+            {t('heroExploreServices')}
           </Link>
         </div>
       </div>

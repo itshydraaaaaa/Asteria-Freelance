@@ -5,11 +5,14 @@ import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Mail, Lock, User, ChevronRight, Eye, EyeOff } from 'lucide-react'
 import { register } from '@/app/actions/auth'
+import { useLanguage } from '@/components/providers/LanguageContext'
+import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher'
 
 type Role = 'CLIENT' | 'FREELANCER'
 
 export default function RegisterPage() {
   const router = useRouter()
+  const { t } = useLanguage()
   const [role, setRole] = useState<Role>('CLIENT')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -34,7 +37,12 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-ast-dark flex items-center justify-center px-4 pt-28 pb-16">
+    <div className="min-h-screen bg-ast-dark flex items-center justify-center px-4 pt-28 pb-16 relative">
+      {/* Top Language Switcher */}
+      <div className="absolute top-6 right-6 z-20">
+        <LanguageSwitcher theme="dark" compact={false} />
+      </div>
+
       {/* Background glow effect */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-ast-primary/20 rounded-full blur-[140px]" />
@@ -61,8 +69,8 @@ export default function RegisterPage() {
               A<span className="text-white/70">STERIA</span>
             </span>
           </Link>
-          <h1 className="font-heading font-bold text-3xl text-white">Create your account</h1>
-          <p className="text-white/50 text-sm mt-2">Join thousands of professionals on Asteria</p>
+          <h1 className="font-heading font-bold text-3xl text-white">{t('authCreateAccountTitle')}</h1>
+          <p className="text-white/50 text-sm mt-2">{t('authCreateAccountSubtitle')}</p>
         </div>
 
         <div className="bg-white rounded-3xl p-8 shadow-2xl">
@@ -74,13 +82,13 @@ export default function RegisterPage() {
                 type="button"
                 onClick={() => { setRole(r); setError('') }}
                 whileTap={{ scale: 0.97 }}
-                className={`py-3 rounded-xl text-sm font-semibold border-2 transition-all ${
+                className={`py-3 rounded-xl text-xs font-semibold border-2 transition-all ${
                   role === r
                     ? 'border-ast-primary bg-ast-primary text-white shadow-sm'
                     : 'border-black/15 text-ast-gray hover:border-ast-primary/50 hover:text-ast-primary'
                 }`}
               >
-                {r === 'CLIENT' ? '🏢 Hire Talent' : '💼 Find Work'}
+                {r === 'CLIENT' ? `🏢 ${t('authRoleClient')}` : `💼 ${t('authRoleFreelancer')}`}
               </motion.button>
             ))}
           </div>
@@ -106,7 +114,7 @@ export default function RegisterPage() {
               <input
                 type="text"
                 name="name"
-                placeholder="Full name"
+                placeholder={t('authFullName')}
                 required
                 className="w-full pl-10 pr-4 py-3 border border-black/15 rounded-xl text-sm outline-none focus:border-ast-primary focus:ring-2 focus:ring-ast-primary/20 transition-all bg-white"
               />
@@ -116,7 +124,7 @@ export default function RegisterPage() {
               <input
                 type="email"
                 name="email"
-                placeholder="Email address"
+                placeholder={t('authEmail')}
                 required
                 className="w-full pl-10 pr-4 py-3 border border-black/15 rounded-xl text-sm outline-none focus:border-ast-primary focus:ring-2 focus:ring-ast-primary/20 transition-all bg-white"
               />
@@ -126,7 +134,7 @@ export default function RegisterPage() {
               <input
                 type={showPassword ? 'text' : 'password'}
                 name="password"
-                placeholder="Password (min. 6 characters)"
+                placeholder={t('authPassword')}
                 required
                 minLength={6}
                 className="w-full pl-10 pr-10 py-3 border border-black/15 rounded-xl text-sm outline-none focus:border-ast-primary focus:ring-2 focus:ring-ast-primary/20 transition-all bg-white"
@@ -152,25 +160,25 @@ export default function RegisterPage() {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                   </svg>
-                  Creating account…
+                  {t('navGetStarted')}…
                 </>
               ) : (
-                <>Create Account <ChevronRight size={16} /></>
+                <>{t('navGetStarted')} <ChevronRight size={16} /></>
               )}
             </button>
           </form>
 
           <p className="text-center text-ast-gray text-xs mt-6 leading-relaxed">
-            By creating an account you agree to our{' '}
-            <Link href="/terms" className="text-ast-primary cursor-pointer hover:underline">Terms of Service</Link>
-            {' '}and{' '}
-            <Link href="/privacy" className="text-ast-primary cursor-pointer hover:underline">Privacy Policy</Link>.
+            {t('authAgreeTerms')}{' '}
+            <Link href="/terms" className="text-ast-primary cursor-pointer hover:underline">{t('footerTerms')}</Link>
+            {' '}&amp;{' '}
+            <Link href="/privacy" className="text-ast-primary cursor-pointer hover:underline">{t('footerPrivacy')}</Link>.
           </p>
         </div>
 
         <p className="text-center text-white/50 text-sm mt-6">
-          Already have an account?{' '}
-          <Link href="/login" className="text-ast-light font-medium hover:underline">Sign in</Link>
+          {t('authAlreadyAccount')}{' '}
+          <Link href="/login" className="text-ast-light font-medium hover:underline">{t('navSignIn')}</Link>
         </p>
       </motion.div>
     </div>

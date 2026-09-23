@@ -1,41 +1,42 @@
-'use client' // 👉 Required for usePathname
+'use client'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation' // 👉 Added import
+import { usePathname } from 'next/navigation'
 import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher'
-
-const LINKS = [
-  {
-    title: 'Platform',
-    items: [
-      { label: 'Explore Gigs', href: '/explore' },
-      { label: 'Find Freelancers', href: '/freelancers' },
-      { label: 'Post a Job', href: '/post-job' },
-      { label: 'How It Works', href: '/#how-it-works' },
-    ],
-  },
-  {
-    title: 'Company',
-    items: [
-      { label: 'About', href: '/about' },
-      { label: 'Contact', href: '/contact' },
-      { label: 'Jobs', href: '/jobs' },
-    ],
-  },
-  {
-    title: 'Support',
-    items: [
-      { label: 'Help Center', href: '/contact' },
-      { label: 'Terms of Service', href: '/terms' },
-      { label: 'Privacy Policy', href: '/privacy' },
-    ],
-  },
-]
+import { useLanguage } from '@/components/providers/LanguageContext'
 
 export function Footer() {
-  const pathname = usePathname() // 👉 Grab the current URL
+  const pathname = usePathname()
+  const { t } = useLanguage()
 
-  // 👉 THE FIX: If we are in the dashboard, don't render the footer at all!
   if (pathname.startsWith('/dashboard')) return null
+
+  const linkSections = [
+    {
+      title: t('footerPlatform'),
+      items: [
+        { label: t('navExplore'), href: '/explore' },
+        { label: t('navFreelancers'), href: '/freelancers' },
+        { label: t('navPostJob'), href: '/post-job' },
+        { label: t('navHowItWorks'), href: '/#how-it-works' },
+      ],
+    },
+    {
+      title: t('footerCompany'),
+      items: [
+        { label: t('navAbout'), href: '/about' },
+        { label: t('footerContact'), href: '/contact' },
+        { label: t('navJobs'), href: '/jobs' },
+      ],
+    },
+    {
+      title: t('footerSupport'),
+      items: [
+        { label: t('footerHelpCenter'), href: '/contact' },
+        { label: t('footerTerms'), href: '/terms' },
+        { label: t('footerPrivacy'), href: '/privacy' },
+      ],
+    },
+  ]
 
   return (
     <footer className="bg-ast-dark border-t border-ast-light/10 pt-16 pb-8">
@@ -51,11 +52,11 @@ export function Footer() {
               <span className="font-heading font-bold text-white text-base tracking-wide">ASTERIA</span>
             </Link>
             <p className="text-ast-gray text-sm leading-relaxed max-w-xs">
-              The freelance marketplace connecting Tunisian talent with ambitious clients — expanding across the MENA region.
+              {t('footerDesc')}
             </p>
           </div>
 
-          {LINKS.map(section => (
+          {linkSections.map(section => (
             <div key={section.title}>
               <h3 className="text-white font-semibold text-sm tracking-wide mb-4">{section.title}</h3>
               <ul className="space-y-2">
@@ -73,7 +74,7 @@ export function Footer() {
 
         <div className="border-t border-ast-light/10 pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-ast-gray text-sm">
-            © 2026 Asteria Freelance. All rights reserved.
+            © 2026 Asteria Freelance. {t('footerRights')}
           </p>
           <div className="flex items-center gap-4">
             <LanguageSwitcher theme="dark" compact={false} />

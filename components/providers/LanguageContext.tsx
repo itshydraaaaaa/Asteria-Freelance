@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useState, useEffect } from 'react'
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import { SupportedLanguage, TRANSLATIONS, TranslationDictionary } from '@/lib/i18n/translations'
 
 interface LanguageContextType {
@@ -28,7 +28,15 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const [currency, setCurrencyState] = useState<string>('TND')
   const [mounted, setMounted] = useState(false)
 
-  // Initialize from cookies or localStorage
+  const applyDocumentDirection = useCallback((lang: SupportedLanguage) => {
+    if (typeof document !== 'undefined') {
+      const isArabic = lang === 'Arabic'
+      document.documentElement.lang = isArabic ? 'ar' : lang === 'French' ? 'fr' : 'en'
+      document.documentElement.dir = isArabic ? 'rtl' : 'ltr'
+    }
+  }, [])
+
+  // Initialize from cookies, localStorage, or browser preference
   useEffect(() => {
     if (typeof window !== 'undefined') {
       try {
@@ -41,7 +49,18 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
         if (storedLang && ['English', 'Arabic', 'French'].includes(storedLang)) {
           setLanguageState(storedLang)
           applyDocumentDirection(storedLang)
+        } else {
+          // Auto-detect browser language for French/Arabic users
+          const browserLang = (navigator.language || (navigator as any).userLanguage || '').toLowerCase()
+          if (browserLang.startsWith('ar')) {
+            setLanguageState('Arabic')
+            applyDocumentDirection('Arabic')
+          } else if (browserLang.startsWith('fr')) {
+            setLanguageState('French')
+            applyDocumentDirection('French')
+          }
         }
+
         if (storedCurr) {
           setCurrencyState(storedCurr)
         }
@@ -50,40 +69,34 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
       }
       setMounted(true)
     }
-  }, [])
+  }, [applyDocumentDirection])
 
-  const applyDocumentDirection = (lang: SupportedLanguage) => {
-    if (typeof document !== 'undefined') {
-      const isArabic = lang === 'Arabic'
-      document.documentElement.lang = isArabic ? 'ar' : lang === 'French' ? 'fr' : 'en'
-      document.documentElement.dir = isArabic ? 'rtl' : 'ltr'
-    }
-  }
-
-  const setLanguage = (newLang: SupportedLanguage) => {
+  const setLanguage = useCallback((newLang: SupportedLanguage) => {
     setLanguageState(newLang)
     applyDocumentDirection(newLang)
     if (typeof window !== 'undefined') {
       localStorage.setItem('asteria_settings_language', newLang)
       setCookie('asteria_lang', newLang, 365)
+      const code = newLang === 'Arabic' ? 'ar' : newLang === 'French' ? 'fr' : 'en'
+      setCookie('googtrans', `/en/${code}`, 365)
     }
-  }
+  }, [applyDocumentDirection])
 
-  const setCurrency = (newCurr: string) => {
+  const setCurrency = useCallback((newCurr: string) => {
     setCurrencyState(newCurr)
     if (typeof window !== 'undefined') {
       localStorage.setItem('asteria_settings_currency', newCurr)
       setCookie('asteria_currency', newCurr, 365)
     }
-  }
+  }, [])
 
   const isRTL = language === 'Arabic'
   const dir: 'ltr' | 'rtl' = isRTL ? 'rtl' : 'ltr'
 
-  const t = (key: keyof TranslationDictionary): string => {
+  const t = useCallback((key: keyof TranslationDictionary): string => {
     const dict = TRANSLATIONS[language] || TRANSLATIONS.English
     return dict[key] || TRANSLATIONS.English[key] || String(key)
-  }
+  }, [language])
 
   return (
     <LanguageContext.Provider

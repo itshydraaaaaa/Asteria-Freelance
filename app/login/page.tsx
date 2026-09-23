@@ -6,9 +6,12 @@ import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { Mail, Lock, Eye, EyeOff, ShieldCheck, ArrowRight, Loader2 } from 'lucide-react'
 import { login } from '@/app/actions/auth'
+import { useLanguage } from '@/components/providers/LanguageContext'
+import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher'
 
 export default function LoginPage() {
   const router = useRouter()
+  const { t } = useLanguage()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -31,7 +34,12 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-ast-dark flex items-center justify-center px-4 pt-28 pb-16">
+    <div className="min-h-screen bg-ast-dark flex items-center justify-center px-4 pt-28 pb-16 relative">
+      {/* Top Language Switcher */}
+      <div className="absolute top-6 right-6 z-20">
+        <LanguageSwitcher theme="dark" compact={false} />
+      </div>
+
       {/* Background glow effect */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-ast-primary/20 rounded-full blur-[120px]" />
@@ -58,8 +66,8 @@ export default function LoginPage() {
               A<span className="text-white/70">STERIA</span>
             </span>
           </Link>
-          <h1 className="font-heading font-bold text-3xl text-white">Welcome back</h1>
-          <p className="text-white/50 text-sm mt-2">Sign in to your account to continue</p>
+          <h1 className="font-heading font-bold text-3xl text-white">{t('authWelcomeBack')}</h1>
+          <p className="text-white/50 text-sm mt-2">{t('authSignInSubtitle')}</p>
         </div>
 
         <div className="bg-white rounded-3xl p-8 shadow-2xl space-y-5">
@@ -79,7 +87,7 @@ export default function LoginPage() {
               <input
                 type="email"
                 name="email"
-                placeholder="Email address"
+                placeholder={t('authEmail')}
                 required
                 className="w-full pl-10 pr-4 py-3 border border-black/15 rounded-xl text-sm outline-none focus:border-ast-primary focus:ring-2 focus:ring-ast-primary/20 transition-all bg-white"
               />
@@ -89,7 +97,7 @@ export default function LoginPage() {
               <input
                 type={showPassword ? 'text' : 'password'}
                 name="password"
-                placeholder="Password"
+                placeholder={t('authPassword')}
                 required
                 className="w-full pl-10 pr-10 py-3 border border-black/15 rounded-xl text-sm outline-none focus:border-ast-primary focus:ring-2 focus:ring-ast-primary/20 transition-all bg-white"
               />
@@ -110,16 +118,16 @@ export default function LoginPage() {
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
                   <Loader2 size={16} className="animate-spin" />
-                  Signing in…
+                  {t('navSignIn')}…
                 </span>
-              ) : 'Sign In'}
+              ) : t('navSignIn')}
             </button>
           </form>
 
           <p className="text-center text-ast-gray text-xs">
-            Don&apos;t have an account?{' '}
+            {t('authNoAccount')}{' '}
             <Link href="/register" className="text-ast-primary font-semibold hover:underline">
-              Create one free
+              {t('authCreateAccount')}
             </Link>
           </p>
         </div>

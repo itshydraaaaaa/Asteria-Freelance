@@ -6,11 +6,27 @@ import { Search, Star, Award, TrendingUp, CheckCircle } from 'lucide-react'
 import type { Category } from '@/lib/data/categories'
 import { scaleIn, stagger, microHover } from '@/lib/motion'
 import { expandTunisianSearchQuery } from '@/lib/ai/tunbert'
+import { useLanguage } from '@/components/providers/LanguageContext'
 
 export function FreelancerBrowser({ freelancers, categories }: { freelancers: any[]; categories: Category[] }) {
+  const { t, currency } = useLanguage()
   const [query,    setQuery]    = useState('')
   const [category, setCategory] = useState('All')
   const [badge,    setBadge]    = useState('All')
+
+  const getCategoryName = (name: string) => {
+    switch (name) {
+      case 'Web Development': return t('catWebDev')
+      case 'Design': return t('catDesign')
+      case 'Data Science': return t('catDataScience')
+      case 'Marketing': return t('catMarketing')
+      case 'Mobile': return t('catMobile')
+      case 'Writing': return t('catWriting')
+      case 'Video & Audio': return t('catVideoAudio')
+      case 'Business': return t('catBusiness')
+      default: return name
+    }
+  }
 
   const BADGE_CONFIG: Record<string, any> = {
     top:      { label: 'Top Rated',  Icon: Award,       color: 'text-yellow-600 bg-yellow-50 border-yellow-200' },
@@ -53,29 +69,57 @@ export function FreelancerBrowser({ freelancers, categories }: { freelancers: an
 
   return (
     <div>
+      {/* Dynamic Translated Header */}
+      <div className="mb-10">
+        <p className="font-mono text-ast-primary text-xs tracking-[0.3em] uppercase mb-2">
+          {t('freelancersHeaderTag')}
+        </p>
+        <h1 className="font-heading font-bold text-5xl text-black">
+          {t('freelancersHeaderTitle')}
+        </h1>
+        <p className="text-ast-gray mt-3 text-lg">
+          {filtered.length} {t('freelancersHeaderSubtitle')}
+        </p>
+      </div>
+
       <div className="flex flex-wrap gap-3 mb-8">
         <div className="relative">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ast-gray" />
-          <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search by name or skill…" className="pl-9 pr-4 py-2.5 border border-black/15 rounded-xl text-sm w-64 outline-none focus:border-ast-primary" />
+          <input
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder={t('searchFreelancersPlaceholder')}
+            className="pl-9 pr-4 py-2.5 border border-black/15 rounded-xl text-sm w-72 outline-none focus:border-ast-primary"
+          />
         </div>
-        <select value={category} onChange={e => setCategory(e.target.value)} className="border border-black/15 rounded-xl px-3 py-2.5 text-sm outline-none">
-          <option value="All">All Categories</option>
-          {categories.map(c => <option key={c.slug}>{c.name}</option>)}
+        <select
+          value={category}
+          onChange={e => setCategory(e.target.value)}
+          className="border border-black/15 rounded-xl px-3 py-2.5 text-sm outline-none"
+        >
+          <option value="All">{t('filterAllCategories')}</option>
+          {categories.map(c => (
+            <option key={c.slug} value={c.name}>{getCategoryName(c.name)}</option>
+          ))}
         </select>
-        <select value={badge} onChange={e => setBadge(e.target.value)} className="border border-black/15 rounded-xl px-3 py-2.5 text-sm outline-none">
+        <select
+          value={badge}
+          onChange={e => setBadge(e.target.value)}
+          className="border border-black/15 rounded-xl px-3 py-2.5 text-sm outline-none"
+        >
           <option value="All">All Badges</option>
           <option value="top">Top Rated</option>
           <option value="rising">Rising</option>
-          <option value="verified">Verified</option>
+          <option value="verified">Verified (CIN)</option>
         </select>
       </div>
 
-      <p className="text-ast-gray text-sm mb-6">{filtered.length} freelancers found</p>
+      <p className="text-ast-gray text-sm mb-6">{filtered.length} {t('navFreelancers')}</p>
 
       <AnimatePresence>
         {filtered.length === 0 ? (
           <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-center py-24 text-ast-gray">
-            No freelancers match your filters.
+            {t('noServicesFound')}
           </motion.div>
         ) : (
           <motion.div key={category + badge} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
@@ -89,7 +133,6 @@ export function FreelancerBrowser({ freelancers, categories }: { freelancers: an
 
               return (
                 <motion.div key={f.id} variants={scaleIn}>
-                  {/* 👉 FIXED LINK: Points to /freelancers/ instead of /profile/ */}
                   <Link href={`/freelancers/${f.id}`} className="group block bg-white rounded-2xl border border-black/8 p-5 hover:border-ast-light/60 hover:shadow-md transition-all">
                     <motion.div variants={microHover} initial="rest" whileHover="hover" whileTap={{ scale: 0.995 }}>
                       <div className="flex items-center gap-3 mb-4">
@@ -103,7 +146,7 @@ export function FreelancerBrowser({ freelancers, categories }: { freelancers: an
                         <div className="min-w-0">
                           <p className="font-heading font-semibold text-black text-sm group-hover:text-ast-primary transition-colors truncate">{f.name}</p>
                           <p className="text-xs text-ast-gray truncate flex items-center gap-1">
-                            <span>{f.category || 'Freelancer'}</span>
+                            <span>{getCategoryName(f.category) || 'Freelancer'}</span>
                             <span>•</span>
                             <span className="text-[11px] text-ast-primary/90 font-medium">🇹🇳 {f.location || 'Tunisia'}</span>
                           </p>
@@ -131,7 +174,7 @@ export function FreelancerBrowser({ freelancers, categories }: { freelancers: an
 
                       <div className="flex items-center justify-between text-xs border-t border-black/5 pt-3">
                         <span className="flex items-center gap-1 text-ast-gray"><Star size={11} className={rating > 0 ? "text-yellow-400 fill-yellow-400" : ""} />{rating} ({reviewCount})</span>
-                        <span className="font-bold text-ast-primary">{hourlyRate} TND/hr</span>
+                        <span className="font-bold text-ast-primary">{hourlyRate} {currency}/hr</span>
                       </div>
                     </motion.div>
                   </Link>
