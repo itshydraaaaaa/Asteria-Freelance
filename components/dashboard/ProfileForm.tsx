@@ -5,6 +5,7 @@ import { motion }    from 'framer-motion'
 import { User, Mail, DollarSign, FileText, Tag, Wallet, MapPin, Globe, Check, Camera, Edit2, X, Loader2 } from 'lucide-react'
 import { ImageCropper } from './ImageCropper'
 import { TUNISIAN_GOVERNORATES } from '@/lib/country'
+import { useLanguage } from '@/components/providers/LanguageContext'
 
 interface Profile {
   name:         string
@@ -22,6 +23,7 @@ interface Profile {
 
 export function ProfileForm({ profile }: { profile: Profile }) {
   const router  = useRouter()
+  const { t, isRTL, dir } = useLanguage()
   const fileInputRef = useRef<HTMLInputElement>(null)
   
   // 👉 New States for Preview Mode and Image Upload
@@ -79,7 +81,9 @@ export function ProfileForm({ profile }: { profile: Profile }) {
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div dir={dir} className={isRTL ? 'text-right' : 'text-left'}>
+      <h1 className="font-heading font-bold text-3xl text-black mb-8">{t('profileTitle')}</h1>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       
       {/* LEFT SIDEBAR: PROFILE CARD */}
       <div className="lg:col-span-1 space-y-4">
@@ -110,7 +114,7 @@ export function ProfileForm({ profile }: { profile: Profile }) {
             <p className="font-heading font-bold text-xl text-black">{form.name || profile.name || 'Your Name'}</p>
             <p className="text-ast-gray text-sm mt-1">{profile.email}</p>
             <span className="inline-block mt-3 text-xs font-semibold text-ast-primary bg-ast-muted rounded-full px-3 py-1">
-              {profile.role}
+              {profile.role === 'CLIENT' ? t('dashClientWorkspace') : t('dashFreelancerWorkspace')}
             </span>
           </div>
 
@@ -118,7 +122,7 @@ export function ProfileForm({ profile }: { profile: Profile }) {
             <div className="flex items-center gap-3 text-sm">
               <Wallet size={16} className="text-ast-primary shrink-0" />
               <div>
-                <p className="text-ast-gray text-xs">Wallet Balance</p>
+                <p className="text-ast-gray text-xs">{t('walletAvailableBalance')}</p>
                 <p className="font-semibold text-black">${profile.walletBalance?.toLocaleString() ?? '0'}</p>
               </div>
             </div>
@@ -126,8 +130,8 @@ export function ProfileForm({ profile }: { profile: Profile }) {
               <div className="flex items-center gap-3 text-sm">
                 <DollarSign size={16} className="text-ast-primary shrink-0" />
                 <div>
-                  <p className="text-ast-gray text-xs">Hourly Rate</p>
-                  <p className="font-semibold text-black">${form.hourlyRate}/hr</p>
+                  <p className="text-ast-gray text-xs">{t('profileHourlyRate')}</p>
+                  <p className="font-semibold text-black">{form.hourlyRate} TND/hr</p>
                 </div>
               </div>
             )}
@@ -135,7 +139,7 @@ export function ProfileForm({ profile }: { profile: Profile }) {
               <div className="flex items-center gap-3 text-sm">
                 <MapPin size={16} className="text-ast-primary shrink-0" />
                 <div>
-                  <p className="text-ast-gray text-xs">Location</p>
+                  <p className="text-ast-gray text-xs">{t('profileLocation')}</p>
                   <p className="font-semibold text-black">{form.location}</p>
                 </div>
               </div>
@@ -151,13 +155,13 @@ export function ProfileForm({ profile }: { profile: Profile }) {
           {/* 👉 Header with dynamic Edit/Cancel button */}
           <div className="flex items-center justify-between mb-6">
             <h2 className="font-semibold text-black text-xl">
-              {isEditing ? 'Edit Profile' : 'Profile Details'}
+              {isEditing ? t('profileEdit') : t('profileDetails')}
             </h2>
             <button 
               onClick={() => setIsEditing(!isEditing)}
               className="flex items-center gap-2 text-sm font-medium text-ast-gray hover:text-black transition-colors"
             >
-              {isEditing ? <><X size={16} /> Cancel</> : <><Edit2 size={16} /> Edit Profile</>}
+              {isEditing ? <><X size={16} /> {t('profileCancel')}</> : <><Edit2 size={16} /> {t('profileEdit')}</>}
             </button>
           </div>
 
@@ -166,7 +170,7 @@ export function ProfileForm({ profile }: { profile: Profile }) {
           )}
           {saved && !isEditing && (
              <div className="bg-green-50 border border-green-200 text-green-700 text-sm rounded-xl px-4 py-3 mb-5 flex items-center gap-2">
-               <Check size={16} /> Profile updated successfully!
+               <Check size={16} /> {t('profileUpdatedSuccess')}
              </div>
           )}
 
@@ -174,15 +178,15 @@ export function ProfileForm({ profile }: { profile: Profile }) {
           {!isEditing ? (
             <div className="space-y-6">
               <div>
-                <p className="text-xs font-medium text-ast-gray uppercase tracking-wider mb-2">About Me</p>
+                <p className="text-xs font-medium text-ast-gray uppercase tracking-wider mb-2">{t('profileAboutMe')}</p>
                 <p className="text-sm text-black leading-relaxed whitespace-pre-wrap">
-                  {form.bio || <span className="text-black/40 italic">No bio provided.</span>}
+                  {form.bio || <span className="text-black/40 italic">{t('profileNoBio')}</span>}
                 </p>
               </div>
 
               {profile.role === 'FREELANCER' && (
                 <div>
-                  <p className="text-xs font-medium text-ast-gray uppercase tracking-wider mb-2">Skills</p>
+                  <p className="text-xs font-medium text-ast-gray uppercase tracking-wider mb-2">{t('profileSkills')}</p>
                   {form.skills ? (
                     <div className="flex flex-wrap gap-2">
                       {form.skills.split(',').map(s => s.trim()).filter(Boolean).map(s => (
@@ -192,18 +196,18 @@ export function ProfileForm({ profile }: { profile: Profile }) {
                       ))}
                     </div>
                   ) : (
-                    <p className="text-sm text-black/40 italic">No skills listed.</p>
+                    <p className="text-sm text-black/40 italic">—</p>
                   )}
                 </div>
               )}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-2">
                 <div>
-                  <p className="text-xs font-medium text-ast-gray uppercase tracking-wider mb-1">Languages</p>
+                  <p className="text-xs font-medium text-ast-gray uppercase tracking-wider mb-1">{t('profileLanguages')}</p>
                   <p className="text-sm text-black">{form.languages || '—'}</p>
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-ast-gray uppercase tracking-wider mb-1">Website</p>
+                  <p className="text-xs font-medium text-ast-gray uppercase tracking-wider mb-1">{t('profileWebsite')}</p>
                   {form.website ? (
                     <a href={form.website} target="_blank" rel="noreferrer" className="text-sm text-ast-primary hover:underline flex items-center gap-1.5">
                       <Globe size={14} /> {form.website.replace(/^https?:\/\//, '')}
@@ -219,34 +223,34 @@ export function ProfileForm({ profile }: { profile: Profile }) {
             /* 👉 EDIT MODE (The Form) */
             <form onSubmit={handleSave} className="space-y-5 animate-in fade-in duration-200">
               <div>
-                <label className="block text-xs font-medium text-ast-gray uppercase tracking-wider mb-1.5">Full Name</label>
+                <label className="block text-xs font-medium text-ast-gray uppercase tracking-wider mb-1.5">{t('profileFullName')}</label>
                 <div className="relative">
-                  <User size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ast-gray" />
-                  <input value={form.name} onChange={handle('name')} placeholder="Your full name"
-                    className="w-full pl-10 pr-4 py-3 border border-black/15 rounded-xl text-sm outline-none focus:border-ast-primary focus:ring-2 focus:ring-ast-primary/20 transition-all" />
+                  <User size={15} className={`absolute ${isRTL ? 'right-3.5' : 'left-3.5'} top-1/2 -translate-y-1/2 text-ast-gray`} />
+                  <input value={form.name} onChange={handle('name')} placeholder={t('profileFullName')}
+                    className={`w-full ${isRTL ? 'pr-10 pl-4' : 'pl-10 pr-4'} py-3 border border-black/15 rounded-xl text-sm outline-none focus:border-ast-primary focus:ring-2 focus:ring-ast-primary/20 transition-all`} />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-ast-gray uppercase tracking-wider mb-1.5">Bio</label>
+                <label className="block text-xs font-medium text-ast-gray uppercase tracking-wider mb-1.5">{t('profileBio')}</label>
                 <div className="relative">
-                  <FileText size={15} className="absolute left-3.5 top-3.5 text-ast-gray" />
-                  <textarea value={form.bio} onChange={handle('bio')} placeholder="Tell clients about yourself…" rows={4}
-                    className="w-full pl-10 pr-4 py-3 border border-black/15 rounded-xl text-sm outline-none focus:border-ast-primary focus:ring-2 focus:ring-ast-primary/20 transition-all resize-none" />
+                  <FileText size={15} className={`absolute ${isRTL ? 'right-3.5' : 'left-3.5'} top-3.5 text-ast-gray`} />
+                  <textarea value={form.bio} onChange={handle('bio')} placeholder={t('profileAboutMe')} rows={4}
+                    className={`w-full ${isRTL ? 'pr-10 pl-4' : 'pl-10 pr-4'} py-3 border border-black/15 rounded-xl text-sm outline-none focus:border-ast-primary focus:ring-2 focus:ring-ast-primary/20 transition-all resize-none`} />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-ast-gray uppercase tracking-wider mb-1.5">Location (Tunisia)</label>
+                  <label className="block text-xs font-medium text-ast-gray uppercase tracking-wider mb-1.5">{t('profileLocation')}</label>
                   <div className="relative">
-                    <MapPin size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ast-gray" />
+                    <MapPin size={15} className={`absolute ${isRTL ? 'right-3.5' : 'left-3.5'} top-1/2 -translate-y-1/2 text-ast-gray`} />
                     <input
                       list="tunisia-governorates"
                       value={form.location}
                       onChange={handle('location')}
                       placeholder="Tunis, Tunisia"
-                      className="w-full pl-10 pr-4 py-3 border border-black/15 rounded-xl text-sm outline-none focus:border-ast-primary focus:ring-2 focus:ring-ast-primary/20 transition-all"
+                      className={`w-full ${isRTL ? 'pr-10 pl-4' : 'pl-10 pr-4'} py-3 border border-black/15 rounded-xl text-sm outline-none focus:border-ast-primary focus:ring-2 focus:ring-ast-primary/20 transition-all`}
                     />
                     <datalist id="tunisia-governorates">
                       {TUNISIAN_GOVERNORATES.map(gov => (
@@ -258,11 +262,11 @@ export function ProfileForm({ profile }: { profile: Profile }) {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-ast-gray uppercase tracking-wider mb-1.5">Website</label>
+                  <label className="block text-xs font-medium text-ast-gray uppercase tracking-wider mb-1.5">{t('profileWebsite')}</label>
                   <div className="relative">
-                    <Globe size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ast-gray" />
+                    <Globe size={15} className={`absolute ${isRTL ? 'right-3.5' : 'left-3.5'} top-1/2 -translate-y-1/2 text-ast-gray`} />
                     <input value={form.website} onChange={handle('website')} placeholder="https://yoursite.com"
-                      className="w-full pl-10 pr-4 py-3 border border-black/15 rounded-xl text-sm outline-none focus:border-ast-primary focus:ring-2 focus:ring-ast-primary/20 transition-all" />
+                      className={`w-full ${isRTL ? 'pr-10 pl-4' : 'pl-10 pr-4'} py-3 border border-black/15 rounded-xl text-sm outline-none focus:border-ast-primary focus:ring-2 focus:ring-ast-primary/20 transition-all`} />
                   </div>
                 </div>
               </div>
@@ -270,24 +274,24 @@ export function ProfileForm({ profile }: { profile: Profile }) {
               {profile.role === 'FREELANCER' && (
                 <>
                   <div>
-                    <label className="block text-xs font-medium text-ast-gray uppercase tracking-wider mb-1.5">Skills (comma separated)</label>
+                    <label className="block text-xs font-medium text-ast-gray uppercase tracking-wider mb-1.5">{t('profileSkills')}</label>
                     <div className="relative">
-                      <Tag size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ast-gray" />
+                      <Tag size={15} className={`absolute ${isRTL ? 'right-3.5' : 'left-3.5'} top-1/2 -translate-y-1/2 text-ast-gray`} />
                       <input value={form.skills} onChange={handle('skills')} placeholder="React, Node.js, Figma…"
-                        className="w-full pl-10 pr-4 py-3 border border-black/15 rounded-xl text-sm outline-none focus:border-ast-primary focus:ring-2 focus:ring-ast-primary/20 transition-all" />
+                        className={`w-full ${isRTL ? 'pr-10 pl-4' : 'pl-10 pr-4'} py-3 border border-black/15 rounded-xl text-sm outline-none focus:border-ast-primary focus:ring-2 focus:ring-ast-primary/20 transition-all`} />
                     </div>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-medium text-ast-gray uppercase tracking-wider mb-1.5">Hourly Rate (TND)</label>
+                      <label className="block text-xs font-medium text-ast-gray uppercase tracking-wider mb-1.5">{t('profileHourlyRate')}</label>
                       <div className="relative">
-                        <DollarSign size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ast-gray" />
+                        <DollarSign size={15} className={`absolute ${isRTL ? 'right-3.5' : 'left-3.5'} top-1/2 -translate-y-1/2 text-ast-gray`} />
                         <input type="number" min="1" value={form.hourlyRate} onChange={handle('hourlyRate')} placeholder="e.g. 50"
-                          className="w-full pl-10 pr-4 py-3 border border-black/15 rounded-xl text-sm outline-none focus:border-ast-primary focus:ring-2 focus:ring-ast-primary/20 transition-all" />
+                          className={`w-full ${isRTL ? 'pr-10 pl-4' : 'pl-10 pr-4'} py-3 border border-black/15 rounded-xl text-sm outline-none focus:border-ast-primary focus:ring-2 focus:ring-ast-primary/20 transition-all`} />
                       </div>
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-ast-gray uppercase tracking-wider mb-1.5">Languages</label>
+                      <label className="block text-xs font-medium text-ast-gray uppercase tracking-wider mb-1.5">{t('profileLanguages')}</label>
                       <input value={form.languages} onChange={handle('languages')} placeholder="English, Arabic, French"
                         className="w-full px-4 py-3 border border-black/15 rounded-xl text-sm outline-none focus:border-ast-primary focus:ring-2 focus:ring-ast-primary/20 transition-all" />
                     </div>
@@ -298,7 +302,7 @@ export function ProfileForm({ profile }: { profile: Profile }) {
               <div className="flex items-center gap-3 pt-4 border-t border-black/5">
                 <button type="submit" disabled={loading}
                   className="flex items-center gap-2 bg-ast-primary text-white rounded-xl px-6 py-3 text-sm font-semibold hover:bg-ast-dark transition-colors disabled:opacity-60">
-                  {loading ? 'Saving…' : <><Check size={14} /> Save Profile</>}
+                  {loading ? t('profileSaving') : <><Check size={14} /> {t('profileSave')}</>}
                 </button>
               </div>
             </form>
@@ -341,6 +345,7 @@ export function ProfileForm({ profile }: { profile: Profile }) {
           }} 
         />
       )}
+      </div>
       </div>
     </div>
   )

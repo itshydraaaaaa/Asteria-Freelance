@@ -197,6 +197,157 @@ export interface TranslationDictionary {
   // Feedback messages
   savedSuccess: string
   saveError: string
+
+  // Dashboard Overview
+  dashWelcome: string
+  dashFreelancerWorkspace: string
+  dashClientWorkspace: string
+  dashFreelancerSubtitle: string
+  dashClientSubtitle: string
+  dashBrowseOpenJobs: string
+  dashPostNewGig: string
+  dashExploreFreelancerGigs: string
+  dashPostProjectBrief: string
+  dashTotalEarnings: string
+  dashActiveOrders: string
+  dashCompletionRate: string
+  dashPublishedGigs: string
+  dashTotalEscrowSpent: string
+  dashActiveContracts: string
+  dashCompletedJobs: string
+  dashPostedProjects: string
+  dashMonthlyRevenue: string
+  dashMonthlyEscrowSpend: string
+  dashMonthlyCompletedOrders: string
+  dashMonthlyPlacedOrders: string
+  dashRecentContracts: string
+  dashViewAll: string
+  dashNoContracts: string
+  dashNoContractsSub: string
+  dashColOrderId: string
+  dashColParty: string
+  dashColService: string
+  dashColAmount: string
+  dashColStatus: string
+  dashColDate: string
+
+  // Wallet
+  walletTitle: string
+  walletSubtitle: string
+  walletAvailableBalance: string
+  walletTotalPayouts: string
+  walletTotalSpent: string
+  walletEscrowLocked: string
+  walletActiveContracts: string
+  walletOrderActivity: string
+  walletOrdersCount: string
+  walletNoOrders: string
+  walletNoOrdersSub: string
+  walletTopUpCard: string
+  walletWithdrawEarnings: string
+  walletTopUpTitle: string
+  walletWithdrawTitle: string
+  walletAmountToAdd: string
+  walletAmountToWithdraw: string
+  walletPayoutMethod: string
+  walletCancel: string
+  walletPay: string
+  walletRequestWithdraw: string
+
+  // Orders
+  ordersTitle: string
+  ordersSubtitle: string
+  ordersExploreGigs: string
+  ordersNoActiveOrders: string
+  ordersNoActiveOrdersSub: string
+  ordersBrowseGigs: string
+  ordersColGig: string
+  ordersColRole: string
+  ordersColEscrow: string
+  ordersColStatus: string
+  ordersColDate: string
+  ordersColActions: string
+  ordersRoleClient: string
+  ordersRoleFreelancer: string
+  ordersContactSeller: string
+  ordersContactClient: string
+  ordersWorkspace: string
+
+  // Analytics
+  analyticsTitle: string
+  analyticsSubtitle: string
+  analyticsTotalRevenue: string
+  analyticsCompletedOrders: string
+  analyticsFulfillmentRate: string
+  analyticsActiveGigs: string
+  analyticsClientRating: string
+  analyticsRepeatClients: string
+  analyticsEscrowSpent: string
+  analyticsSuccessRate: string
+  analyticsPostedProjects: string
+  analyticsActiveContracts: string
+  analyticsUniqueSellers: string
+  analyticsRevenueFlow: string
+  analyticsContractsVolume: string
+  analyticsContractsDesc: string
+
+  // Verification (KYC)
+  kycTitle: string
+  kycSubtitle: string
+  kycStatusApprovedTitle: string
+  kycStatusApprovedDesc: string
+  kycStatusPendingTitle: string
+  kycStatusPendingDesc: string
+  kycStatusRejectedTitle: string
+  kycStep1: string
+  kycStep2: string
+  kycFullName: string
+  kycDob: string
+  kycCountry: string
+  kycDocType: string
+  kycDocNumber: string
+  kycIdFront: string
+  kycIdBack: string
+  kycSelfie: string
+  kycSubmit: string
+  kycResubmit: string
+  kycSubmitting: string
+
+  // Profile
+  profileTitle: string
+  profileDetails: string
+  profileEdit: string
+  profileCancel: string
+  profileFullName: string
+  profileBio: string
+  profileAboutMe: string
+  profileNoBio: string
+  profileSkills: string
+  profileLanguages: string
+  profileWebsite: string
+  profileHourlyRate: string
+  profileLocation: string
+  profileSave: string
+  profileSaving: string
+  profileUpdatedSuccess: string
+
+  // Gigs & Jobs
+  gigsTitle: string
+  gigsSubtitle: string
+  gigsNewGig: string
+  gigsNoGigs: string
+  gigsNoGigsSub: string
+  gigsCreateFirst: string
+  gigsDeliveryDays: string
+  gigsPreview: string
+  gigsEdit: string
+  jobsTitle: string
+  jobsSubtitle: string
+  jobsNewProject: string
+  jobsNoJobs: string
+  jobsNoJobsSub: string
+  jobsPostFirst: string
+  jobsApplications: string
 }
 
 export const TRANSLATIONS: Record<SupportedLanguage, TranslationDictionary> = {
@@ -383,6 +534,157 @@ export const TRANSLATIONS: Record<SupportedLanguage, TranslationDictionary> = {
 
     savedSuccess: 'Preferences Saved Successfully',
     saveError: 'Failed to save settings. Please try again.',
+
+    // Dashboard Overview
+    dashWelcome: 'Welcome back',
+    dashFreelancerWorkspace: 'Freelancer Workspace',
+    dashClientWorkspace: 'Client Workspace',
+    dashFreelancerSubtitle: 'Offer your custom services, manage incoming orders, and browse open client projects.',
+    dashClientSubtitle: 'Post new project briefs, explore top MENA freelancer services, and manage your escrow orders.',
+    dashBrowseOpenJobs: 'Browse Open Jobs',
+    dashPostNewGig: 'Post a New Gig',
+    dashExploreFreelancerGigs: 'Explore Freelancer Gigs',
+    dashPostProjectBrief: 'Post a Project Brief',
+    dashTotalEarnings: 'Total Earnings',
+    dashActiveOrders: 'Active Orders',
+    dashCompletionRate: 'Completion Rate',
+    dashPublishedGigs: 'Published Gigs',
+    dashTotalEscrowSpent: 'Total Escrow Spent',
+    dashActiveContracts: 'Active Contracts',
+    dashCompletedJobs: 'Completed Jobs',
+    dashPostedProjects: 'Posted Projects',
+    dashMonthlyRevenue: 'Monthly Revenue (TND)',
+    dashMonthlyEscrowSpend: 'Monthly Escrow Spend (TND)',
+    dashMonthlyCompletedOrders: 'Monthly Orders Completed',
+    dashMonthlyPlacedOrders: 'Monthly Orders Placed',
+    dashRecentContracts: 'Recent Contracts & Orders',
+    dashViewAll: 'View All',
+    dashNoContracts: 'No contracts found yet.',
+    dashNoContractsSub: 'Start browsing jobs or post a service to begin transacting.',
+    dashColOrderId: 'Order ID',
+    dashColParty: 'Party',
+    dashColService: 'Service / Project',
+    dashColAmount: 'Amount',
+    dashColStatus: 'Status',
+    dashColDate: 'Date',
+
+    // Wallet
+    walletTitle: 'My Wallet',
+    walletSubtitle: 'Escrow balances, payouts, and ledger transactions',
+    walletAvailableBalance: 'Available Balance',
+    walletTotalPayouts: 'Total Payouts (88%)',
+    walletTotalSpent: 'Total Spent',
+    walletEscrowLocked: 'Escrow Locked',
+    walletActiveContracts: 'Active Contracts',
+    walletOrderActivity: 'Order & Escrow Activity',
+    walletOrdersCount: 'orders',
+    walletNoOrders: 'No orders yet.',
+    walletNoOrdersSub: 'Start contracts on Asteria to see your transaction history.',
+    walletTopUpCard: 'Top Up with Card / Stripe',
+    walletWithdrawEarnings: 'Withdraw Earnings',
+    walletTopUpTitle: 'Top Up Wallet',
+    walletWithdrawTitle: 'Request Withdrawal',
+    walletAmountToAdd: 'Amount to Add (TND) *',
+    walletAmountToWithdraw: 'Withdrawal Amount (TND) *',
+    walletPayoutMethod: 'Payout Method *',
+    walletCancel: 'Cancel',
+    walletPay: 'Pay',
+    walletRequestWithdraw: 'Submit Withdrawal',
+
+    // Orders
+    ordersTitle: 'My Orders',
+    ordersSubtitle: 'Track active orders, workspace deliverables, and direct client/seller chats',
+    ordersExploreGigs: 'Explore Gigs',
+    ordersNoActiveOrders: 'No Active Orders Yet',
+    ordersNoActiveOrdersSub: 'Place an order on any gig or negotiate a custom offer in messages to see your active escrow workspace here.',
+    ordersBrowseGigs: 'Browse Marketplace Gigs',
+    ordersColGig: 'Gig Service',
+    ordersColRole: 'Role',
+    ordersColEscrow: 'Escrow Amount',
+    ordersColStatus: 'Status',
+    ordersColDate: 'Date',
+    ordersColActions: 'Actions',
+    ordersRoleClient: 'Client (Buyer)',
+    ordersRoleFreelancer: 'Freelancer',
+    ordersContactSeller: 'Contact Seller',
+    ordersContactClient: 'Contact Client',
+    ordersWorkspace: 'Workspace',
+
+    // Analytics
+    analyticsTitle: 'Workspace Analytics',
+    analyticsSubtitle: 'Live performance metrics computed from your contracts',
+    analyticsTotalRevenue: 'Total Revenue',
+    analyticsCompletedOrders: 'Completed Orders',
+    analyticsFulfillmentRate: 'Fulfillment Rate',
+    analyticsActiveGigs: 'Active Gigs',
+    analyticsClientRating: 'Client Rating',
+    analyticsRepeatClients: 'Repeat Clients',
+    analyticsEscrowSpent: 'Escrow Spent',
+    analyticsSuccessRate: 'Success Rate',
+    analyticsPostedProjects: 'Posted Projects',
+    analyticsActiveContracts: 'Active Contracts',
+    analyticsUniqueSellers: 'Unique Sellers',
+    analyticsRevenueFlow: 'Actual financial flow from delivered milestones',
+    analyticsContractsVolume: 'Contracts Volume',
+    analyticsContractsDesc: 'Total orders processed per month',
+
+    // Verification (KYC)
+    kycTitle: 'Identity Verification (KYC)',
+    kycSubtitle: 'Verify your official identity to unlock verified freelancer badge, higher limits, and platform trust.',
+    kycStatusApprovedTitle: 'Identity Verified',
+    kycStatusApprovedDesc: 'Your official documents have been verified by Asteria Administration. Your account holds full verified status.',
+    kycStatusPendingTitle: 'Verification Under Admin Review',
+    kycStatusPendingDesc: 'Your identity documents were submitted and are currently pending review in the Master Admin panel.',
+    kycStatusRejectedTitle: 'Verification Request Rejected',
+    kycStep1: '1. Personal Information',
+    kycStep2: '2. Upload Document Photos (Scanned & Verified)',
+    kycFullName: 'Full Legal Name *',
+    kycDob: 'Date of Birth *',
+    kycCountry: 'Country of Residence *',
+    kycDocType: 'Document Type *',
+    kycDocNumber: 'Document ID Number *',
+    kycIdFront: 'ID Front Side',
+    kycIdBack: 'ID Back Side',
+    kycSelfie: 'Selfie Verification',
+    kycSubmit: 'Submit Verification Request',
+    kycResubmit: 'Update & Resubmit Verification',
+    kycSubmitting: 'Submitting Verification...',
+
+    // Profile
+    profileTitle: 'Profile Settings',
+    profileDetails: 'Profile Details',
+    profileEdit: 'Edit Profile',
+    profileCancel: 'Cancel',
+    profileFullName: 'Full Name',
+    profileBio: 'Bio',
+    profileAboutMe: 'About Me',
+    profileNoBio: 'No bio provided.',
+    profileSkills: 'Skills',
+    profileLanguages: 'Languages',
+    profileWebsite: 'Website',
+    profileHourlyRate: 'Hourly Rate',
+    profileLocation: 'Location',
+    profileSave: 'Save Profile',
+    profileSaving: 'Saving...',
+    profileUpdatedSuccess: 'Profile updated successfully!',
+
+    // Gigs & Jobs
+    gigsTitle: 'My Gigs',
+    gigsSubtitle: 'active services listed in marketplace',
+    gigsNewGig: 'New Gig',
+    gigsNoGigs: 'No gigs published yet',
+    gigsNoGigsSub: 'Create your service listings and start receiving orders from clients across Tunisia and MENA.',
+    gigsCreateFirst: 'Create Your First Gig',
+    gigsDeliveryDays: 'd delivery',
+    gigsPreview: 'Preview',
+    gigsEdit: 'Edit',
+    jobsTitle: 'My Posted Jobs & Applications',
+    jobsSubtitle: 'Manage your job listings, review freelancer proposals, compare bids and portfolios, and hire your talent into secure escrow.',
+    jobsNewProject: 'Post New Project',
+    jobsNoJobs: 'No Posted Projects Yet',
+    jobsNoJobsSub: 'Publish a project brief to receive proposals and competitive bids from top verified freelancers across Tunisia.',
+    jobsPostFirst: 'Post Your First Job',
+    jobsApplications: 'applications',
   },
 
   French: {
@@ -568,6 +870,157 @@ export const TRANSLATIONS: Record<SupportedLanguage, TranslationDictionary> = {
 
     savedSuccess: 'Paramètres enregistrés avec succès',
     saveError: 'Erreur lors de l’enregistrement. Veuillez réessayer.',
+
+    // Dashboard Overview
+    dashWelcome: 'Bon retour',
+    dashFreelancerWorkspace: 'Espace Freelance',
+    dashClientWorkspace: 'Espace Client',
+    dashFreelancerSubtitle: 'Gérez vos services, traitez les commandes entrantes et postulez aux projets ouverts.',
+    dashClientSubtitle: 'Publiez vos besoins de projets, explorez les services d’experts et gérez vos paiements séquestrés.',
+    dashBrowseOpenJobs: 'Explorer les missions',
+    dashPostNewGig: 'Nouveau microservice',
+    dashExploreFreelancerGigs: 'Explorer les services',
+    dashPostProjectBrief: 'Publier un projet',
+    dashTotalEarnings: 'Revenus totaux',
+    dashActiveOrders: 'Commandes en cours',
+    dashCompletionRate: 'Taux de complétion',
+    dashPublishedGigs: 'Microservices actifs',
+    dashTotalEscrowSpent: 'Escrow total dépensé',
+    dashActiveContracts: 'Contrats en cours',
+    dashCompletedJobs: 'Projets terminés',
+    dashPostedProjects: 'Projets publiés',
+    dashMonthlyRevenue: 'Revenus mensuels (TND)',
+    dashMonthlyEscrowSpend: 'Dépenses séquestrées (TND)',
+    dashMonthlyCompletedOrders: 'Commandes terminées',
+    dashMonthlyPlacedOrders: 'Commandes passées',
+    dashRecentContracts: 'Contrats & Commandes Récents',
+    dashViewAll: 'Voir tout',
+    dashNoContracts: 'Aucun contrat pour le moment.',
+    dashNoContractsSub: 'Parcourez les offres ou publiez un service pour commencer.',
+    dashColOrderId: 'N° Commande',
+    dashColParty: 'Partenaire',
+    dashColService: 'Service / Projet',
+    dashColAmount: 'Montant',
+    dashColStatus: 'Statut',
+    dashColDate: 'Date',
+
+    // Wallet
+    walletTitle: 'Mon Portefeuille',
+    walletSubtitle: 'Soldes séquestrés, virements et historique certifié des transactions',
+    walletAvailableBalance: 'Solde disponible',
+    walletTotalPayouts: 'Total versé (88%)',
+    walletTotalSpent: 'Total dépensé',
+    walletEscrowLocked: 'Bloqué sous séquestre',
+    walletActiveContracts: 'Contrats actifs',
+    walletOrderActivity: 'Activité des commandes & Escrow',
+    walletOrdersCount: 'commandes',
+    walletNoOrders: 'Aucune commande enregistrée.',
+    walletNoOrdersSub: 'Démarrez des contrats sur Asteria pour afficher l’historique des transactions.',
+    walletTopUpCard: 'Recharger par carte / Stripe',
+    walletWithdrawEarnings: 'Demander un retrait',
+    walletTopUpTitle: 'Recharger le portefeuille',
+    walletWithdrawTitle: 'Demande de retrait',
+    walletAmountToAdd: 'Montant à ajouter (TND) *',
+    walletAmountToWithdraw: 'Montant à retirer (TND) *',
+    walletPayoutMethod: 'Mode de versement *',
+    walletCancel: 'Annuler',
+    walletPay: 'Payer',
+    walletRequestWithdraw: 'Valider le retrait',
+
+    // Orders
+    ordersTitle: 'Mes Commandes',
+    ordersSubtitle: 'Suivi des commandes actives, des livrables et échanges en direct',
+    ordersExploreGigs: 'Explorer les services',
+    ordersNoActiveOrders: 'Aucune commande active',
+    ordersNoActiveOrdersSub: 'Commandez un service ou convenez d’une offre personnalisée pour ouvrir votre espace de travail.',
+    ordersBrowseGigs: 'Explorer le catalogue',
+    ordersColGig: 'Service / Mission',
+    ordersColRole: 'Rôle',
+    ordersColEscrow: 'Montant sous séquestre',
+    ordersColStatus: 'Statut',
+    ordersColDate: 'Date',
+    ordersColActions: 'Actions',
+    ordersRoleClient: 'Client (Acheteur)',
+    ordersRoleFreelancer: 'Freelance',
+    ordersContactSeller: 'Contacter le freelance',
+    ordersContactClient: 'Contacter le client',
+    ordersWorkspace: 'Espace de travail',
+
+    // Analytics
+    analyticsTitle: 'Statistiques & Performances',
+    analyticsSubtitle: 'Indicateurs en temps réel calculés à partir de vos contrats',
+    analyticsTotalRevenue: 'Revenus totaux',
+    analyticsCompletedOrders: 'Commandes livrées',
+    analyticsFulfillmentRate: 'Taux de succès',
+    analyticsActiveGigs: 'Services actifs',
+    analyticsClientRating: 'Note clients',
+    analyticsRepeatClients: 'Clients fidèles',
+    analyticsEscrowSpent: 'Dépenses sous séquestre',
+    analyticsSuccessRate: 'Taux de libération',
+    analyticsPostedProjects: 'Projets publiés',
+    analyticsActiveContracts: 'Contrats en cours',
+    analyticsUniqueSellers: 'Freelances engagés',
+    analyticsRevenueFlow: 'Flux financier réel issu des livrables validés',
+    analyticsContractsVolume: 'Volume de contrats',
+    analyticsContractsDesc: 'Nombre total de commandes traitées par mois',
+
+    // Verification (KYC)
+    kycTitle: 'Vérification d’Identité (KYC)',
+    kycSubtitle: 'Vérifiez votre identité officielle pour obtenir le badge freelance vérifié et renforcer la confiance.',
+    kycStatusApprovedTitle: 'Identité Vérifiée',
+    kycStatusApprovedDesc: 'Vos documents officiels ont été validés par l’administration Asteria. Votre compte est certifié.',
+    kycStatusPendingTitle: 'Vérification en cours d’examen',
+    kycStatusPendingDesc: 'Vos pièces d’identité ont été transmises et sont actuellement examinées par notre équipe.',
+    kycStatusRejectedTitle: 'Demande de vérification refusée',
+    kycStep1: '1. Informations Personnelles',
+    kycStep2: '2. Téléchargement des Documents (Photo nette)',
+    kycFullName: 'Nom complet officiel *',
+    kycDob: 'Date de naissance *',
+    kycCountry: 'Pays de résidence *',
+    kycDocType: 'Type de document *',
+    kycDocNumber: 'Numéro de document *',
+    kycIdFront: 'Recto du document',
+    kycIdBack: 'Verso du document',
+    kycSelfie: 'Selfie de vérification',
+    kycSubmit: 'Soumettre la vérification',
+    kycResubmit: 'Mettre à jour & renvoyer',
+    kycSubmitting: 'Envoi en cours...',
+
+    // Profile
+    profileTitle: 'Paramètres du Profil',
+    profileDetails: 'Détails du Profil',
+    profileEdit: 'Modifier le profil',
+    profileCancel: 'Annuler',
+    profileFullName: 'Nom complet',
+    profileBio: 'Biographie',
+    profileAboutMe: 'À propos de moi',
+    profileNoBio: 'Aucune description renseignée.',
+    profileSkills: 'Compétences',
+    profileLanguages: 'Langues parlées',
+    profileWebsite: 'Site web ou Portfolio',
+    profileHourlyRate: 'Tarif horaire',
+    profileLocation: 'Localisation (Gouvernorat)',
+    profileSave: 'Enregistrer le profil',
+    profileSaving: 'Enregistrement...',
+    profileUpdatedSuccess: 'Profil mis à jour avec succès !',
+
+    // Gigs & Jobs
+    gigsTitle: 'Mes Microservices',
+    gigsSubtitle: 'services en ligne sur la plateforme',
+    gigsNewGig: 'Nouveau service',
+    gigsNoGigs: 'Aucun service publié pour le moment',
+    gigsNoGigsSub: 'Créez vos offres pour recevoir des commandes de clients en Tunisie et dans la région MENA.',
+    gigsCreateFirst: 'Créer mon premier service',
+    gigsDeliveryDays: 'j de livraison',
+    gigsPreview: 'Aperçu',
+    gigsEdit: 'Modifier',
+    jobsTitle: 'Mes Projets Publiés & Candidatures',
+    jobsSubtitle: 'Gérez vos projets, étudiez les propositions des freelances et engagez vos talents sous séquestre sécurisé.',
+    jobsNewProject: 'Publier un projet',
+    jobsNoJobs: 'Aucun projet publié pour le moment',
+    jobsNoJobsSub: 'Publiez un cahier des charges pour recevoir des devis compétitifs des meilleurs freelances en Tunisie.',
+    jobsPostFirst: 'Publier mon premier projet',
+    jobsApplications: 'candidatures',
   },
 
   Arabic: {
@@ -753,5 +1206,156 @@ export const TRANSLATIONS: Record<SupportedLanguage, TranslationDictionary> = {
 
     savedSuccess: 'تم حفظ التفضيلات بنجاح',
     saveError: 'تعذر حفظ الإعدادات، يرجى إعادة المحاولة.',
+
+    // Dashboard Overview
+    dashWelcome: 'مرحباً بعودتك',
+    dashFreelancerWorkspace: 'مساحة عمل المستقل',
+    dashClientWorkspace: 'مساحة عمل صاحب المشاريع',
+    dashFreelancerSubtitle: 'قدّم خدماتك، تابع الطلبات الواردة وتصفح مشاريع الشركات التونسية.',
+    dashClientSubtitle: 'انشر طلبات مشاريعك، استكشف خدمات الكفاءات التونسية، وقم بإدارة عقود الضمان المالي.',
+    dashBrowseOpenJobs: 'تصفح المشاريع المفتوحة',
+    dashPostNewGig: 'إضافة خدمة مصغرة',
+    dashExploreFreelancerGigs: 'استكشاف خدمات المستقلين',
+    dashPostProjectBrief: 'نشر مشروع جديد',
+    dashTotalEarnings: 'إجمالي الأرباح',
+    dashActiveOrders: 'الطلبات الجارية',
+    dashCompletionRate: 'نسبة الإنجاز',
+    dashPublishedGigs: 'الخدمات المنشورة',
+    dashTotalEscrowSpent: 'إجمالي المبالغ المؤمنة',
+    dashActiveContracts: 'العقود النشطة',
+    dashCompletedJobs: 'المشاريع المكتملة',
+    dashPostedProjects: 'المشاريع المعلنة',
+    dashMonthlyRevenue: 'الدخل الشهري (د.ت)',
+    dashMonthlyEscrowSpend: 'المصروفات في الضمان (د.ت)',
+    dashMonthlyCompletedOrders: 'الطلبات المسلمة شهرياً',
+    dashMonthlyPlacedOrders: 'الطلبات المفتوحة شهرياً',
+    dashRecentContracts: 'أحدث العقود والطلبات',
+    dashViewAll: 'عرض الكل',
+    dashNoContracts: 'لا توجد عقود حتى الآن.',
+    dashNoContractsSub: 'ابدأ بتصفح المشاريع أو انشر خدمتك للبدء في المعاملات.',
+    dashColOrderId: 'رقم الطلب',
+    dashColParty: 'الطرف الآخر',
+    dashColService: 'الخدمة / المشروع',
+    dashColAmount: 'المبلغ',
+    dashColStatus: 'الحالة',
+    dashColDate: 'التاريخ',
+
+    // Wallet
+    walletTitle: 'محفظتي الإلكترونية',
+    walletSubtitle: 'أرصدة الضمان المالي، طلبات السحب، وسجل المعاملات المزدوج',
+    walletAvailableBalance: 'الرصيد القابل للاستخدام',
+    walletTotalPayouts: 'إجمالي السحوبات (88%)',
+    walletTotalSpent: 'إجمالي المصروفات',
+    walletEscrowLocked: 'محجوز في الضمان (Escrow)',
+    walletActiveContracts: 'العقود السارية',
+    walletOrderActivity: 'نشاط الطلبات والضمان المالي',
+    walletOrdersCount: 'طلبات',
+    walletNoOrders: 'لا توجد معاملات بعد.',
+    walletNoOrdersSub: 'ابدأ العقود على أستيريا لمتابعة سجل حركات أموالك.',
+    walletTopUpCard: 'شحن المحفظة بالبطاقة البنكية',
+    walletWithdrawEarnings: 'طلب سحب الأرباح',
+    walletTopUpTitle: 'شحن رصيد المحفظة',
+    walletWithdrawTitle: 'طلب سحب رصيد',
+    walletAmountToAdd: 'المبلغ المراد إضافته (د.ت) *',
+    walletAmountToWithdraw: 'المبلغ المراد سحبه (د.ت) *',
+    walletPayoutMethod: 'طريقة استلام الأموال *',
+    walletCancel: 'إلغاء',
+    walletPay: 'دفع الآن',
+    walletRequestWithdraw: 'تأكيد طلب السحب',
+
+    // Orders
+    ordersTitle: 'طلباتي وعقودي',
+    ordersSubtitle: 'متابعة الطلبات المفتوحة، تسليم الملفات، والمحادثات المباشرة',
+    ordersExploreGigs: 'استكشاف الخدمات',
+    ordersNoActiveOrders: 'لا توجد طلبات جارية',
+    ordersNoActiveOrdersSub: 'قم بطلب خدمة أو الاتفاق على عرض مخصص في الرسائل لفتح مساحة العمل الآمنة هنا.',
+    ordersBrowseGigs: 'تصفح خدمات السوق',
+    ordersColGig: 'الخدمة / الطلب',
+    ordersColRole: 'الدور',
+    ordersColEscrow: 'المبلغ بالضمان',
+    ordersColStatus: 'الحالة',
+    ordersColDate: 'التاريخ',
+    ordersColActions: 'الإجراءات',
+    ordersRoleClient: 'صاحب عمل (مشتري)',
+    ordersRoleFreelancer: 'مستقل (بائع)',
+    ordersContactSeller: 'مراسلة البائع',
+    ordersContactClient: 'مراسلة العميل',
+    ordersWorkspace: 'مساحة العمل',
+
+    // Analytics
+    analyticsTitle: 'إحصائيات الأداء والأرباح',
+    analyticsSubtitle: 'مؤشرات أداء مباشرة مستخرجة من عقودك المنجزة',
+    analyticsTotalRevenue: 'إجمالي المداخيل',
+    analyticsCompletedOrders: 'الطلبات المكتملة',
+    analyticsFulfillmentRate: 'معدل النجاح',
+    analyticsActiveGigs: 'الخدمات المتاحة',
+    analyticsClientRating: 'تقييم العملاء',
+    analyticsRepeatClients: 'العملاء الدائمون',
+    analyticsEscrowSpent: 'المصروف في الضمان',
+    analyticsSuccessRate: 'نسبة الإفراج المالي',
+    analyticsPostedProjects: 'المشاريع المنشورة',
+    analyticsActiveContracts: 'العقود قيد التنفيذ',
+    analyticsUniqueSellers: 'المستقلون المتعاقد معهم',
+    analyticsRevenueFlow: 'التدفق المالي الحقيقي من المراحل المسلمة',
+    analyticsContractsVolume: 'حجم العقود والطلبات',
+    analyticsContractsDesc: 'إجمالي الطلبات المعالجة شهرياً',
+
+    // Verification (KYC)
+    kycTitle: 'توثيق الهوية الرسمية (CIN)',
+    kycSubtitle: 'وثق هويتك للحصول على شارة المستقل الموثوق ورفع سقف المعاملات المالية.',
+    kycStatusApprovedTitle: 'الهوية موثقة ومعتمدة',
+    kycStatusApprovedDesc: 'تم التحقق من وثائقك الرسمية من قبل إدارة أستيريا. حسابك يتمتع بصفة التوثيق الكاملة.',
+    kycStatusPendingTitle: 'التوثيق قيد المراجعة الإدارية',
+    kycStatusPendingDesc: 'تم إرسال مستنداتك وهي قيد التدقيق لدى الإدارة وسنوافيك بالرد قريباً.',
+    kycStatusRejectedTitle: 'تم رفض طلب التوثيق',
+    kycStep1: '1. البيانات الشخصية',
+    kycStep2: '2. رفع صور الوثائق (واضحة ومقروءة)',
+    kycFullName: 'الاسم واللقب كما في بطاقة التعريف *',
+    kycDob: 'تاريخ الولادة *',
+    kycCountry: 'بلد الإقامة *',
+    kycDocType: 'نوع الوثيقة الرسمية *',
+    kycDocNumber: 'رقم بطاقة التعريف الوطنية (8 أرقام) *',
+    kycIdFront: 'الوجه الأمامي للبطاقة',
+    kycIdBack: 'الوجه الخلفي للبطاقة',
+    kycSelfie: 'صورة شخصية مع بطاقة التعريف (سيلفي)',
+    kycSubmit: 'إرسال طلب التوثيق',
+    kycResubmit: 'تعديل وإعادة إرسال المستندات',
+    kycSubmitting: 'جاري إرسال المستندات...',
+
+    // Profile
+    profileTitle: 'إعدادات الملف الشخصي',
+    profileDetails: 'تفاصيل الحساب',
+    profileEdit: 'تعديل الملف',
+    profileCancel: 'إلغاء التعديل',
+    profileFullName: 'الاسم واللقب',
+    profileBio: 'النبذة التعريفية',
+    profileAboutMe: 'نبذة عني',
+    profileNoBio: 'لم تتم إضافة نبذة تعريفية بعد.',
+    profileSkills: 'المهارات والتقنيات',
+    profileLanguages: 'اللغات',
+    profileWebsite: 'الموقع الإلكتروني أو البورتفوليو',
+    profileHourlyRate: 'سعر الساعة (د.ت)',
+    profileLocation: 'الولاية أو المدينة (تونس)',
+    profileSave: 'حفظ التعديلات',
+    profileSaving: 'جاري الحفظ...',
+    profileUpdatedSuccess: 'تم تحديث الملف الشخصي بنجاح!',
+
+    // Gigs & Jobs
+    gigsTitle: 'خدماتي المصغرة',
+    gigsSubtitle: 'خدمات منشورة في سوق أستيريا',
+    gigsNewGig: 'إضافة خدمة جديدة',
+    gigsNoGigs: 'لم تنشر أي خدمة بعد',
+    gigsNoGigsSub: 'أنشئ عروض خدماتك وتلق طلبات مباشرة من العملاء في تونس وخارجها.',
+    gigsCreateFirst: 'إنشاء أول خدمة الآن',
+    gigsDeliveryDays: 'أيام للتسليم',
+    gigsPreview: 'معاينة',
+    gigsEdit: 'تعديل',
+    jobsTitle: 'مشاريعي المعلنة وطلبات التقديم',
+    jobsSubtitle: 'تابع مشاريعك، راجع عروض المستقلين، وقارن الأسعار مع الدفع المضمون.',
+    jobsNewProject: 'نشر مشروع جديد',
+    jobsNoJobs: 'لم تقم بنشر أي مشروع بعد',
+    jobsNoJobsSub: 'انشر متطلبات مشروعك وتلق عروض أسعار تنافسية من أفضل المستقلين التونسيين.',
+    jobsPostFirst: 'نشر أول مشروع الآن',
+    jobsApplications: 'عروض تقديم',
   },
 }

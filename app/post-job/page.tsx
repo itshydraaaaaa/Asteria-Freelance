@@ -253,9 +253,11 @@ export default function PostJobPage() {
                   {/* Payment Structure */}
                   <div className="space-y-2">
                     <label className="block text-xs font-semibold text-black">Payment Escrow Structure</label>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div role="radiogroup" aria-label="Payment Escrow Structure" className="grid grid-cols-2 gap-3">
                       <button
                         type="button"
+                        role="radio"
+                        aria-checked={form.paymentStructure === 'FULL_JOB'}
                         onClick={() => setForm(f => ({ ...f, paymentStructure: 'FULL_JOB' }))}
                         className={`p-3.5 rounded-2xl border text-left transition-all ${
                           form.paymentStructure === 'FULL_JOB'
@@ -263,12 +265,21 @@ export default function PostJobPage() {
                             : 'border-black/10 bg-white hover:border-black/20'
                         }`}
                       >
-                        <span className="font-semibold text-xs text-black block mb-0.5">Fixed Price (Full Job)</span>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-semibold text-xs text-black">Fixed Price (Full Job)</span>
+                          <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
+                            form.paymentStructure === 'FULL_JOB' ? 'border-ast-primary bg-ast-primary' : 'border-black/25 bg-white'
+                          }`}>
+                            {form.paymentStructure === 'FULL_JOB' && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+                          </span>
+                        </div>
                         <p className="text-[11px] text-ast-gray">Pay 100% in escrow, released upon full completion.</p>
                       </button>
 
                       <button
                         type="button"
+                        role="radio"
+                        aria-checked={form.paymentStructure === 'MILESTONE'}
                         onClick={() => setForm(f => ({ ...f, paymentStructure: 'MILESTONE' }))}
                         className={`p-3.5 rounded-2xl border text-left transition-all ${
                           form.paymentStructure === 'MILESTONE'
@@ -276,7 +287,14 @@ export default function PostJobPage() {
                             : 'border-black/10 bg-white hover:border-black/20'
                         }`}
                       >
-                        <span className="font-semibold text-xs text-black block mb-0.5">Milestone Payments</span>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-semibold text-xs text-black">Milestone Payments</span>
+                          <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
+                            form.paymentStructure === 'MILESTONE' ? 'border-ast-primary bg-ast-primary' : 'border-black/25 bg-white'
+                          }`}>
+                            {form.paymentStructure === 'MILESTONE' && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+                          </span>
+                        </div>
                         <p className="text-[11px] text-ast-gray">Divide project into funded progressive phases.</p>
                       </button>
                     </div>

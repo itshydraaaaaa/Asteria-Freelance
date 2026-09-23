@@ -75,20 +75,27 @@ export default function RegisterPage() {
 
         <div className="bg-white rounded-3xl p-8 shadow-2xl">
           {/* Role selector */}
-          <div className="grid grid-cols-2 gap-3 mb-6">
+          <div role="radiogroup" aria-label="Account Role" className="grid grid-cols-2 gap-3 mb-6">
             {(['CLIENT', 'FREELANCER'] as Role[]).map(r => (
               <motion.button
                 key={r}
                 type="button"
+                role="radio"
+                aria-checked={role === r}
                 onClick={() => { setRole(r); setError('') }}
                 whileTap={{ scale: 0.97 }}
-                className={`py-3 rounded-xl text-xs font-semibold border-2 transition-all ${
+                className={`py-3 px-3 rounded-xl text-xs font-semibold border-2 transition-all flex items-center justify-between gap-2 ${
                   role === r
                     ? 'border-ast-primary bg-ast-primary text-white shadow-sm'
                     : 'border-black/15 text-ast-gray hover:border-ast-primary/50 hover:text-ast-primary'
                 }`}
               >
-                {r === 'CLIENT' ? `🏢 ${t('authRoleClient')}` : `💼 ${t('authRoleFreelancer')}`}
+                <span className="truncate">{r === 'CLIENT' ? `🏢 ${t('authRoleClient')}` : `💼 ${t('authRoleFreelancer')}`}</span>
+                <span className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                  role === r ? 'border-white bg-white' : 'border-black/25 bg-white'
+                }`}>
+                  {role === r && <span className="w-1.5 h-1.5 rounded-full bg-ast-primary" />}
+                </span>
               </motion.button>
             ))}
           </div>

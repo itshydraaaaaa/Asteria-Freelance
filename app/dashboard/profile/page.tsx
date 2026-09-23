@@ -41,10 +41,5 @@ export default async function ProfilePage() {
     languages: ['Arabic', 'English', 'French'],
   }
 
-  return (
-    <div>
-      <h1 className="font-heading font-bold text-3xl text-black mb-8">Profile Settings</h1>
-      <ProfileForm profile={profile} />
-    </div>
-  )
+  return <ProfileForm profile={profile} />
 }

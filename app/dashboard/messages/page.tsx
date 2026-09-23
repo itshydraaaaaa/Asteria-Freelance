@@ -501,29 +501,43 @@ function MessagesContent() {
               {/* Payment Mode Selector */}
               <div className="space-y-1.5">
                 <label className="block text-xs font-semibold text-ast-dark">Payment Structure</label>
-                <div className="grid grid-cols-2 gap-2 text-xs">
+                <div role="radiogroup" aria-label="Payment Structure" className="grid grid-cols-2 gap-2 text-xs">
                   <button
                     type="button"
+                    role="radio"
+                    aria-checked={offerPaymentMode === 'FULL_JOB'}
                     onClick={() => setOfferPaymentMode('FULL_JOB')}
-                    className={`p-2.5 rounded-xl border text-left transition-all ${
+                    className={`p-2.5 rounded-xl border text-left transition-all flex items-center justify-between ${
                       offerPaymentMode === 'FULL_JOB'
                         ? 'border-ast-primary bg-ast-primary/5 ring-1 ring-ast-primary font-bold text-black'
                         : 'border-black/10 text-ast-gray hover:text-black bg-white'
                     }`}
                   >
                     <span>🚀 Full Job (100%)</span>
+                    <span className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                      offerPaymentMode === 'FULL_JOB' ? 'border-ast-primary bg-ast-primary' : 'border-black/25 bg-white'
+                    }`}>
+                      {offerPaymentMode === 'FULL_JOB' && <span className="w-1 h-1 rounded-full bg-white" />}
+                    </span>
                   </button>
 
                   <button
                     type="button"
+                    role="radio"
+                    aria-checked={offerPaymentMode === 'MILESTONE'}
                     onClick={() => setOfferPaymentMode('MILESTONE')}
-                    className={`p-2.5 rounded-xl border text-left transition-all ${
+                    className={`p-2.5 rounded-xl border text-left transition-all flex items-center justify-between ${
                       offerPaymentMode === 'MILESTONE'
                         ? 'border-ast-primary bg-ast-primary/5 ring-1 ring-ast-primary font-bold text-black'
                         : 'border-black/10 text-ast-gray hover:text-black bg-white'
                     }`}
                   >
                     <span>📑 Milestone Phases</span>
+                    <span className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                      offerPaymentMode === 'MILESTONE' ? 'border-ast-primary bg-ast-primary' : 'border-black/25 bg-white'
+                    }`}>
+                      {offerPaymentMode === 'MILESTONE' && <span className="w-1 h-1 rounded-full bg-white" />}
+                    </span>
                   </button>
                 </div>
               </div>

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { ShieldCheck, Upload, CheckCircle2, AlertCircle, Clock, FileText, UserCheck, ArrowRight, Loader2, X, Image as ImageIcon } from 'lucide-react'
 import { isValidTunisianCIN } from '@/lib/country'
+import { useLanguage } from '@/components/providers/LanguageContext'
 
 interface UploadBoxProps {
   label: string
@@ -112,6 +113,7 @@ function UploadBox({ label, subtitle, value, onChange, disabled }: UploadBoxProp
 }
 
 export default function VerificationPage() {
+  const { t, isRTL, dir } = useLanguage()
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [verification, setVerification] = useState<any>(null)
@@ -214,16 +216,16 @@ export default function VerificationPage() {
   const status = verification?.status ?? 'UNSUBMITTED'
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
+    <div className={`max-w-4xl mx-auto space-y-8 ${isRTL ? 'text-right' : 'text-left'}`} dir={dir}>
       {/* Header */}
       <div className="flex items-center gap-4">
-        <div className="w-12 h-12 rounded-2xl bg-ast-primary/10 flex items-center justify-center text-ast-primary border border-ast-primary/20">
+        <div className="w-12 h-12 rounded-2xl bg-ast-primary/10 flex items-center justify-center text-ast-primary border border-ast-primary/20 shrink-0">
           <ShieldCheck size={26} />
         </div>
         <div>
-          <h1 className="font-heading font-bold text-3xl text-black">Identity Verification (KYC)</h1>
+          <h1 className="font-heading font-bold text-3xl text-black">{t('kycTitle')}</h1>
           <p className="text-ast-gray text-sm mt-0.5">
-            Verify your official identity to unlock verified freelancer badge, higher limits, and platform trust.
+            {t('kycSubtitle')}
           </p>
         </div>
       </div>
@@ -233,9 +235,9 @@ export default function VerificationPage() {
         <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-6 flex items-start gap-4">
           <CheckCircle2 size={28} className="text-emerald-600 shrink-0 mt-0.5" />
           <div>
-            <h3 className="font-heading font-bold text-lg text-emerald-900">Identity Verified</h3>
+            <h3 className="font-heading font-bold text-lg text-emerald-900">{t('kycStatusApprovedTitle')}</h3>
             <p className="text-emerald-700 text-sm mt-1">
-              Your official documents have been verified by Asteria Administration. Your account holds full verified status.
+              {t('kycStatusApprovedDesc')}
             </p>
           </div>
         </div>
@@ -245,9 +247,9 @@ export default function VerificationPage() {
         <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 flex items-start gap-4">
           <Clock size={28} className="text-amber-600 shrink-0 mt-0.5 animate-pulse" />
           <div className="flex-1">
-            <h3 className="font-heading font-bold text-lg text-amber-900">Verification Under Admin Review</h3>
+            <h3 className="font-heading font-bold text-lg text-amber-900">{t('kycStatusPendingTitle')}</h3>
             <p className="text-amber-700 text-sm mt-1">
-              Your identity documents were submitted on {new Date(verification.submittedAt).toLocaleDateString()} and are currently pending review in the Master Admin panel.
+              {t('kycStatusPendingDesc')}
             </p>
           </div>
         </div>
@@ -257,7 +259,7 @@ export default function VerificationPage() {
         <div className="bg-red-50 border border-red-200 rounded-2xl p-6 flex items-start gap-4">
           <AlertCircle size={28} className="text-red-600 shrink-0 mt-0.5" />
           <div>
-            <h3 className="font-heading font-bold text-lg text-red-900">Verification Request Rejected</h3>
+            <h3 className="font-heading font-bold text-lg text-red-900">{t('kycStatusRejectedTitle')}</h3>
             <p className="text-red-700 text-sm mt-1">
               Reason: <strong>{verification?.rejectionReason ?? 'Document photos were blurry or unreadable.'}</strong>
             </p>
@@ -284,12 +286,12 @@ export default function VerificationPage() {
           {/* Step 1: Personal Details */}
           <div className="space-y-4">
             <h2 className="font-heading font-semibold text-lg text-black flex items-center gap-2 border-b border-black/5 pb-3">
-              <UserCheck size={18} className="text-ast-primary" /> 1. Personal Information
+              <UserCheck size={18} className="text-ast-primary" /> {t('kycStep1')}
             </h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-ast-dark mb-1.5">Full Legal Name *</label>
+                <label className="block text-xs font-semibold text-ast-dark mb-1.5">{t('kycFullName')}</label>
                 <input
                   type="text"
                   required
@@ -301,7 +303,7 @@ export default function VerificationPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-ast-dark mb-1.5">Date of Birth *</label>
+                <label className="block text-xs font-semibold text-ast-dark mb-1.5">{t('kycDob')}</label>
                 <input
                   type="date"
                   required
@@ -312,7 +314,7 @@ export default function VerificationPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-ast-dark mb-1.5">Country of Residence *</label>
+                <label className="block text-xs font-semibold text-ast-dark mb-1.5">{t('kycCountry')}</label>
                 <select
                   value={country}
                   onChange={e => setCountry(e.target.value)}
@@ -331,7 +333,7 @@ export default function VerificationPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-ast-dark mb-1.5">Document Type *</label>
+                <label className="block text-xs font-semibold text-ast-dark mb-1.5">{t('kycDocType')}</label>
                 <select
                   value={documentType}
                   onChange={e => setDocumentType(e.target.value)}
@@ -347,7 +349,7 @@ export default function VerificationPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-ast-dark mb-1.5">Document ID Number *</label>
+              <label className="block text-xs font-semibold text-ast-dark mb-1.5">{t('kycDocNumber')}</label>
               <input
                 type="text"
                 required
@@ -362,12 +364,12 @@ export default function VerificationPage() {
           {/* Step 2: Document Photos Upload */}
           <div className="space-y-4 pt-4">
             <h2 className="font-heading font-semibold text-lg text-black flex items-center gap-2 border-b border-black/5 pb-3">
-              <FileText size={18} className="text-ast-primary" /> 2. Upload Document Photos (Scanned &amp; Verified)
+              <FileText size={18} className="text-ast-primary" /> {t('kycStep2')}
             </h2>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <UploadBox
-                label="ID Front Side"
+                label={t('kycIdFront')}
                 subtitle="Clear, readable photo"
                 value={idFrontUrl}
                 onChange={setIdFrontUrl}
@@ -375,7 +377,7 @@ export default function VerificationPage() {
               />
 
               <UploadBox
-                label="ID Back Side"
+                label={t('kycIdBack')}
                 subtitle="Barcode / signature side"
                 value={idBackUrl}
                 onChange={setIdBackUrl}
@@ -383,7 +385,7 @@ export default function VerificationPage() {
               />
 
               <UploadBox
-                label="Selfie Verification"
+                label={t('kycSelfie')}
                 subtitle="Holding your ID card"
                 value={selfieUrl}
                 onChange={setSelfieUrl}
@@ -399,11 +401,11 @@ export default function VerificationPage() {
           >
             {submitting ? (
               <span className="flex items-center gap-2">
-                <Loader2 size={18} className="animate-spin" /> Submitting Verification...
+                <Loader2 size={18} className="animate-spin" /> {t('kycSubmitting')}
               </span>
             ) : (
               <>
-                {status === 'PENDING' ? 'Update & Resubmit Verification' : 'Submit Verification Request'} <ArrowRight size={18} />
+                {status === 'PENDING' ? t('kycResubmit') : t('kycSubmit')} <ArrowRight size={18} />
               </>
             )}
           </button>
